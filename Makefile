@@ -18,8 +18,9 @@ $(CODE_GENERATORS):
 # Code Generation
 
 OUTPUT_PKG=github.com/kkohtaka/kubernetesimal/pkg/client
-FQ_APIS=github.com/kkohtaka/kubernetesimal/pkg/apis/github/v1alpha1
 APIS_PKG=github.com/kkohtaka/kubernetesimal/pkg/apis
+APIS=github/v1alpha1
+FQ_APIS=github.com/kkohtaka/kubernetesimal/pkg/apis/github/v1alpha1
 
 OUTPUT_FILE_BASE=zz_generated
 CLIENTSET_NAME=versioned
@@ -44,6 +45,8 @@ defaulter-gen: $(CODE_GENERATORS)
 client-gen: $(CODE_GENERATORS)
 	./bin/client-gen \
 		--go-header-file $(GO_HEADER_FILE) \
+		--input $(APIS) \
+		--input-base $(APIS_PKG) \
 		--input-dirs $(FQ_APIS) \
 		--clientset-name $(CLIENTSET_NAME) \
 		--output-package $(OUTPUT_PKG)/clientset

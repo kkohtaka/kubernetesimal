@@ -3,6 +3,7 @@
 package fake
 
 import (
+	githubv1alpha1 "github.com/kkohtaka/kubernetesimal/pkg/apis/github/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -13,7 +14,9 @@ import (
 var scheme = runtime.NewScheme()
 var codecs = serializer.NewCodecFactory(scheme)
 var parameterCodec = runtime.NewParameterCodec(scheme)
-var localSchemeBuilder = runtime.SchemeBuilder{}
+var localSchemeBuilder = runtime.SchemeBuilder{
+	githubv1alpha1.AddToScheme,
+}
 
 // AddToScheme adds all types of this clientset into the given scheme. This allows composition
 // of clientsets, like in:

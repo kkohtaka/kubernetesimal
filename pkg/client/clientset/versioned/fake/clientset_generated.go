@@ -4,6 +4,8 @@ package fake
 
 import (
 	clientset "github.com/kkohtaka/kubernetesimal/pkg/client/clientset/versioned"
+	githubv1alpha1 "github.com/kkohtaka/kubernetesimal/pkg/client/clientset/versioned/typed/github/v1alpha1"
+	fakegithubv1alpha1 "github.com/kkohtaka/kubernetesimal/pkg/client/clientset/versioned/typed/github/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -52,3 +54,13 @@ func (c *Clientset) Discovery() discovery.DiscoveryInterface {
 }
 
 var _ clientset.Interface = &Clientset{}
+
+// GithubV1alpha1 retrieves the GithubV1alpha1Client
+func (c *Clientset) GithubV1alpha1() githubv1alpha1.GithubV1alpha1Interface {
+	return &fakegithubv1alpha1.FakeGithubV1alpha1{Fake: &c.Fake}
+}
+
+// Github retrieves the GithubV1alpha1Client
+func (c *Clientset) Github() githubv1alpha1.GithubV1alpha1Interface {
+	return &fakegithubv1alpha1.FakeGithubV1alpha1{Fake: &c.Fake}
+}
