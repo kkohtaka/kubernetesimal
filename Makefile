@@ -1,3 +1,5 @@
+default: build
+
 # Code Generator Binaries
 
 CODE_GENERATORS= \
@@ -69,3 +71,22 @@ informer-gen: $(CODE_GENERATORS)
 
 .PHONY: codegen
 codegen: deepcopy-gen defaulter-gen client-gen lister-gen informer-gen
+
+
+# Build
+
+REPO=github.com/kkohtaka/kubernetesimal
+GO_VERSION=1.11
+
+TARGETS=$(shell find ./cmd -name main.go)
+
+.PHONY: build
+build:
+	for target in $(TARGETS); do \
+		docker container run \
+			--rm \
+			--volume $(shell pwd):/go/src/$(REPO) \
+			--workdir /go/src/$(REPO) \
+			golang:$(GO_VERSION) \
+			go build -o build/$$(basename $$(dirname $$target)) $$target; \
+	done
