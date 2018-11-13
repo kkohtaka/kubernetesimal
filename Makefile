@@ -10,11 +10,9 @@ CODE_GENERATORS= \
 	bin/deepcopy-gen
 
 $(CODE_GENERATORS):
-	go build -o bin/defaulter-gen vendor/k8s.io/code-generator/cmd/defaulter-gen/main.go
-	go build -o bin/client-gen    vendor/k8s.io/code-generator/cmd/client-gen/main.go
-	go build -o bin/lister-gen    vendor/k8s.io/code-generator/cmd/lister-gen/main.go
-	go build -o bin/informer-gen  vendor/k8s.io/code-generator/cmd/informer-gen/main.go
-	go build -o bin/deepcopy-gen  vendor/k8s.io/code-generator/cmd/deepcopy-gen/main.go
+	for generator in $(CODE_GENERATORS); do \
+		go build -o $$generator vendor/k8s.io/code-generator/cmd/$$(basename $$generator)/main.go; \
+	done
 
 
 # Code Generation
