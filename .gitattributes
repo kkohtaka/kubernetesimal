@@ -1,3 +1,0 @@
-/pkg/apis/**/zz_generated.deepcopy.go linguist-generated=true
-/pkg/apis/**/zz_generated.defaults.go linguist-generated=true
-/pkg/client linguist-generated=true
