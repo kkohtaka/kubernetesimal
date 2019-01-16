@@ -18,6 +18,7 @@ package packetdevice
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"time"
 
@@ -29,6 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -44,6 +46,8 @@ import (
 var log = logf.Log.WithName("controller")
 
 const (
+	controllerName = "packetdevice-controller"
+
 	defaultSecretName = "packet-secret"
 
 	secretKeyAPIKey = "apiKey"
@@ -51,6 +55,11 @@ const (
 	defaultBillingCycle = "hourly"
 
 	defaultFinalizer = "finalizer.packetdevices.packet.kkohtaka.org"
+
+	EventReasonCreated        = "Created"
+	EventReasonUpdated        = "Updated"
+	EventReasonDeleted        = "Deleted"
+	EventReasonFailedToUpdate = "FailedToUpdate"
 )
 
 // Add creates a new PacketDevice Controller and adds it to the Manager with default RBAC. The Manager will set fields
@@ -61,13 +70,27 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcilePacketDevice{Client: mgr.GetClient(), scheme: mgr.GetScheme()}
+	b := record.NewBroadcaster()
+	b.StartLogging(func(format string, args ...interface{}) {
+		log.Info(fmt.Sprintf(format, args...))
+	})
+	b.StartEventWatcher(func(event *v1.Event) {
+		mgr.GetClient().Create(context.TODO(), event)
+	})
+	return &ReconcilePacketDevice{
+		Client: mgr.GetClient(),
+		scheme: mgr.GetScheme(),
+		recorder: b.NewRecorder(
+			mgr.GetScheme(),
+			v1.EventSource{Component: controllerName},
+		),
+	}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
-	c, err := controller.New("packetdevice-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
@@ -86,7 +109,8 @@ var _ reconcile.Reconciler = &ReconcilePacketDevice{}
 // ReconcilePacketDevice reconciles a PacketDevice object
 type ReconcilePacketDevice struct {
 	client.Client
-	scheme *runtime.Scheme
+	scheme   *runtime.Scheme
+	recorder record.EventRecorder
 }
 
 // Reconcile reads that state of the cluster for a PacketDevice object and makes changes based on the state read
@@ -298,5 +322,20 @@ func (u *updater) update() error {
 	if reflect.DeepEqual(u.old, u.new) {
 		return nil
 	}
-	return u.r.Update(context.TODO(), u.new)
+	if err := u.r.Update(context.TODO(), u.new); err != nil {
+		u.r.recorder.Eventf(
+			u.new, v1.EventTypeWarning, EventReasonFailedToUpdate,
+			"Failed to update PacketDevice %s/%s", u.new.Namespace, u.new.Name)
+		return err
+	}
+	if isDeleted(&u.new.ObjectMeta) && !hasFinalizer(&u.new.ObjectMeta) {
+		u.r.recorder.Eventf(
+			u.new, v1.EventTypeNormal, EventReasonDeleted,
+			"Deleted PacketDevice %s/%s", u.new.Namespace, u.new.Name)
+	} else {
+		u.r.recorder.Eventf(
+			u.new, v1.EventTypeNormal, EventReasonUpdated,
+			"Updated PacketDevice %s/%s", u.new.Namespace, u.new.Name)
+	}
+	return nil
 }
