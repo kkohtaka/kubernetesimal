@@ -34,6 +34,8 @@ type PacketDeviceSpec struct {
 type PacketDeviceStatus struct {
 	ID    string `json:"id"`
 	State State  `json:"state"`
+
+	IPAddresses []IPAddress `json:"ipAddresses,omitempty"`
 }
 
 type State string
@@ -59,6 +61,16 @@ func StringToState(state string) State {
 	default:
 		return StateUnknown
 	}
+}
+
+type IPAddress struct {
+	ID            string `json:"id"`
+	Address       string `json:"address"`
+	Gateway       string `json:"gateway"`
+	Network       string `json:"network"`
+	AddressFamily int    `json:"addressFamily"`
+	Netmask       string `json:"netmask"`
+	Public        bool   `json:"public"`
 }
 
 // +genclient

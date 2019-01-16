@@ -160,7 +160,7 @@ func (r *ReconcilePacketDevice) Reconcile(request reconcile.Request) (reconcile.
 		}
 	}
 
-	if err = newUpdater(r, device).id(d.ID).state(d.State).update(); err != nil {
+	if err = newUpdater(r, device).device(d).update(); err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "update device: %v", request.NamespacedName)
 	}
 
@@ -263,13 +263,24 @@ func newUpdater(r *ReconcilePacketDevice, d *packetv1alpha1.PacketDevice) *updat
 	return &u
 }
 
-func (u *updater) state(state string) *updater {
-	u.new.Status.State = packetv1alpha1.StringToState(state)
-	return u
-}
+func (u *updater) device(d *packngo.Device) *updater {
+	u.new.Status.State = packetv1alpha1.StringToState(d.State)
+	u.new.Status.ID = d.ID
 
-func (u *updater) id(id string) *updater {
-	u.new.Status.ID = id
+	u.new.Status.IPAddresses = make([]packetv1alpha1.IPAddress, len(d.Network))
+	for i := range d.Network {
+		ipAddress := d.Network[i]
+		u.new.Status.IPAddresses[i] = packetv1alpha1.IPAddress{
+			ID:            ipAddress.ID,
+			Address:       ipAddress.Address,
+			Gateway:       ipAddress.Gateway,
+			Network:       ipAddress.Network,
+			AddressFamily: ipAddress.AddressFamily,
+			Netmask:       ipAddress.Netmask,
+			Public:        ipAddress.Public,
+		}
+	}
+
 	return u
 }
 
