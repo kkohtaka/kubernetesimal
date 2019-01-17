@@ -149,18 +149,20 @@ func (r *ReconcilePacketDevice) Reconcile(request reconcile.Request) (reconcile.
 			}
 		}
 
-		err = newUpdater(r, device).removeFinalizer().update()
+		err = newUpdater(r, device).removeFinalizer().update(context.Background())
 		if err != nil {
-			return reconcile.Result{}, errors.Wrapf(err, "remove finalizer from device: %v", request.NamespacedName)
+			return reconcile.Result{Requeue: true},
+				errors.Wrapf(err, "remove finalizer from device: %v", request.NamespacedName)
 		}
 
 		return reconcile.Result{}, nil
 	}
 
 	if !hasFinalizer(&device.ObjectMeta) {
-		err = newUpdater(r, device).setFinalizer().update()
+		err = newUpdater(r, device).setFinalizer().update(context.Background())
 		if err != nil {
-			return reconcile.Result{}, errors.Wrapf(err, "set finalizer on device: %v", request.NamespacedName)
+			return reconcile.Result{Requeue: true},
+				errors.Wrapf(err, "set finalizer on device: %v", request.NamespacedName)
 		}
 	}
 
@@ -184,7 +186,7 @@ func (r *ReconcilePacketDevice) Reconcile(request reconcile.Request) (reconcile.
 		}
 	}
 
-	if err = newUpdater(r, device).device(d).update(); err != nil {
+	if err = newUpdater(r, device).device(d).update(context.TODO()); err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "update device: %v", request.NamespacedName)
 	}
 
@@ -318,11 +320,11 @@ func (u *updater) removeFinalizer() *updater {
 	return u
 }
 
-func (u *updater) update() error {
+func (u *updater) update(ctx context.Context) error {
 	if reflect.DeepEqual(u.old, u.new) {
 		return nil
 	}
-	if err := u.r.Update(context.TODO(), u.new); err != nil {
+	if err := u.r.Update(ctx, u.new); err != nil {
 		u.r.recorder.Eventf(
 			u.new, v1.EventTypeWarning, EventReasonFailedToUpdate,
 			"Failed to update PacketDevice %s/%s", u.new.Namespace, u.new.Name)
