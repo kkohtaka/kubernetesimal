@@ -49,6 +49,34 @@ spec:
           properties:
             id:
               type: string
+            ipAddresses:
+              items:
+                properties:
+                  address:
+                    type: string
+                  addressFamily:
+                    format: int64
+                    type: integer
+                  gateway:
+                    type: string
+                  id:
+                    type: string
+                  netmask:
+                    type: string
+                  network:
+                    type: string
+                  public:
+                    type: boolean
+                required:
+                - id
+                - address
+                - gateway
+                - network
+                - addressFamily
+                - netmask
+                - public
+                type: object
+              type: array
             state:
               type: string
           required:
