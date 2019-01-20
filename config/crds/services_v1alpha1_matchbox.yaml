@@ -29,6 +29,16 @@ spec:
         spec:
           type: object
         status:
+          properties:
+            packetDeviceRef:
+              properties:
+                name:
+                  type: string
+              type: object
+            ready:
+              type: boolean
+          required:
+          - ready
           type: object
   version: v1alpha1
 status:

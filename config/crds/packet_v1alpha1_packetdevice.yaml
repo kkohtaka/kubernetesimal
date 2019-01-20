@@ -77,9 +77,12 @@ spec:
                 - public
                 type: object
               type: array
+            ready:
+              type: boolean
             state:
               type: string
           required:
+          - ready
           - id
           - state
           type: object

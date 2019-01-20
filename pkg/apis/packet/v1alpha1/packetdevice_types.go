@@ -32,9 +32,10 @@ type PacketDeviceSpec struct {
 
 // PacketDeviceStatus defines the observed state of PacketDevice
 type PacketDeviceStatus struct {
-	ID    string `json:"id"`
-	State State  `json:"state"`
+	Ready bool `json:"ready"`
 
+	ID          string      `json:"id"`
+	State       State       `json:"state"`
 	IPAddresses []IPAddress `json:"ipAddresses,omitempty"`
 }
 

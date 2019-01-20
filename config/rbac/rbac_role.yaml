@@ -5,26 +5,6 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - services.kkohtaka.org
-  resources:
-  - matchboxes
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - services.kkohtaka.org
-  resources:
-  - matchboxes/status
-  verbs:
-  - get
-  - update
-  - patch
-- apiGroups:
   - packet.kkohtaka.org
   resources:
   - packetdevices
@@ -37,13 +17,29 @@ rules:
   - patch
   - delete
 - apiGroups:
-  - packet.kkohtaka.org
+  - services.kkohtaka.org
   resources:
-  - packetdevices/status
+  - matchboxes
   verbs:
   - get
+  - list
+  - watch
+  - create
   - update
   - patch
+  - delete
+- apiGroups:
+  - packet.kkohtaka.org
+  resources:
+  - packetdevices
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
 - apiGroups:
   - apps
   resources:

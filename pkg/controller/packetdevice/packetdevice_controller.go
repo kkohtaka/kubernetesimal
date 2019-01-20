@@ -27,7 +27,6 @@ import (
 
 	"k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -41,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	packetv1alpha1 "github.com/kkohtaka/kubernetesimal/pkg/apis/packet/v1alpha1"
+	"github.com/kkohtaka/kubernetesimal/pkg/util"
 )
 
 var log = logf.Log.WithName("controller")
@@ -53,8 +53,6 @@ const (
 	secretKeyAPIKey = "apiKey"
 
 	defaultBillingCycle = "hourly"
-
-	defaultFinalizer = "finalizer.packetdevices.packet.kkohtaka.org"
 
 	EventReasonCreated        = "Created"
 	EventReasonUpdated        = "Updated"
@@ -117,7 +115,6 @@ type ReconcilePacketDevice struct {
 // and what is in the PacketDevice.Spec
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
 // +kubebuilder:rbac:groups=packet.kkohtaka.org,resources=packetdevices,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=packet.kkohtaka.org,resources=packetdevices/status,verbs=get;update;patch
 func (r *ReconcilePacketDevice) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	device := &packetv1alpha1.PacketDevice{}
 	if err := r.Get(context.TODO(), request.NamespacedName, device); err != nil {
@@ -141,7 +138,7 @@ func (r *ReconcilePacketDevice) Reconcile(request reconcile.Request) (reconcile.
 		return reconcile.Result{}, errors.Wrap(err, "create Packet client")
 	}
 
-	if isDeleted(&device.ObjectMeta) {
+	if util.IsDeleted(&device.ObjectMeta) {
 		if device.Status.ID != "" {
 			_, err = packet.Devices.Delete(device.Status.ID)
 			if err != nil {
@@ -158,7 +155,7 @@ func (r *ReconcilePacketDevice) Reconcile(request reconcile.Request) (reconcile.
 		return reconcile.Result{}, nil
 	}
 
-	if !hasFinalizer(&device.ObjectMeta) {
+	if !util.HasFinalizer(&device.ObjectMeta) {
 		err = newUpdater(r, device).setFinalizer().update(context.Background())
 		if err != nil {
 			return reconcile.Result{Requeue: true},
@@ -186,11 +183,13 @@ func (r *ReconcilePacketDevice) Reconcile(request reconcile.Request) (reconcile.
 		}
 	}
 
-	if err = newUpdater(r, device).device(d).update(context.TODO()); err != nil {
+	ready := isDeviceActive(d)
+
+	if err = newUpdater(r, device).device(d).ready(ready).update(context.TODO()); err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "update device: %v", request.NamespacedName)
 	}
 
-	if !isDeviceActive(device) {
+	if !device.Status.Ready {
 		return reconcile.Result{
 			RequeueAfter: 15 * time.Second,
 		}, nil
@@ -243,36 +242,8 @@ func shouldUpdateDevice(d *packngo.Device, spec *packetv1alpha1.PacketDeviceSpec
 	return false
 }
 
-func isDeleted(m *metav1.ObjectMeta) bool {
-	return m.GetDeletionTimestamp() != nil
-}
-
-func hasFinalizer(m *metav1.ObjectMeta) bool {
-	for _, finalizer := range m.GetFinalizers() {
-		if finalizer == defaultFinalizer {
-			return true
-		}
-	}
-	return false
-}
-
-func setFinalizer(m *metav1.ObjectMeta) {
-	if !hasFinalizer(m) {
-		m.SetFinalizers(append(m.GetFinalizers(), defaultFinalizer))
-	}
-}
-
-func removeFinalizer(m *metav1.ObjectMeta) {
-	for i := range m.Finalizers {
-		if m.Finalizers[i] == defaultFinalizer {
-			m.SetFinalizers(append(m.Finalizers[:i], m.Finalizers[i+1:]...))
-			return
-		}
-	}
-}
-
-func isDeviceActive(d *packetv1alpha1.PacketDevice) bool {
-	return d.Status.State == packetv1alpha1.StateActive
+func isDeviceActive(d *packngo.Device) bool {
+	return d.State == string(packetv1alpha1.StateActive)
 }
 
 type updater struct {
@@ -310,13 +281,18 @@ func (u *updater) device(d *packngo.Device) *updater {
 	return u
 }
 
+func (u *updater) ready(ready bool) *updater {
+	u.new.Status.Ready = ready
+	return u
+}
+
 func (u *updater) setFinalizer() *updater {
-	setFinalizer(&u.new.ObjectMeta)
+	util.SetFinalizer(&u.new.ObjectMeta)
 	return u
 }
 
 func (u *updater) removeFinalizer() *updater {
-	removeFinalizer(&u.new.ObjectMeta)
+	util.RemoveFinalizer(&u.new.ObjectMeta)
 	return u
 }
 
@@ -330,7 +306,7 @@ func (u *updater) update(ctx context.Context) error {
 			"Failed to update PacketDevice %s/%s", u.new.Namespace, u.new.Name)
 		return err
 	}
-	if isDeleted(&u.new.ObjectMeta) && !hasFinalizer(&u.new.ObjectMeta) {
+	if util.IsDeleted(&u.new.ObjectMeta) && !util.HasFinalizer(&u.new.ObjectMeta) {
 		u.r.recorder.Eventf(
 			u.new, v1.EventTypeNormal, EventReasonDeleted,
 			"Deleted PacketDevice %s/%s", u.new.Namespace, u.new.Name)
