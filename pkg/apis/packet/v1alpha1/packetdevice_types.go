@@ -28,6 +28,7 @@ type PacketDeviceSpec struct {
 	Hostname     string `json:"hostname"`
 	OS           string `json:"os"`
 	BillingCycle string `json:"billing_cicle,omitempty"`
+	UserData     string `json:"userData,omitempty"`
 }
 
 // PacketDeviceStatus defines the observed state of PacketDevice

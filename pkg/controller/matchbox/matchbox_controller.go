@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -176,7 +177,10 @@ func (r *ReconcileMatchbox) Reconcile(request reconcile.Request) (reconcile.Resu
 	}
 
 	if pd == nil {
-		pd = newPacketDevice(m)
+		pd, err = newPacketDevice(m)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrapf(err, "generate PacketDevice for Matchbox: %s", request.NamespacedName)
+		}
 		if err := controllerutil.SetControllerReference(m, pd, r.scheme); err != nil {
 			return reconcile.Result{}, errors.Wrapf(err, "set owner reference: %s on PacketDevice", request.NamespacedName)
 		}
@@ -230,8 +234,37 @@ func newRandomHex(n int) (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-func newPacketDevice(m *servicesv1alpha1.Matchbox) *packetv1alpha1.PacketDevice {
-	return nil
+func newMatchboxHostname(m *servicesv1alpha1.Matchbox) (string, error) {
+	h, err := newRandomHex(8)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s-%s-%s", m.Namespace, m.Name, h), nil
+}
+
+func newMatchboxUserData() (string, error) {
+	return "", nil
+}
+
+func newPacketDevice(m *servicesv1alpha1.Matchbox) (*packetv1alpha1.PacketDevice, error) {
+	var err error
+	pd := packetv1alpha1.PacketDevice{}
+	pd.Spec.Hostname, err = newMatchboxHostname(m)
+	if err != nil {
+		return nil, errors.Wrap(err, "generate a hostname")
+	}
+	ignitionConfig := newIgnitionConfig()
+	userData, err := json.Marshal(&ignitionConfig)
+	if err != nil {
+		return nil, errors.Wrapf(err, "unmarshal an ignition config: %+v", ignitionConfig)
+	}
+	pd.Spec.UserData = string(userData)
+	// TODO: Make the following properties configureable
+	pd.Spec.Facility = "nrt1"
+	pd.Spec.Plan = "t1.small.x86"
+	pd.Spec.OS = "coreos_stable"
+	pd.Spec.BillingCycle = "hourly"
+	return &pd, nil
 }
 
 type updater struct {

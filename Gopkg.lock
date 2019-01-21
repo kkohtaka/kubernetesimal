@@ -18,6 +18,35 @@
   revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
 
 [[projects]]
+  digest = "1:6f0584802aa27c9eba4629e3c8830b66dbc017d3eaf5df3bab2ffb510f6750e3"
+  name = "github.com/coreos/go-semver"
+  packages = ["semver"]
+  pruneopts = "T"
+  revision = "8ab6407b697782a06568d4b7f1db25550ec2e4c6"
+  version = "v0.2.0"
+
+[[projects]]
+  digest = "1:940821b413b95fe622cb33468ed1017619c8be4a18cf1054eecc38e08b1c168a"
+  name = "github.com/coreos/go-systemd"
+  packages = ["unit"]
+  pruneopts = "T"
+  revision = "9002847aa1425fb6ac49077c0a630b3b67e0fbfd"
+  version = "v18"
+
+[[projects]]
+  digest = "1:540c6a8f1fd12ae7c204f44bd345f398994431a6816e425a42c981d0b6bef28f"
+  name = "github.com/coreos/ignition"
+  packages = [
+    "config/shared/errors",
+    "config/shared/validations",
+    "config/v2_3/types",
+    "config/validate/report",
+  ]
+  pruneopts = "T"
+  revision = "308d7a05213ae66a9317c90c042eec366bba10fb"
+  version = "v0.30.0"
+
+[[projects]]
   digest = "1:9f42202ac457c462ad8bb9642806d275af9ab4850cf0b1960b9c6f083d4a309a"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
@@ -180,6 +209,14 @@
   pruneopts = "T"
   revision = "a30252cb686a21eb2d0b98132633053ec2f7f1e5"
   version = "v1.0.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:89cd2208bdeb192cc83ee287216af3c987fc87a90b9087718ad6631b636cefcf"
+  name = "github.com/iancoleman/strcase"
+  packages = ["."]
+  pruneopts = "T"
+  revision = "3605ed457bf7f8caa1371b4fafadadc026673479"
 
 [[projects]]
   digest = "1:3477d9dd8c135faab978bac762eaeafb31f28d6da97ef500d5c271966f74140a"
@@ -425,6 +462,14 @@
   pruneopts = "T"
   revision = "298182f68c66c05229eb03ac171abe6e309ee79a"
   version = "v1.0.3"
+
+[[projects]]
+  branch = "master"
+  digest = "1:0ce7d6deabd314242197d9245a5b7902723aec4a57f062582471d288f834bb53"
+  name = "github.com/vincent-petithory/dataurl"
+  packages = ["."]
+  pruneopts = "T"
+  revision = "9a301d65acbb728fcc3ace14f45f511a4cfeea9c"
 
 [[projects]]
   digest = "1:365b8ecb35a5faf5aa0ee8d798548fc9cd4200cb95d77a5b0b285ac881bae499"
@@ -939,7 +984,9 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/coreos/ignition/config/v2_3/types",
     "github.com/emicklei/go-restful",
+    "github.com/iancoleman/strcase",
     "github.com/onsi/ginkgo",
     "github.com/onsi/gomega",
     "github.com/packethost/packngo",
@@ -956,6 +1003,7 @@
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/plugin/pkg/client/auth/gcp",
     "k8s.io/client-go/rest",
+    "k8s.io/client-go/tools/record",
     "k8s.io/code-generator/cmd/client-gen",
     "k8s.io/code-generator/cmd/deepcopy-gen",
     "sigs.k8s.io/controller-runtime/pkg/client",

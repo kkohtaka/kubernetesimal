@@ -221,6 +221,7 @@ func newDeviceCreateRequest(spec packetv1alpha1.PacketDeviceSpec) *packngo.Devic
 		Hostname:     spec.Hostname,
 		OS:           spec.OS,
 		BillingCycle: spec.BillingCycle,
+		UserData:     spec.UserData,
 	}
 }
 
