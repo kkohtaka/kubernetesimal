@@ -18,8 +18,6 @@ package matchbox
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -43,6 +41,8 @@ import (
 	packetv1alpha1 "github.com/kkohtaka/kubernetesimal/pkg/apis/packet/v1alpha1"
 	servicesv1alpha1 "github.com/kkohtaka/kubernetesimal/pkg/apis/services/v1alpha1"
 	"github.com/kkohtaka/kubernetesimal/pkg/util"
+	cryptoutil "github.com/kkohtaka/kubernetesimal/pkg/util/crypto"
+	pkiutil "github.com/kkohtaka/kubernetesimal/pkg/util/pki"
 )
 
 var log = logf.Log.WithName("controller")
@@ -54,6 +54,11 @@ const (
 	eventReasonUpdated        = "Updated"
 	eventReasonDeleted        = "Deleted"
 	eventReasonFailedToUpdate = "FailedToUpdate"
+
+	defaultCASerial = 1
+
+	certificateKey = "certificate"
+	privateKeyKey  = "private-key"
 )
 
 // Add creates a new Matchbox Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
@@ -151,6 +156,10 @@ func (r *ReconcileMatchbox) Reconcile(request reconcile.Request) (reconcile.Resu
 		}
 	}
 
+	if result, err := r.setupCACertificate(m); err != nil {
+		return *result, err
+	}
+
 	if !isSetPacketDeviceName(m) {
 		pdName, err := generatePacketDeviceName(m)
 		if err != nil {
@@ -198,6 +207,79 @@ func (r *ReconcileMatchbox) Reconcile(request reconcile.Request) (reconcile.Resu
 	return reconcile.Result{}, nil
 }
 
+func (r *ReconcileMatchbox) setupCACertificate(m *servicesv1alpha1.Matchbox) (*reconcile.Result, error) {
+	if !isSetCACertificateName(m) {
+		certName, err := generateCACertificateName(m)
+		if err != nil {
+			return &reconcile.Result{},
+				errors.Wrapf(err, "generate Secret name for Matchbox CA certificates: %s", util.NamespacedName(m))
+		}
+
+		err = newUpdater(r, m).caCertificateName(certName).update(context.TODO())
+		if err != nil {
+			return &reconcile.Result{}, errors.Wrapf(err, "update Matchbox: %s", util.NamespacedName(m))
+		}
+		return &reconcile.Result{Requeue: true}, nil
+	}
+
+	objKey := types.NamespacedName{
+		Namespace: m.Namespace,
+		Name:      getCACertificateName(m),
+	}
+	var s *v1.Secret
+	if err := r.Get(context.TODO(), objKey, s); err != nil {
+		if !kerrors.IsNotFound(err) {
+			return &reconcile.Result{}, errors.Wrapf(err, "get Secret: %s", objKey)
+		}
+	}
+
+	if s == nil {
+		var err error
+		s, err = newCACertificate(m)
+		if err != nil {
+			return &reconcile.Result{}, errors.Wrapf(err, "generate CA certificate for Matchbox: %s", util.NamespacedName(m))
+		}
+		if err := controllerutil.SetControllerReference(m, s, r.scheme); err != nil {
+			return &reconcile.Result{}, errors.Wrapf(err, "set owner reference: %s on CA certificate", util.NamespacedName(m))
+		}
+		if err := r.Create(context.TODO(), s); err != nil {
+			return &reconcile.Result{}, errors.Wrapf(err, "create Secret: %s/%s", s.Namespace, s.Name)
+		}
+	}
+	return nil, nil
+}
+
+func isSetCACertificateName(m *servicesv1alpha1.Matchbox) bool {
+	return getCACertificateName(m) == ""
+}
+
+func getCACertificateName(m *servicesv1alpha1.Matchbox) string {
+	return m.Status.CertificateRef.Name
+}
+
+func setCertificateName(m *servicesv1alpha1.Matchbox, name string) {
+	m.Status.CertificateRef.Name = name
+}
+
+func generateCACertificateName(m *servicesv1alpha1.Matchbox) (string, error) {
+	h, err := cryptoutil.NewRandomHex(8)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s-ca-%s", m.Name, h), nil
+}
+
+func newCACertificate(m *servicesv1alpha1.Matchbox) (*v1.Secret, error) {
+	ca, err := pkiutil.NewCABuilder(defaultCASerial).Build()
+	if err != nil {
+		return nil, err
+	}
+	var s *v1.Secret
+	s.Data[certificateKey] = ca.GetCertificate()
+	s.Data[privateKeyKey] = ca.GetPrivateKey()
+	return s, nil
+}
+
 func isSetPacketDeviceName(m *servicesv1alpha1.Matchbox) bool {
 	return m.Status.PacketDeviceRef.Name == ""
 }
@@ -211,31 +293,15 @@ func setPacketDeviceName(m *servicesv1alpha1.Matchbox, name string) {
 }
 
 func generatePacketDeviceName(m *servicesv1alpha1.Matchbox) (string, error) {
-	h, err := newRandomHex(8)
+	h, err := cryptoutil.NewRandomHex(8)
 	if err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("%s-%s", m.Name, h), nil
 }
 
-func newRandomHex(n int) (string, error) {
-	b := make([]byte, n)
-	offset := 0
-	for offset < n {
-		var (
-			nread int
-			err   error
-		)
-		if nread, err = rand.Read(b[offset:]); err != nil {
-			return "", err
-		}
-		offset = offset + nread
-	}
-	return hex.EncodeToString(b), nil
-}
-
 func newMatchboxHostname(m *servicesv1alpha1.Matchbox) (string, error) {
-	h, err := newRandomHex(8)
+	h, err := cryptoutil.NewRandomHex(8)
 	if err != nil {
 		return "", err
 	}
@@ -293,6 +359,11 @@ func (u *updater) removeFinalizer() *updater {
 
 func (u *updater) ready(ready bool) *updater {
 	u.new.Status.Ready = ready
+	return u
+}
+
+func (u *updater) caCertificateName(certName string) *updater {
+	u.new.Status.CertificateRef.Name = certName
 	return u
 }
 

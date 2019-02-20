@@ -29,9 +29,14 @@ type MatchboxStatus struct {
 	Ready bool `json:"ready"`
 
 	PacketDeviceRef PacketDeviceRef `json:"packetDeviceRef,omitempty"`
+	CertificateRef  SecretRef       `json:"certificateRef,omitempty"`
 }
 
 type PacketDeviceRef struct {
+	Name string `json:"name,omitempty"`
+}
+
+type SecretRef struct {
 	Name string `json:"name,omitempty"`
 }
 
