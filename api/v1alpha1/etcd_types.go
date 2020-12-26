@@ -20,22 +20,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // EtcdSpec defines the desired state of Etcd
 type EtcdSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of Etcd. Edit Etcd_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// Version is the desired version of the etcd cluster.
+	Version string `json:"version"`
 }
 
 // EtcdStatus defines the observed state of Etcd
 type EtcdStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Ready indicates whether the etcd cluster is ready or not.
+	Ready bool `json:"ready"`
 }
 
 // +kubebuilder:object:root=true

@@ -3,5 +3,4 @@ kind: Etcd
 metadata:
   name: etcd-sample
 spec:
-  # Add fields here
-  foo: bar
+  version: 3.4.14
