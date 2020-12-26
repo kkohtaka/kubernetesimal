@@ -1,9 +1,0 @@
-apiVersion: github.kkohtaka.org/v1alpha1
-kind: Repository
-metadata:
-  labels:
-    controller-tools.k8s.io: "1.0"
-  name: repository-sample
-spec:
-  # Add fields here
-  foo: bar
