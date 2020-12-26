@@ -1,3 +1,7 @@
 domain: kkohtaka.org
 repo: github.com/kkohtaka/kubernetesimal
+resources:
+- group: kubernetesimal
+  kind: Etcd
+  version: v1alpha1
 version: "2"
