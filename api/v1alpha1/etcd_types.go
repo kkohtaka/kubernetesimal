@@ -30,6 +30,9 @@ type EtcdSpec struct {
 type EtcdStatus struct {
 	// Ready indicates whether the etcd cluster is ready or not.
 	Ready bool `json:"ready"`
+
+	// VirtualMachineRef is a namespaced name of the virtual machine that composes a member of the etcd cluster.
+	VirtualMachineRef string `json:"virtualMachineRef,omitempty"`
 }
 
 // +kubebuilder:object:root=true

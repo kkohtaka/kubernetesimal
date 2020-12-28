@@ -21,6 +21,8 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	kubevirtv1 "kubevirt.io/client-go/api/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -37,11 +39,19 @@ type EtcdReconciler struct {
 // +kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds/status,verbs=get;update;patch
 
-func (r *EtcdReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	_ = context.Background()
-	_ = r.Log.WithValues("etcd", req.NamespacedName)
+func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	log := r.Log.WithValues("etcd", req.NamespacedName)
 
-	// your logic here
+	var e kubernetesimalv1alpha1.Etcd
+	if err := r.Get(ctx, req.NamespacedName, &e); err != nil {
+		log.Error(err, "unable to fetch Etcd %v", req.NamespacedName)
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	if e.Status.VirtualMachineRef == "" {
+		e.Status.VirtualMachineRef = getVirtualMachineNameFromEtcd(&e)
+
+	}
 
 	return ctrl.Result{}, nil
 }
@@ -49,5 +59,10 @@ func (r *EtcdReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 func (r *EtcdReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubernetesimalv1alpha1.Etcd{}).
+		Owns(&kubevirtv1.VirtualMachineInstance{}).
 		Complete(r)
+}
+
+func getVirtualMachineNameFromEtcd(e *kubernetesimalv1alpha1.Etcd) string {
+	return types.NamespacedName{Namespace: e.Namespace, Name: e.Name}.String()
 }
