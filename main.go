@@ -26,6 +26,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	kubevirtv1 "kubevirt.io/client-go/api/v1"
+
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 	"github.com/kkohtaka/kubernetesimal/controllers"
 	// +kubebuilder:scaffold:imports
@@ -38,6 +40,8 @@ var (
 
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
+
+	_ = kubevirtv1.AddToScheme(scheme)
 
 	_ = kubernetesimalv1alpha1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
