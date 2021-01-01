@@ -28,15 +28,28 @@ type EtcdSpec struct {
 
 // EtcdStatus defines the observed state of Etcd
 type EtcdStatus struct {
-	// Ready indicates whether the etcd cluster is ready or not.
-	Ready bool `json:"ready"`
+	// Phase indicates phase of the etcd cluster.
+	Phase EtcdPhase `json:"phase"`
 
 	// VirtualMachineRef is a namespaced name of the virtual machine that composes a member of the etcd cluster.
 	VirtualMachineRef string `json:"virtualMachineRef,omitempty"`
 }
 
+// +kubebuilder:validation:Enum=Pending;Running
+
+// EtcdPhase is a label for the phase of the etcd cluster at the current time.
+type EtcdPhase string
+
+const (
+	// EtcdPhasePending means the etcd cluster is wating to become running.
+	EtcdPhasePending EtcdPhase = "Pending"
+	// EtcdPhaseRunning means the etcd cluster is running.
+	EtcdPhaseRunning EtcdPhase = "Running"
+)
+
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 
 // Etcd is the Schema for the etcds API
 type Etcd struct {

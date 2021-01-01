@@ -8,6 +8,10 @@ metadata:
   creationTimestamp: null
   name: etcds.kubernetesimal.kkohtaka.org
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.phase
+    name: Phase
+    type: string
   group: kubernetesimal.kkohtaka.org
   names:
     kind: Etcd
@@ -45,15 +49,18 @@ spec:
         status:
           description: EtcdStatus defines the observed state of Etcd
           properties:
-            ready:
-              description: Ready indicates whether the etcd cluster is ready or not.
-              type: boolean
+            phase:
+              description: Phase indicates phase of the etcd cluster.
+              enum:
+              - Pending
+              - Running
+              type: string
             virtualMachineRef:
               description: VirtualMachineRef is a namespaced name of the virtual machine
                 that composes a member of the etcd cluster.
               type: string
           required:
-          - ready
+          - phase
           type: object
       type: object
   version: v1alpha1
