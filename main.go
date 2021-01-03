@@ -78,6 +78,10 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Etcd")
 		os.Exit(1)
 	}
+	if err = (&kubernetesimalv1alpha1.Etcd{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Etcd")
+		os.Exit(1)
+	}
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")

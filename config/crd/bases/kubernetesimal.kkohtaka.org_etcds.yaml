@@ -18,6 +18,7 @@ spec:
     listKind: EtcdList
     plural: etcds
     singular: etcd
+  preserveUnknownFields: false
   scope: Namespaced
   subresources:
     status: {}
