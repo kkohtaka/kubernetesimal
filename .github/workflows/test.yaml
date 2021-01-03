@@ -1,13 +1,14 @@
-name: build
+name: test
 
 on:
-  push:
+  push: {}
+  pull_request:
     branches:
       - main
 
 jobs:
-  build:
-    name: Build a Docker image
+  test:
+    name: Test building a Docker image
 
     runs-on: ubuntu-18.04
 
@@ -26,10 +27,4 @@ jobs:
             ${{ runner.os }}-go-
 
       - run: |
-          docker login docker.pkg.github.com --username "$USERNAME" --password "$PASSWORD"
-        env:
-          USERNAME: ${{ github.actor }}
-          PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-
-      - run: |
-          make docker-build docker-push
+          make docker-build
