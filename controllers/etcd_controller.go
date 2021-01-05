@@ -69,13 +69,18 @@ func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		)
 	}
 
-	if e.Status.VirtualMachineRef == "" {
-		e.Status.VirtualMachineRef = vmi.Name
-		if err := r.Client.Status().Update(ctx, &e); err != nil {
-			log.Error(err, "unable to update status")
-			return ctrl.Result{}, client.IgnoreNotFound(err)
-		}
-		return ctrl.Result{}, nil
+	e.Status.VirtualMachineRef = vmi.Name
+
+	switch vmi.Status.Phase {
+	case kubevirtv1.Running:
+		e.Status.Phase = kubernetesimalv1alpha1.EtcdPhaseRunning
+	default:
+		e.Status.Phase = kubernetesimalv1alpha1.EtcdPhasePending
+	}
+
+	if err := r.Client.Status().Update(ctx, &e); err != nil {
+		log.Error(err, "unable to update status")
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	return ctrl.Result{}, nil
@@ -97,7 +102,7 @@ func getVirtualMachineInstance(e *kubernetesimalv1alpha1.Etcd) *kubevirtv1.Virtu
 	return &kubevirtv1.VirtualMachineInstance{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: e.Namespace,
-			Name:      e.Name,
+			Name:      getVirtualMachineInstanceName(e),
 		},
 		Spec: kubevirtv1.VirtualMachineInstanceSpec{
 			Domain: kubevirtv1.DomainSpec{
