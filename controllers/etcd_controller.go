@@ -19,8 +19,10 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -44,29 +46,87 @@ type EtcdReconciler struct {
 //+kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachineinstances,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds/status,verbs=get;update;patch
 
+const (
+	finalizerName = "kubernetesimal.kkohtaka.org/finalizer"
+)
+
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := log.FromContext(ctx).WithValues("parent", req.NamespacedName)
+	logger := log.FromContext(ctx).WithValues("etcd", req.NamespacedName)
 
 	var e kubernetesimalv1alpha1.Etcd
 	if err := r.Get(ctx, req.NamespacedName, &e); err != nil {
+		if apierrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
 		logger.Error(err, "unable to fetch Etcd")
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		return ctrl.Result{}, err
 	}
 
-	vmi := getVirtualMachineInstance(&e)
-	opRes, err := ctrl.CreateOrUpdate(ctx, r.Client, vmi, func() error {
-		return ctrl.SetControllerReference(&e, &vmi.ObjectMeta, r.Scheme)
+	if e.ObjectMeta.DeletionTimestamp.IsZero() {
+		if !controllerutil.ContainsFinalizer(&e, finalizerName) {
+			controllerutil.AddFinalizer(&e, finalizerName)
+			if err := r.Update(ctx, &e); err != nil {
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{}, nil
+		}
+	} else {
+		if controllerutil.ContainsFinalizer(&e, finalizerName) {
+			if deleted, err := r.deleteExternalResources(ctx, &e); err != nil {
+				return ctrl.Result{}, err
+			} else if !deleted {
+				return ctrl.Result{Requeue: true}, err
+			}
+
+			controllerutil.RemoveFinalizer(&e, finalizerName)
+			if err := r.Update(ctx, &e); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		return ctrl.Result{}, nil
+	}
+
+	status, err := r.reconcileExternalResources(ctx, &e, e.Spec, e.Status)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	return r.updateStatus(ctx, &e, status)
+}
+
+func (r *EtcdReconciler) deleteExternalResources(ctx context.Context, e *kubernetesimalv1alpha1.Etcd) (bool, error) {
+	key := types.NamespacedName{Name: newVirtualMachineInstanceName(e)}
+	var vmi kubevirtv1.VirtualMachineInstance
+	if err := r.Client.Get(ctx, key, &vmi); err != nil {
+		if apierrors.IsNotFound(err) {
+			return true, nil
+		}
+		return false, err
+	}
+	if vmi.DeletionTimestamp.IsZero() {
+		if err := r.Client.Delete(ctx, &vmi, &client.DeleteOptions{}); err != nil {
+			if apierrors.IsNotFound(err) {
+				return true, nil
+			}
+			return false, err
+		}
+	}
+	return false, nil
+}
+
+func (r *EtcdReconciler) reconcileExternalResources(
+	ctx context.Context,
+	e *kubernetesimalv1alpha1.Etcd,
+	spec kubernetesimalv1alpha1.EtcdSpec,
+	status kubernetesimalv1alpha1.EtcdStatus,
+) (kubernetesimalv1alpha1.EtcdStatus, error) {
+	vmi := newVirtualMachineInstance(e)
+	_, err := ctrl.CreateOrUpdate(ctx, r.Client, vmi, func() error {
+		return ctrl.SetControllerReference(e, &vmi.ObjectMeta, r.Scheme)
 	})
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("unable to create VirtualMachineInstance: %w", err)
-	}
-	if opRes != controllerutil.OperationResultNone {
-		logger.Info(
-			string(opRes),
-			"VirtualMachineInstance", types.NamespacedName{Namespace: vmi.Namespace, Name: vmi.Name},
-		)
+		return status, fmt.Errorf("unable to create VirtualMachineInstance: %w", err)
 	}
 
 	e.Status.VirtualMachineRef = vmi.Name
@@ -77,12 +137,26 @@ func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	default:
 		e.Status.Phase = kubernetesimalv1alpha1.EtcdPhasePending
 	}
+	return status, nil
+}
 
-	if err := r.Client.Status().Update(ctx, &e); err != nil {
-		logger.Error(err, "unable to update status")
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+func (r *EtcdReconciler) updateStatus(
+	ctx context.Context,
+	e *kubernetesimalv1alpha1.Etcd,
+	status kubernetesimalv1alpha1.EtcdStatus,
+) (ctrl.Result, error) {
+	logger := log.FromContext(ctx).WithValues("etcd", types.NamespacedName{Namespace: e.Namespace, Name: e.Name})
+	if !reflect.DeepEqual(status, e.Status) {
+		patch := client.MergeFrom(e)
+		e.Status = status
+		if err := r.Client.Status().Patch(ctx, e, patch); err != nil {
+			if apierrors.IsNotFound(err) {
+				return ctrl.Result{}, nil
+			}
+			logger.Error(err, "unable to update status")
+			return ctrl.Result{}, err
+		}
 	}
-
 	return ctrl.Result{}, nil
 }
 
@@ -95,14 +169,14 @@ func (r *EtcdReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 var (
-	defaultResourceMemoryForEtcd = resource.MustParse("64M")
+	defaultResourceMemoryForEtcd = resource.MustParse("1024M")
 )
 
-func getVirtualMachineInstance(e *kubernetesimalv1alpha1.Etcd) *kubevirtv1.VirtualMachineInstance {
+func newVirtualMachineInstance(e *kubernetesimalv1alpha1.Etcd) *kubevirtv1.VirtualMachineInstance {
 	return &kubevirtv1.VirtualMachineInstance{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: e.Namespace,
-			Name:      getVirtualMachineInstanceName(e),
+			Name:      newVirtualMachineInstanceName(e),
 		},
 		Spec: kubevirtv1.VirtualMachineInstanceSpec{
 			Domain: kubevirtv1.DomainSpec{
@@ -116,6 +190,6 @@ func getVirtualMachineInstance(e *kubernetesimalv1alpha1.Etcd) *kubevirtv1.Virtu
 	}
 }
 
-func getVirtualMachineInstanceName(e *kubernetesimalv1alpha1.Etcd) string {
+func newVirtualMachineInstanceName(e *kubernetesimalv1alpha1.Etcd) string {
 	return e.Name
 }
