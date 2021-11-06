@@ -1,7 +1,16 @@
 domain: kkohtaka.org
+layout:
+- go.kubebuilder.io/v3
+projectName: kubernetesimal
 repo: github.com/kkohtaka/kubernetesimal
 resources:
-- group: kubernetesimal
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kkohtaka.org
+  group: kubernetesimal
   kind: Etcd
+  path: github.com/kkohtaka/kubernetesimal/api/v1alpha1
   version: v1alpha1
-version: "2"
+version: "3"

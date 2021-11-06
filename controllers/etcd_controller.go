@@ -1,5 +1,5 @@
 /*
-Copyright 2020 Kazumasa Kohtaka <kkohtaka@gmail.com>.
+Copyright 2021.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,6 +29,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 )
@@ -37,21 +37,21 @@ import (
 // EtcdReconciler reconciles a Etcd object
 type EtcdReconciler struct {
 	client.Client
-	Log    logr.Logger
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachineinstances,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachineinstances,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds/status,verbs=get;update;patch
 
-// Reconcile reconciles Etcd resources.
+// Reconcile is part of the main kubernetes reconciliation loop which aims to
+// move the current state of the cluster closer to the desired state.
 func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := r.Log.WithValues("etcd", req.NamespacedName)
+	logger := log.FromContext(ctx).WithValues("parent", req.NamespacedName)
 
 	var e kubernetesimalv1alpha1.Etcd
 	if err := r.Get(ctx, req.NamespacedName, &e); err != nil {
-		log.Error(err, "unable to fetch Etcd")
+		logger.Error(err, "unable to fetch Etcd")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -63,7 +63,7 @@ func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{}, fmt.Errorf("unable to create VirtualMachineInstance: %w", err)
 	}
 	if opRes != controllerutil.OperationResultNone {
-		log.Info(
+		logger.Info(
 			string(opRes),
 			"VirtualMachineInstance", types.NamespacedName{Namespace: vmi.Namespace, Name: vmi.Name},
 		)
@@ -79,14 +79,14 @@ func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	}
 
 	if err := r.Client.Status().Update(ctx, &e); err != nil {
-		log.Error(err, "unable to update status")
+		logger.Error(err, "unable to update status")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	return ctrl.Result{}, nil
 }
 
-// SetupWithManager setups the Etcd controller with controller-runtime's manager.
+// SetupWithManager sets up the controller with the Manager.
 func (r *EtcdReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubernetesimalv1alpha1.Etcd{}).

@@ -1,5 +1,5 @@
 /*
-Copyright 2020 Kazumasa Kohtaka <kkohtaka@gmail.com>.
+Copyright 2021.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ type EtcdStatus struct {
 	VirtualMachineRef string `json:"virtualMachineRef,omitempty"`
 }
 
-// +kubebuilder:validation:Enum=Pending;Running
+//+kubebuilder:validation:Enum=Pending;Running
 
 // EtcdPhase is a label for the phase of the etcd cluster at the current time.
 type EtcdPhase string
@@ -47,9 +47,9 @@ const (
 	EtcdPhaseRunning EtcdPhase = "Running"
 )
 
-// +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+//+kubebuilder:object:root=true
+//+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 
 // Etcd is the Schema for the etcds API
 type Etcd struct {
@@ -60,7 +60,7 @@ type Etcd struct {
 	Status EtcdStatus `json:"status,omitempty"`
 }
 
-// +kubebuilder:object:root=true
+//+kubebuilder:object:root=true
 
 // EtcdList contains a list of Etcd
 type EtcdList struct {
