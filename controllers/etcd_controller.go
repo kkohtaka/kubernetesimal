@@ -43,8 +43,8 @@ type EtcdReconciler struct {
 }
 
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachineinstances,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds/finalizers,verbs=update
 
 const (
 	finalizerName = "kubernetesimal.kkohtaka.org/finalizer"
@@ -54,6 +54,7 @@ const (
 // move the current state of the cluster closer to the desired state.
 func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx).WithValues("etcd", req.NamespacedName)
+	log.IntoContext(ctx, logger)
 
 	var e kubernetesimalv1alpha1.Etcd
 	if err := r.Get(ctx, req.NamespacedName, &e); err != nil {
@@ -129,13 +130,15 @@ func (r *EtcdReconciler) reconcileExternalResources(
 		return status, fmt.Errorf("unable to create VirtualMachineInstance: %w", err)
 	}
 
-	e.Status.VirtualMachineRef = vmi.Name
+	status.VirtualMachineRef = &corev1.LocalObjectReference{
+		Name: vmi.Name,
+	}
 
 	switch vmi.Status.Phase {
 	case kubevirtv1.Running:
-		e.Status.Phase = kubernetesimalv1alpha1.EtcdPhaseRunning
+		status.Phase = kubernetesimalv1alpha1.EtcdPhaseRunning
 	default:
-		e.Status.Phase = kubernetesimalv1alpha1.EtcdPhasePending
+		status.Phase = kubernetesimalv1alpha1.EtcdPhasePending
 	}
 	return status, nil
 }
@@ -145,9 +148,9 @@ func (r *EtcdReconciler) updateStatus(
 	e *kubernetesimalv1alpha1.Etcd,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (ctrl.Result, error) {
-	logger := log.FromContext(ctx).WithValues("etcd", types.NamespacedName{Namespace: e.Namespace, Name: e.Name})
+	logger := log.FromContext(ctx)
 	if !reflect.DeepEqual(status, e.Status) {
-		patch := client.MergeFrom(e)
+		patch := client.MergeFrom(e.DeepCopy())
 		e.Status = status
 		if err := r.Client.Status().Patch(ctx, e, patch); err != nil {
 			if apierrors.IsNotFound(err) {
@@ -156,6 +159,7 @@ func (r *EtcdReconciler) updateStatus(
 			logger.Error(err, "unable to update status")
 			return ctrl.Result{}, err
 		}
+		logger.Info("status is updated")
 	}
 	return ctrl.Result{}, nil
 }
@@ -164,7 +168,6 @@ func (r *EtcdReconciler) updateStatus(
 func (r *EtcdReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubernetesimalv1alpha1.Etcd{}).
-		Owns(&kubevirtv1.VirtualMachineInstance{}).
 		Complete(r)
 }
 

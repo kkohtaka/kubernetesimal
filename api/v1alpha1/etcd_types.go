@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -31,8 +32,7 @@ type EtcdStatus struct {
 	// Phase indicates phase of the etcd cluster.
 	Phase EtcdPhase `json:"phase"`
 
-	// VirtualMachineRef is a namespaced name of the virtual machine that composes a member of the etcd cluster.
-	VirtualMachineRef string `json:"virtualMachineRef,omitempty"`
+	VirtualMachineRef *corev1.LocalObjectReference `json:"virtualMachineRef,omitempty"`
 }
 
 //+kubebuilder:validation:Enum=Pending;Running

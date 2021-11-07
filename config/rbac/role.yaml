@@ -21,20 +21,14 @@ rules:
 - apiGroups:
   - kubernetesimal.kkohtaka.org
   resources:
+  - etcds/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - kubernetesimal.kkohtaka.org
+  resources:
   - etcds/status
   verbs:
   - get
   - patch
   - update
-- apiGroups:
-  - kubevirt.io
-  resources:
-  - virtualmachineinstances
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch

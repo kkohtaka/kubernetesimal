@@ -50,6 +50,7 @@ func init() {
 	utilruntime.Must(kubernetesimalv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 
+	os.Setenv(kubevirtv1.KubeVirtClientGoSchemeRegistrationVersionEnvVar, "v1")
 	utilruntime.Must(kubevirtv1.AddToScheme(scheme))
 }
 
