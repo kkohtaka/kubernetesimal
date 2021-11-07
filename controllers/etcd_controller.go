@@ -45,6 +45,7 @@ type EtcdReconciler struct {
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds/finalizers,verbs=update
+//+kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachineinstances,verbs=get;list;watch;create;update;patch;delete
 
 const (
 	finalizerName = "kubernetesimal.kkohtaka.org/finalizer"
@@ -78,7 +79,7 @@ func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			if deleted, err := r.deleteExternalResources(ctx, &e); err != nil {
 				return ctrl.Result{}, err
 			} else if !deleted {
-				return ctrl.Result{Requeue: true}, err
+				return ctrl.Result{}, nil
 			}
 
 			controllerutil.RemoveFinalizer(&e, finalizerName)
@@ -97,21 +98,35 @@ func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 }
 
 func (r *EtcdReconciler) deleteExternalResources(ctx context.Context, e *kubernetesimalv1alpha1.Etcd) (bool, error) {
-	key := types.NamespacedName{Name: newVirtualMachineInstanceName(e)}
+	logger := log.FromContext(ctx)
+	if e.Status.VirtualMachineRef == nil {
+		return true, nil
+	}
+	key := types.NamespacedName{
+		Namespace: e.Namespace,
+		Name:      e.Status.VirtualMachineRef.Name,
+	}
 	var vmi kubevirtv1.VirtualMachineInstance
 	if err := r.Client.Get(ctx, key, &vmi); err != nil {
 		if apierrors.IsNotFound(err) {
+			logger.Info("VirtualMachineInstance has been deleted")
 			return true, nil
 		}
+		logger.Error(err, "unable to get VirtualMachineInstance")
 		return false, err
 	}
 	if vmi.DeletionTimestamp.IsZero() {
 		if err := r.Client.Delete(ctx, &vmi, &client.DeleteOptions{}); err != nil {
 			if apierrors.IsNotFound(err) {
+				logger.Info("VirtualMachineInstance has been deleted")
 				return true, nil
 			}
+			logger.Error(err, "unable to delete VirtualMachineInstance")
 			return false, err
 		}
+		logger.Info("start deleting VirtualMachineInstance")
+	} else {
+		logger.Info("VirtualMachineInstance is beeing deleted")
 	}
 	return false, nil
 }
@@ -168,6 +183,7 @@ func (r *EtcdReconciler) updateStatus(
 func (r *EtcdReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubernetesimalv1alpha1.Etcd{}).
+		Owns(&kubevirtv1.VirtualMachineInstance{}).
 		Complete(r)
 }
 
