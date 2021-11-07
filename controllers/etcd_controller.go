@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"reflect"
 
@@ -189,9 +190,19 @@ func (r *EtcdReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 var (
 	defaultResourceMemoryForEtcd = resource.MustParse("1024M")
+
+	//go:embed cloud-config
+	cloudConfig string
 )
 
 func newVirtualMachineInstance(e *kubernetesimalv1alpha1.Etcd) *kubevirtv1.VirtualMachineInstance {
+	const (
+		DiskKeyForContainer = "containerdisk"
+		DiskKeyForCloudInit = "cloudinitdisk"
+
+		ContainerDiskImage = "kubevirt/fedora-cloud-container-disk-demo"
+	)
+
 	return &kubevirtv1.VirtualMachineInstance{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: e.Namespace,
@@ -199,9 +210,53 @@ func newVirtualMachineInstance(e *kubernetesimalv1alpha1.Etcd) *kubevirtv1.Virtu
 		},
 		Spec: kubevirtv1.VirtualMachineInstanceSpec{
 			Domain: kubevirtv1.DomainSpec{
+				Devices: kubevirtv1.Devices{
+					Disks: []kubevirtv1.Disk{
+						{
+							Name: DiskKeyForContainer,
+							DiskDevice: kubevirtv1.DiskDevice{
+								Disk: &kubevirtv1.DiskTarget{
+									Bus: "virtio",
+								},
+							},
+						},
+						{
+							Name: DiskKeyForCloudInit,
+							DiskDevice: kubevirtv1.DiskDevice{
+								Disk: &kubevirtv1.DiskTarget{
+									Bus: "virtio",
+								},
+							},
+						},
+					},
+					Interfaces: []kubevirtv1.Interface{
+						*kubevirtv1.DefaultMasqueradeNetworkInterface(),
+					},
+				},
 				Resources: kubevirtv1.ResourceRequirements{
 					Requests: corev1.ResourceList{
 						corev1.ResourceMemory: defaultResourceMemoryForEtcd,
+					},
+				},
+			},
+			Networks: []kubevirtv1.Network{
+				*kubevirtv1.DefaultPodNetwork(),
+			},
+			Volumes: []kubevirtv1.Volume{
+				{
+					Name: DiskKeyForContainer,
+					VolumeSource: kubevirtv1.VolumeSource{
+						ContainerDisk: &kubevirtv1.ContainerDiskSource{
+							Image: ContainerDiskImage,
+						},
+					},
+				},
+				{
+					Name: DiskKeyForCloudInit,
+					VolumeSource: kubevirtv1.VolumeSource{
+						CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
+							UserData: cloudConfig,
+						},
 					},
 				},
 			},
