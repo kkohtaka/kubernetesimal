@@ -20,6 +20,9 @@ spec:
     - jsonPath: .status.phase
       name: Phase
       type: string
+    - jsonPath: .status.ip
+      name: IP
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -49,6 +52,10 @@ spec:
           status:
             description: EtcdStatus defines the observed state of Etcd
             properties:
+              ip:
+                description: IP is an IPv4 address of a VirtualMachineInstance that
+                  composes an etcd node.
+                type: string
               phase:
                 description: Phase indicates phase of the etcd cluster.
                 enum:
@@ -56,8 +63,8 @@ spec:
                 - Running
                 type: string
               virtualMachineRef:
-                description: LocalObjectReference contains enough information to let
-                  you locate the referenced object inside the same namespace.
+                description: VirtualMachineRef is a reference to a VirtualMachineInstance
+                  that composes an etcd node.
                 properties:
                   name:
                     description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names

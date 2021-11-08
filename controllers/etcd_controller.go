@@ -150,6 +150,14 @@ func (r *EtcdReconciler) reconcileExternalResources(
 		Name: vmi.Name,
 	}
 
+	status.IP = ""
+	for i := range vmi.Status.Interfaces {
+		if vmi.Status.Interfaces[i].Name == "default" {
+			status.IP = vmi.Status.Interfaces[i].IP
+			break
+		}
+	}
+
 	switch vmi.Status.Phase {
 	case kubevirtv1.Running:
 		status.Phase = kubernetesimalv1alpha1.EtcdPhaseRunning

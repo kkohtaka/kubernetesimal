@@ -32,7 +32,10 @@ type EtcdStatus struct {
 	// Phase indicates phase of the etcd cluster.
 	Phase EtcdPhase `json:"phase"`
 
+	// VirtualMachineRef is a reference to a VirtualMachineInstance that composes an etcd node.
 	VirtualMachineRef *corev1.LocalObjectReference `json:"virtualMachineRef,omitempty"`
+	// IP is an IPv4 address of a VirtualMachineInstance that composes an etcd node.
+	IP string `json:"ip,omitempty"`
 }
 
 //+kubebuilder:validation:Enum=Pending;Running
@@ -50,6 +53,7 @@ const (
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+//+kubebuilder:printcolumn:name="IP",type=string,JSONPath=`.status.ip`
 
 // Etcd is the Schema for the etcds API
 type Etcd struct {
