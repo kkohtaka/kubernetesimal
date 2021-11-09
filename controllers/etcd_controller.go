@@ -20,9 +20,9 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -173,7 +173,7 @@ func (r *EtcdReconciler) updateStatus(
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
-	if !reflect.DeepEqual(status, e.Status) {
+	if !apiequality.Semantic.DeepEqual(status, e.Status) {
 		patch := client.MergeFrom(e.DeepCopy())
 		e.Status = status
 		if err := r.Client.Status().Patch(ctx, e, patch); err != nil {
