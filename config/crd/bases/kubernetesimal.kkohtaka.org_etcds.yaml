@@ -62,6 +62,15 @@ spec:
                 - Pending
                 - Running
                 type: string
+              sshKeyPairSecretRef:
+                description: SSHKeyPairSecretRef is a reference to a Secret that contains
+                  an SSH key-pair.
+                properties:
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      TODO: Add other useful fields. apiVersion, kind, uid?'
+                    type: string
+                type: object
               virtualMachineRef:
                 description: VirtualMachineRef is a reference to a VirtualMachineInstance
                   that composes an etcd node.

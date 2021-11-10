@@ -32,6 +32,8 @@ type EtcdStatus struct {
 	// Phase indicates phase of the etcd cluster.
 	Phase EtcdPhase `json:"phase"`
 
+	// SSHKeyPairSecretRef is a reference to a Secret that contains an SSH key-pair.
+	SSHKeyPairSecretRef *corev1.LocalObjectReference `json:"sshKeyPairSecretRef,omitempty"`
 	// VirtualMachineRef is a reference to a VirtualMachineInstance that composes an etcd node.
 	VirtualMachineRef *corev1.LocalObjectReference `json:"virtualMachineRef,omitempty"`
 	// IP is an IPv4 address of a VirtualMachineInstance that composes an etcd node.

@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
+	"github.com/kkohtaka/kubernetesimal/ssh"
 )
 
 // EtcdReconciler reconciles a Etcd object
@@ -99,6 +100,60 @@ func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 }
 
 func (r *EtcdReconciler) deleteExternalResources(ctx context.Context, e *kubernetesimalv1alpha1.Etcd) (bool, error) {
+	if deleted, err := r.deleteSSHKeyPairSecret(ctx, e); err != nil {
+		return false, err
+	} else if !deleted {
+		return false, nil
+	}
+	if deleted, err := r.deleteVirtualMachineInstance(ctx, e); err != nil {
+		return false, err
+	} else if !deleted {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (r *EtcdReconciler) deleteSSHKeyPairSecret(
+	ctx context.Context,
+	e *kubernetesimalv1alpha1.Etcd,
+) (bool, error) {
+	logger := log.FromContext(ctx)
+	if e.Status.SSHKeyPairSecretRef == nil {
+		return true, nil
+	}
+	key := types.NamespacedName{
+		Namespace: e.Namespace,
+		Name:      e.Status.SSHKeyPairSecretRef.Name,
+	}
+	var sshKeyPair corev1.Secret
+	if err := r.Client.Get(ctx, key, &sshKeyPair); err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.Info("Secret has been deleted")
+			return true, nil
+		}
+		logger.Error(err, "unable to get Secret")
+		return false, err
+	}
+	if sshKeyPair.DeletionTimestamp.IsZero() {
+		if err := r.Client.Delete(ctx, &sshKeyPair, &client.DeleteOptions{}); err != nil {
+			if apierrors.IsNotFound(err) {
+				logger.Info("Secret has been deleted")
+				return true, nil
+			}
+			logger.Error(err, "unable to delete Secret")
+			return false, err
+		}
+		logger.Info("start deleting Secret")
+	} else {
+		logger.Info("Secret is beeing deleted")
+	}
+	return false, nil
+}
+
+func (r *EtcdReconciler) deleteVirtualMachineInstance(
+	ctx context.Context,
+	e *kubernetesimalv1alpha1.Etcd,
+) (bool, error) {
 	logger := log.FromContext(ctx)
 	if e.Status.VirtualMachineRef == nil {
 		return true, nil
@@ -138,8 +193,12 @@ func (r *EtcdReconciler) reconcileExternalResources(
 	spec kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
-	vmi := newVirtualMachineInstance(e)
-	_, err := ctrl.CreateOrUpdate(ctx, r.Client, vmi, func() error {
+	_, _, sshKeyPairRef, err := r.reconcileSSHKeyPair(ctx, e, spec, status)
+	if err != nil {
+		return status, fmt.Errorf("unable to prepare an SSH keypair: %w", err)
+	}
+	status.SSHKeyPairSecretRef = sshKeyPairRef
+	_, err = ctrl.CreateOrUpdate(ctx, r.Client, vmi, func() error {
 		return ctrl.SetControllerReference(e, &vmi.ObjectMeta, r.Scheme)
 	})
 	if err != nil {
@@ -165,6 +224,68 @@ func (r *EtcdReconciler) reconcileExternalResources(
 		status.Phase = kubernetesimalv1alpha1.EtcdPhasePending
 	}
 	return status, nil
+}
+
+const (
+	sshKeyPairKeyPrivateKey = "private-key"
+	sshKeyPairKeyPublicKey  = "public-key"
+)
+
+func newSSHKeyPair(
+	e *kubernetesimalv1alpha1.Etcd,
+	privateKey, publicKey []byte,
+) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: e.Namespace,
+			Name:      newSSHKeyPairName(e),
+		},
+		Data: map[string][]byte{
+			sshKeyPairKeyPrivateKey: privateKey,
+			sshKeyPairKeyPublicKey:  publicKey,
+		},
+	}
+}
+
+func (r *EtcdReconciler) reconcileSSHKeyPair(
+	ctx context.Context,
+	e *kubernetesimalv1alpha1.Etcd,
+	_ kubernetesimalv1alpha1.EtcdSpec,
+	status kubernetesimalv1alpha1.EtcdStatus,
+) ([]byte, []byte, *corev1.LocalObjectReference, error) {
+	var sshKeyPair corev1.Secret
+	if status.SSHKeyPairSecretRef != nil {
+		if err := r.Client.Get(
+			ctx,
+			types.NamespacedName{Namespace: e.Namespace, Name: newSSHKeyPairName(e)},
+			&sshKeyPair,
+		); err != nil {
+			if !apierrors.IsNotFound(err) {
+				return nil, nil, nil, fmt.Errorf("unable to get a Secret for an SSH keypair: %w", err)
+			}
+		} else {
+			return sshKeyPair.Data[sshKeyPairKeyPrivateKey],
+				sshKeyPair.Data[sshKeyPairKeyPublicKey],
+				status.SSHKeyPairSecretRef,
+				nil
+		}
+	}
+
+	privateKey, publicKey, err := ssh.GenerateKeyPair()
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("unable to create an SSH keypair: %w", err)
+	}
+	sshKeyPair = *newSSHKeyPair(e, privateKey, publicKey)
+	_, err = ctrl.CreateOrUpdate(ctx, r.Client, &sshKeyPair, func() error {
+		return ctrl.SetControllerReference(e, &sshKeyPair.ObjectMeta, r.Scheme)
+	})
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("unable to create a Secret for an SSH keypair: %w", err)
+	}
+	return privateKey,
+		publicKey,
+		&corev1.LocalObjectReference{Name: sshKeyPair.Name},
+		nil
 }
 
 func (r *EtcdReconciler) updateStatus(
@@ -270,6 +391,8 @@ func newVirtualMachineInstance(e *kubernetesimalv1alpha1.Etcd) *kubevirtv1.Virtu
 			},
 		},
 	}
+func newSSHKeyPairName(e *kubernetesimalv1alpha1.Etcd) string {
+	return "ssh-keypair-" + e.Name
 }
 
 func newVirtualMachineInstanceName(e *kubernetesimalv1alpha1.Etcd) string {
