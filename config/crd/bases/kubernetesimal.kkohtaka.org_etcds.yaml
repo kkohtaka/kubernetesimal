@@ -62,9 +62,45 @@ spec:
                 - Pending
                 - Running
                 type: string
-              sshKeyPairSecretRef:
-                description: SSHKeyPairSecretRef is a reference to a Secret that contains
-                  an SSH key-pair.
+              sshPrivateKeyRef:
+                description: SSHPrivateKeyRef is a reference to a Secret key that
+                  composes an SSH private key.
+                properties:
+                  key:
+                    description: The key of the secret to select from.  Must be a
+                      valid secret key.
+                    type: string
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      TODO: Add other useful fields. apiVersion, kind, uid?'
+                    type: string
+                  optional:
+                    description: Specify whether the Secret or its key must be defined
+                    type: boolean
+                required:
+                - key
+                type: object
+              sshPublicKeyRef:
+                description: SSHPublicKeyRef is a reference to a Secret key that composes
+                  an SSH public key.
+                properties:
+                  key:
+                    description: The key of the secret to select from.  Must be a
+                      valid secret key.
+                    type: string
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      TODO: Add other useful fields. apiVersion, kind, uid?'
+                    type: string
+                  optional:
+                    description: Specify whether the Secret or its key must be defined
+                    type: boolean
+                required:
+                - key
+                type: object
+              userDataRef:
+                description: UserDataRef is a reference to a Secret that contains
+                  a userdata used to start a virtual machine instance.
                 properties:
                   name:
                     description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names

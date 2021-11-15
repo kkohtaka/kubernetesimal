@@ -7,6 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -42,4 +43,21 @@ func ReconcileSecret(
 		return nil, fmt.Errorf("unable to create Secret %s: %w", ObjectName(&secret.ObjectMeta), err)
 	}
 	return &secret, nil
+}
+
+func GetValueFromSecretKeySelector(
+	ctx context.Context,
+	c client.Client,
+	namespace string,
+	selector *corev1.SecretKeySelector,
+) ([]byte, error) {
+	var secret corev1.Secret
+	key := types.NamespacedName{
+		Namespace: namespace,
+		Name:      selector.LocalObjectReference.Name,
+	}
+	if err := c.Get(ctx, key, &secret); err != nil {
+		return nil, fmt.Errorf("unable to get Secret %s: %w", key, err)
+	}
+	return nil, nil
 }

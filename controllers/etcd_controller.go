@@ -120,12 +120,12 @@ func (r *EtcdReconciler) deleteSSHKeyPairSecret(
 	e *kubernetesimalv1alpha1.Etcd,
 ) (bool, error) {
 	logger := log.FromContext(ctx)
-	if e.Status.SSHKeyPairSecretRef == nil {
+	if e.Status.SSHPrivateKeyRef == nil {
 		return true, nil
 	}
 	key := types.NamespacedName{
 		Namespace: e.Namespace,
-		Name:      e.Status.SSHKeyPairSecretRef.Name,
+		Name:      e.Status.SSHPrivateKeyRef.Name,
 	}
 	var sshKeyPair corev1.Secret
 	if err := r.Client.Get(ctx, key, &sshKeyPair); err != nil {
@@ -195,18 +195,20 @@ func (r *EtcdReconciler) reconcileExternalResources(
 	spec kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
-	_, publicKey, sshKeyPairRef, err := r.reconcileSSHKeyPair(ctx, e, spec, status)
+	sshPrivateKeyRef, sshPublicKeyRef, err := r.reconcileSSHKeyPair(ctx, e, spec, status)
 	if err != nil {
 		return status, fmt.Errorf("unable to prepare an SSH keypair: %w", err)
 	}
-	status.SSHKeyPairSecretRef = sshKeyPairRef
+	status.SSHPrivateKeyRef = sshPrivateKeyRef
+	status.SSHPublicKeyRef = sshPublicKeyRef
 
-	userDataRef, err := r.reconcileUserData(ctx, e, spec, status, [][]byte{publicKey})
+	userDataRef, err := r.reconcileUserData(ctx, e, spec, status)
 	if err != nil {
 		return status, fmt.Errorf("unable to prepare a userdata: %w", err)
 	}
+	status.UserDataRef = userDataRef
 
-	vmiRef, err := r.reconcileVirtualMachineInstance(ctx, e, spec, status, userDataRef)
+	vmiRef, err := r.reconcileVirtualMachineInstance(ctx, e, spec, status)
 	if err != nil {
 		return status, fmt.Errorf("unable to prepare a virtual machine instance: %w", err)
 	}
@@ -225,28 +227,40 @@ func (r *EtcdReconciler) reconcileSSHKeyPair(
 	e *kubernetesimalv1alpha1.Etcd,
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
-) ([]byte, []byte, *corev1.LocalObjectReference, error) {
+) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
+	if status.SSHPrivateKeyRef != nil {
+		if name := status.SSHPrivateKeyRef.LocalObjectReference.Name; name != newSSHKeyPairName(e) {
+			return nil, nil, fmt.Errorf("invalid Secret name %s to store an SSH private key", name)
+		}
+	}
+	if status.SSHPublicKeyRef != nil {
+		if name := status.SSHPublicKeyRef.LocalObjectReference.Name; name != newSSHKeyPairName(e) {
+			return nil, nil, fmt.Errorf("invalid Secret name %s to store an SSH public key", name)
+		}
+	}
+
 	var sshKeyPair corev1.Secret
-	if status.SSHKeyPairSecretRef != nil {
+	if status.SSHPrivateKeyRef != nil && status.SSHPublicKeyRef != nil {
 		if err := r.Client.Get(
 			ctx,
-			types.NamespacedName{Namespace: e.Namespace, Name: newSSHKeyPairName(e)},
+			types.NamespacedName{Namespace: e.Namespace, Name: status.SSHPrivateKeyRef.Name},
 			&sshKeyPair,
 		); err != nil {
 			if !apierrors.IsNotFound(err) {
-				return nil, nil, nil, fmt.Errorf("unable to get a Secret for an SSH keypair: %w", err)
+				return nil, nil, fmt.Errorf("unable to get a Secret for an SSH keypair: %w", err)
 			}
 		} else {
-			return sshKeyPair.Data[sshKeyPairKeyPrivateKey],
-				sshKeyPair.Data[sshKeyPairKeyPublicKey],
-				status.SSHKeyPairSecretRef,
-				nil
+			_, hasPrivateKey := sshKeyPair.Data[status.SSHPrivateKeyRef.Key]
+			_, hasPublicKey := sshKeyPair.Data[status.SSHPublicKeyRef.Key]
+			if hasPrivateKey && hasPublicKey {
+				return status.SSHPrivateKeyRef, status.SSHPublicKeyRef, nil
+			}
 		}
 	}
 
 	privateKey, publicKey, err := ssh.GenerateKeyPair()
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("unable to create an SSH keypair: %w", err)
+		return nil, nil, fmt.Errorf("unable to create an SSH keypair: %w", err)
 	}
 	if secret, err := k8s.ReconcileSecret(
 		ctx,
@@ -260,11 +274,20 @@ func (r *EtcdReconciler) reconcileSSHKeyPair(
 		k8s.WithDataWithKey(sshKeyPairKeyPrivateKey, privateKey),
 		k8s.WithDataWithKey(sshKeyPairKeyPublicKey, publicKey),
 	); err != nil {
-		return nil, nil, nil, fmt.Errorf("unable to create a Secret for an SSH keypair: %w", err)
+		return nil, nil, fmt.Errorf("unable to create a Secret for an SSH keypair: %w", err)
 	} else {
-		return privateKey,
-			publicKey,
-			&corev1.LocalObjectReference{Name: secret.Name},
+		return &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: secret.Name,
+				},
+				Key: sshKeyPairKeyPrivateKey,
+			},
+			&corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: secret.Name,
+				},
+				Key: sshKeyPairKeyPublicKey,
+			},
 			nil
 	}
 }
@@ -278,9 +301,18 @@ func (r *EtcdReconciler) reconcileUserData(
 	ctx context.Context,
 	e *kubernetesimalv1alpha1.Etcd,
 	_ kubernetesimalv1alpha1.EtcdSpec,
-	_ kubernetesimalv1alpha1.EtcdStatus,
-	authorizedKeys [][]byte,
+	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.LocalObjectReference, error) {
+	publicKey, err := k8s.GetValueFromSecretKeySelector(
+		ctx,
+		r.Client,
+		e.Namespace,
+		status.SSHPublicKeyRef,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get an SSH public key: %w", err)
+	}
+
 	buf := bytes.Buffer{}
 	tmpl, err := template.New("cloud-init").Parse(cloudConfigTemplate)
 	if err != nil {
@@ -291,7 +323,7 @@ func (r *EtcdReconciler) reconcileUserData(
 		&struct {
 			AuthorizedKeys [][]byte
 		}{
-			AuthorizedKeys: authorizedKeys,
+			AuthorizedKeys: [][]byte{publicKey},
 		},
 	); err != nil {
 		return nil, fmt.Errorf("unable to render a cloud-config from a template: %w", err)
@@ -320,8 +352,7 @@ func (r *EtcdReconciler) reconcileVirtualMachineInstance(
 	ctx context.Context,
 	e *kubernetesimalv1alpha1.Etcd,
 	_ kubernetesimalv1alpha1.EtcdSpec,
-	_ kubernetesimalv1alpha1.EtcdStatus,
-	userDataRef *corev1.LocalObjectReference,
+	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.LocalObjectReference, error) {
 	if vmi, err := k8s.ReconcileVirtualMachineInstance(
 		ctx,
@@ -332,7 +363,7 @@ func (r *EtcdReconciler) reconcileVirtualMachineInstance(
 			k8s.WithName(newVirtualMachineInstanceName(e)),
 			k8s.WithNamespace(e.Namespace),
 		),
-		k8s.WithUserData(userDataRef),
+		k8s.WithUserData(status.UserDataRef),
 	); err != nil {
 		return nil, fmt.Errorf("unable to create VirtualMachineInstance: %w", err)
 	} else {
