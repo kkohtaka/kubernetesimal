@@ -17,15 +17,15 @@ limitations under the License.
 package controllers
 
 import (
+	"bytes"
 	"context"
 	_ "embed"
 	"fmt"
+	"html/template"
 
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	kubevirtv1 "kubevirt.io/client-go/api/v1"
@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
+	"github.com/kkohtaka/kubernetesimal/k8s"
 	"github.com/kkohtaka/kubernetesimal/ssh"
 )
 
@@ -193,36 +194,23 @@ func (r *EtcdReconciler) reconcileExternalResources(
 	spec kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
-	_, _, sshKeyPairRef, err := r.reconcileSSHKeyPair(ctx, e, spec, status)
+	_, publicKey, sshKeyPairRef, err := r.reconcileSSHKeyPair(ctx, e, spec, status)
 	if err != nil {
 		return status, fmt.Errorf("unable to prepare an SSH keypair: %w", err)
 	}
 	status.SSHKeyPairSecretRef = sshKeyPairRef
-	_, err = ctrl.CreateOrUpdate(ctx, r.Client, vmi, func() error {
-		return ctrl.SetControllerReference(e, &vmi.ObjectMeta, r.Scheme)
-	})
+
+	userDataRef, err := r.reconcileUserData(ctx, e, spec, status, [][]byte{publicKey})
 	if err != nil {
-		return status, fmt.Errorf("unable to create VirtualMachineInstance: %w", err)
+		return status, fmt.Errorf("unable to prepare a userdata: %w", err)
 	}
 
-	status.VirtualMachineRef = &corev1.LocalObjectReference{
-		Name: vmi.Name,
+	vmiRef, err := r.reconcileVirtualMachineInstance(ctx, e, spec, status, userDataRef)
+	if err != nil {
+		return status, fmt.Errorf("unable to prepare a virtual machine instance: %w", err)
 	}
+	status.VirtualMachineRef = vmiRef
 
-	status.IP = ""
-	for i := range vmi.Status.Interfaces {
-		if vmi.Status.Interfaces[i].Name == "default" {
-			status.IP = vmi.Status.Interfaces[i].IP
-			break
-		}
-	}
-
-	switch vmi.Status.Phase {
-	case kubevirtv1.Running:
-		status.Phase = kubernetesimalv1alpha1.EtcdPhaseRunning
-	default:
-		status.Phase = kubernetesimalv1alpha1.EtcdPhasePending
-	}
 	return status, nil
 }
 
@@ -230,22 +218,6 @@ const (
 	sshKeyPairKeyPrivateKey = "private-key"
 	sshKeyPairKeyPublicKey  = "public-key"
 )
-
-func newSSHKeyPair(
-	e *kubernetesimalv1alpha1.Etcd,
-	privateKey, publicKey []byte,
-) *corev1.Secret {
-	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: e.Namespace,
-			Name:      newSSHKeyPairName(e),
-		},
-		Data: map[string][]byte{
-			sshKeyPairKeyPrivateKey: privateKey,
-			sshKeyPairKeyPublicKey:  publicKey,
-		},
-	}
-}
 
 func (r *EtcdReconciler) reconcileSSHKeyPair(
 	ctx context.Context,
@@ -275,17 +247,110 @@ func (r *EtcdReconciler) reconcileSSHKeyPair(
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("unable to create an SSH keypair: %w", err)
 	}
-	sshKeyPair = *newSSHKeyPair(e, privateKey, publicKey)
-	_, err = ctrl.CreateOrUpdate(ctx, r.Client, &sshKeyPair, func() error {
-		return ctrl.SetControllerReference(e, &sshKeyPair.ObjectMeta, r.Scheme)
-	})
-	if err != nil {
+	if secret, err := k8s.ReconcileSecret(
+		ctx,
+		e,
+		r.Scheme,
+		r.Client,
+		k8s.NewObjectMeta(
+			k8s.WithName(newSSHKeyPairName(e)),
+			k8s.WithNamespace(e.Namespace),
+		),
+		k8s.WithDataWithKey(sshKeyPairKeyPrivateKey, privateKey),
+		k8s.WithDataWithKey(sshKeyPairKeyPublicKey, publicKey),
+	); err != nil {
 		return nil, nil, nil, fmt.Errorf("unable to create a Secret for an SSH keypair: %w", err)
+	} else {
+		return privateKey,
+			publicKey,
+			&corev1.LocalObjectReference{Name: secret.Name},
+			nil
 	}
-	return privateKey,
-		publicKey,
-		&corev1.LocalObjectReference{Name: sshKeyPair.Name},
-		nil
+}
+
+var (
+	//go:embed cloud-config.tmpl
+	cloudConfigTemplate string
+)
+
+func (r *EtcdReconciler) reconcileUserData(
+	ctx context.Context,
+	e *kubernetesimalv1alpha1.Etcd,
+	_ kubernetesimalv1alpha1.EtcdSpec,
+	_ kubernetesimalv1alpha1.EtcdStatus,
+	authorizedKeys [][]byte,
+) (*corev1.LocalObjectReference, error) {
+	buf := bytes.Buffer{}
+	tmpl, err := template.New("cloud-init").Parse(cloudConfigTemplate)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse a template of cloud-config: %w", err)
+	}
+	if err := tmpl.Execute(
+		&buf,
+		&struct {
+			AuthorizedKeys [][]byte
+		}{
+			AuthorizedKeys: authorizedKeys,
+		},
+	); err != nil {
+		return nil, fmt.Errorf("unable to render a cloud-config from a template: %w", err)
+	}
+
+	if secret, err := k8s.ReconcileSecret(
+		ctx,
+		e,
+		r.Scheme,
+		r.Client,
+		k8s.NewObjectMeta(
+			k8s.WithName(newUserDataName(e)),
+			k8s.WithNamespace(e.Namespace),
+		),
+		k8s.WithDataWithKey("userdata", buf.Bytes()),
+	); err != nil {
+		return nil, fmt.Errorf("unable to create Secret: %w", err)
+	} else {
+		return &corev1.LocalObjectReference{
+			Name: secret.Name,
+		}, nil
+	}
+}
+
+func (r *EtcdReconciler) reconcileVirtualMachineInstance(
+	ctx context.Context,
+	e *kubernetesimalv1alpha1.Etcd,
+	_ kubernetesimalv1alpha1.EtcdSpec,
+	_ kubernetesimalv1alpha1.EtcdStatus,
+	userDataRef *corev1.LocalObjectReference,
+) (*corev1.LocalObjectReference, error) {
+	if vmi, err := k8s.ReconcileVirtualMachineInstance(
+		ctx,
+		e,
+		r.Scheme,
+		r.Client,
+		k8s.NewObjectMeta(
+			k8s.WithName(newVirtualMachineInstanceName(e)),
+			k8s.WithNamespace(e.Namespace),
+		),
+		k8s.WithUserData(userDataRef),
+	); err != nil {
+		return nil, fmt.Errorf("unable to create VirtualMachineInstance: %w", err)
+	} else {
+		return &corev1.LocalObjectReference{
+			Name: vmi.Name,
+		}, nil
+	}
+}
+
+func newSSHKeyPairName(e *kubernetesimalv1alpha1.Etcd) string {
+	return "ssh-keypair-" + e.Name
+}
+
+func newUserDataName(e *kubernetesimalv1alpha1.Etcd) string {
+	return "userdata-" + e.Name
+}
+
+func newVirtualMachineInstanceName(e *kubernetesimalv1alpha1.Etcd) string {
+	return e.Name
 }
 
 func (r *EtcdReconciler) updateStatus(
@@ -294,6 +359,34 @@ func (r *EtcdReconciler) updateStatus(
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
+
+	status.IP = ""
+	status.Phase = kubernetesimalv1alpha1.EtcdPhasePending
+	if status.VirtualMachineRef != nil {
+		key := types.NamespacedName{
+			Name:      status.VirtualMachineRef.Name,
+			Namespace: e.Namespace,
+		}
+		var vmi kubevirtv1.VirtualMachineInstance
+		if err := r.Get(ctx, key, &vmi); err != nil {
+			if !apierrors.IsNotFound(err) {
+				return ctrl.Result{}, fmt.Errorf("unable to get VirtualMachineInstance %s: %w", key, err)
+			}
+		} else {
+			for i := range vmi.Status.Interfaces {
+				if vmi.Status.Interfaces[i].Name == "default" {
+					status.IP = vmi.Status.Interfaces[i].IP
+					break
+				}
+			}
+
+			switch vmi.Status.Phase {
+			case kubevirtv1.Running:
+				status.Phase = kubernetesimalv1alpha1.EtcdPhaseRunning
+			}
+		}
+	}
+
 	if !apiequality.Semantic.DeepEqual(status, e.Status) {
 		patch := client.MergeFrom(e.DeepCopy())
 		e.Status = status
@@ -313,88 +406,7 @@ func (r *EtcdReconciler) updateStatus(
 func (r *EtcdReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubernetesimalv1alpha1.Etcd{}).
+		Owns(&corev1.Secret{}).
 		Owns(&kubevirtv1.VirtualMachineInstance{}).
 		Complete(r)
-}
-
-var (
-	defaultResourceMemoryForEtcd = resource.MustParse("1024M")
-
-	//go:embed cloud-config
-	cloudConfig string
-)
-
-func newVirtualMachineInstance(e *kubernetesimalv1alpha1.Etcd) *kubevirtv1.VirtualMachineInstance {
-	const (
-		DiskKeyForContainer = "containerdisk"
-		DiskKeyForCloudInit = "cloudinitdisk"
-
-		ContainerDiskImage = "kubevirt/fedora-cloud-container-disk-demo"
-	)
-
-	return &kubevirtv1.VirtualMachineInstance{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: e.Namespace,
-			Name:      newVirtualMachineInstanceName(e),
-		},
-		Spec: kubevirtv1.VirtualMachineInstanceSpec{
-			Domain: kubevirtv1.DomainSpec{
-				Devices: kubevirtv1.Devices{
-					Disks: []kubevirtv1.Disk{
-						{
-							Name: DiskKeyForContainer,
-							DiskDevice: kubevirtv1.DiskDevice{
-								Disk: &kubevirtv1.DiskTarget{
-									Bus: "virtio",
-								},
-							},
-						},
-						{
-							Name: DiskKeyForCloudInit,
-							DiskDevice: kubevirtv1.DiskDevice{
-								Disk: &kubevirtv1.DiskTarget{
-									Bus: "virtio",
-								},
-							},
-						},
-					},
-					Interfaces: []kubevirtv1.Interface{
-						*kubevirtv1.DefaultMasqueradeNetworkInterface(),
-					},
-				},
-				Resources: kubevirtv1.ResourceRequirements{
-					Requests: corev1.ResourceList{
-						corev1.ResourceMemory: defaultResourceMemoryForEtcd,
-					},
-				},
-			},
-			Networks: []kubevirtv1.Network{
-				*kubevirtv1.DefaultPodNetwork(),
-			},
-			Volumes: []kubevirtv1.Volume{
-				{
-					Name: DiskKeyForContainer,
-					VolumeSource: kubevirtv1.VolumeSource{
-						ContainerDisk: &kubevirtv1.ContainerDiskSource{
-							Image: ContainerDiskImage,
-						},
-					},
-				},
-				{
-					Name: DiskKeyForCloudInit,
-					VolumeSource: kubevirtv1.VolumeSource{
-						CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
-							UserData: cloudConfig,
-						},
-					},
-				},
-			},
-		},
-	}
-func newSSHKeyPairName(e *kubernetesimalv1alpha1.Etcd) string {
-	return "ssh-keypair-" + e.Name
-}
-
-func newVirtualMachineInstanceName(e *kubernetesimalv1alpha1.Etcd) string {
-	return e.Name
 }
