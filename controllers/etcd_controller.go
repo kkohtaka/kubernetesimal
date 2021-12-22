@@ -321,9 +321,9 @@ func (r *EtcdReconciler) reconcileUserData(
 	if err := tmpl.Execute(
 		&buf,
 		&struct {
-			AuthorizedKeys [][]byte
+			AuthorizedKeys []string
 		}{
-			AuthorizedKeys: [][]byte{publicKey},
+			AuthorizedKeys: []string{string(publicKey)},
 		},
 	); err != nil {
 		return nil, fmt.Errorf("unable to render a cloud-config from a template: %w", err)
