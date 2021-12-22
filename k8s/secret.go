@@ -59,5 +59,5 @@ func GetValueFromSecretKeySelector(
 	if err := c.Get(ctx, key, &secret); err != nil {
 		return nil, fmt.Errorf("unable to get Secret %s: %w", key, err)
 	}
-	return nil, nil
+	return secret.Data[selector.Key], nil
 }
