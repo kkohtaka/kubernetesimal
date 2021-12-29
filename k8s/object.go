@@ -26,6 +26,15 @@ func WithNamespace(namespace string) ObjectMetaOption {
 	}
 }
 
+func WithLabel(key, value string) ObjectMetaOption {
+	return func(o *metav1.ObjectMeta) {
+		if o.Labels == nil {
+			o.Labels = make(map[string]string)
+		}
+		o.Labels[key] = value
+	}
+}
+
 func ObjectName(o *metav1.ObjectMeta) string {
 	if o.Namespace == "" {
 		return o.Name

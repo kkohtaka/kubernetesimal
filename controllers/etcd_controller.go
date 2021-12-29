@@ -36,6 +36,7 @@ import (
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 	"github.com/kkohtaka/kubernetesimal/k8s"
+	k8s_service "github.com/kkohtaka/kubernetesimal/k8s/service"
 	"github.com/kkohtaka/kubernetesimal/ssh"
 )
 
@@ -214,6 +215,20 @@ func (r *EtcdReconciler) reconcileExternalResources(
 	}
 	status.VirtualMachineRef = vmiRef
 
+	serviceRef, err := r.reconcileService(ctx, e, spec, status)
+	if err != nil {
+		return status, fmt.Errorf("unable to prepare a service: %w", err)
+	}
+	status.ServiceRef = serviceRef
+
+	if err := r.reconcileEtcdMember(ctx, e, spec, status); err != nil {
+		return status, fmt.Errorf("unable to prepare an etcd member: %w", err)
+	}
+
+	if err := r.probeEtcdMember(ctx, e, spec, status); err != nil {
+		return status, fmt.Errorf("unable to probe an etcd member: %w", err)
+	}
+
 	return status, nil
 }
 
@@ -362,6 +377,9 @@ func (r *EtcdReconciler) reconcileVirtualMachineInstance(
 		k8s.NewObjectMeta(
 			k8s.WithName(newVirtualMachineInstanceName(e)),
 			k8s.WithNamespace(e.Namespace),
+			k8s.WithLabel("app.kubernetes.io/name", "virtualmachineimage"),
+			k8s.WithLabel("app.kubernetes.io/instance", newVirtualMachineInstanceName(e)),
+			k8s.WithLabel("app.kubernetes.io/part-of", "etcd"),
 		),
 		k8s.WithUserData(status.UserDataRef),
 	); err != nil {
@@ -371,6 +389,97 @@ func (r *EtcdReconciler) reconcileVirtualMachineInstance(
 			Name: vmi.Name,
 		}, nil
 	}
+}
+
+func (r *EtcdReconciler) reconcileService(
+	ctx context.Context,
+	e *kubernetesimalv1alpha1.Etcd,
+	_ kubernetesimalv1alpha1.EtcdSpec,
+	status kubernetesimalv1alpha1.EtcdStatus,
+) (*corev1.LocalObjectReference, error) {
+	if service, err := k8s_service.Reconcile(
+		ctx,
+		e,
+		r.Scheme,
+		r.Client,
+		k8s.NewObjectMeta(
+			k8s.WithName(newServiceName(e)),
+			k8s.WithNamespace(e.Namespace),
+		),
+		k8s_service.WithType(corev1.ServiceTypeNodePort),
+		k8s_service.WithTargetPort("ssh", 22),
+		k8s_service.WithSelector("app.kubernetes.io/name", "virtualmachineimage"),
+		k8s_service.WithSelector("app.kubernetes.io/instance", newVirtualMachineInstanceName(e)),
+		k8s_service.WithSelector("app.kubernetes.io/part-of", "etcd"),
+	); err != nil {
+		return nil, fmt.Errorf("unable to create Service: %w", err)
+	} else {
+		return &corev1.LocalObjectReference{
+			Name: service.Name,
+		}, nil
+	}
+}
+
+func (r *EtcdReconciler) reconcileEtcdMember(
+	ctx context.Context,
+	e *kubernetesimalv1alpha1.Etcd,
+	_ kubernetesimalv1alpha1.EtcdSpec,
+	status kubernetesimalv1alpha1.EtcdStatus,
+) error {
+	privateKey, err := k8s.GetValueFromSecretKeySelector(
+		ctx,
+		r.Client,
+		e.Namespace,
+		status.SSHPrivateKeyRef,
+	)
+	if err != nil {
+		return nil
+	}
+
+	var service corev1.Service
+	if err := r.Get(
+		ctx,
+		types.NamespacedName{
+			Namespace: e.Namespace,
+			Name:      status.ServiceRef.Name,
+		},
+		&service,
+	); err != nil {
+		return err
+	}
+	if service.Spec.ClusterIP == "" {
+		return fmt.Errorf("cluster ip of service %s/%s isn't assigned yet", e.Namespace, status.ServiceRef.Name)
+	}
+	var port int32
+	for i := range service.Spec.Ports {
+		if service.Spec.Ports[i].Name == "ssh" {
+			port = service.Spec.Ports[i].TargetPort.IntVal
+			break
+		}
+	}
+	if port == 0 {
+		return fmt.Errorf("port of service %s/%s isn't assigned yet", e.Namespace, status.ServiceRef.Name)
+	}
+
+	client, closer, err := ssh.StartSSHConnection(ctx, privateKey, service.Spec.ClusterIP, int(port))
+	if err != nil {
+		return err
+	}
+	defer closer()
+
+	if err := ssh.RunCommandOverSSHSession(ctx, client, "echo"); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *EtcdReconciler) probeEtcdMember(
+	ctx context.Context,
+	e *kubernetesimalv1alpha1.Etcd,
+	_ kubernetesimalv1alpha1.EtcdSpec,
+	status kubernetesimalv1alpha1.EtcdStatus,
+) error {
+	return nil
 }
 
 func newSSHKeyPairName(e *kubernetesimalv1alpha1.Etcd) string {
@@ -385,6 +494,10 @@ func newVirtualMachineInstanceName(e *kubernetesimalv1alpha1.Etcd) string {
 	return e.Name
 }
 
+func newServiceName(e *kubernetesimalv1alpha1.Etcd) string {
+	return e.Name
+}
+
 func (r *EtcdReconciler) updateStatus(
 	ctx context.Context,
 	e *kubernetesimalv1alpha1.Etcd,
@@ -392,7 +505,7 @@ func (r *EtcdReconciler) updateStatus(
 ) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	status.IP = ""
+	// status.IP = ""
 	status.Phase = kubernetesimalv1alpha1.EtcdPhasePending
 	if status.VirtualMachineRef != nil {
 		key := types.NamespacedName{
@@ -405,12 +518,12 @@ func (r *EtcdReconciler) updateStatus(
 				return ctrl.Result{}, fmt.Errorf("unable to get VirtualMachineInstance %s: %w", key, err)
 			}
 		} else {
-			for i := range vmi.Status.Interfaces {
-				if vmi.Status.Interfaces[i].Name == "default" {
-					status.IP = vmi.Status.Interfaces[i].IP
-					break
-				}
-			}
+			// for i := range vmi.Status.Interfaces {
+			// 	if vmi.Status.Interfaces[i].Name == "default" {
+			// 		status.IP = vmi.Status.Interfaces[i].IP
+			// 		break
+			// 	}
+			// }
 
 			switch vmi.Status.Phase {
 			case kubevirtv1.Running:

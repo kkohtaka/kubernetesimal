@@ -40,8 +40,8 @@ type EtcdStatus struct {
 	UserDataRef *corev1.LocalObjectReference `json:"userDataRef,omitempty"`
 	// VirtualMachineRef is a reference to a VirtualMachineInstance that composes an etcd node.
 	VirtualMachineRef *corev1.LocalObjectReference `json:"virtualMachineRef,omitempty"`
-	// IP is an IPv4 address of a VirtualMachineInstance that composes an etcd node.
-	IP string `json:"ip,omitempty"`
+	// ServiceRef is a reference to a Service of an etcd node.
+	ServiceRef *corev1.LocalObjectReference `json:"serviceRef,omitempty"`
 }
 
 //+kubebuilder:validation:Enum=Pending;Running
