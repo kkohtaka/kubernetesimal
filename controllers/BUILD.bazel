@@ -1,0 +1,42 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "controllers",
+    srcs = ["etcd_controller.go"],
+    embedsrcs = ["cloud-config.tmpl"],
+    importpath = "github.com/kkohtaka/kubernetesimal/controllers",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//api/v1alpha1",
+        "//k8s",
+        "//k8s/service",
+        "//ssh",
+        "@io_k8s_api//core/v1:core",
+        "@io_k8s_apimachinery//pkg/api/equality",
+        "@io_k8s_apimachinery//pkg/api/errors",
+        "@io_k8s_apimachinery//pkg/runtime",
+        "@io_k8s_apimachinery//pkg/types",
+        "@io_k8s_sigs_controller_runtime//:controller-runtime",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+        "@io_k8s_sigs_controller_runtime//pkg/controller/controllerutil",
+        "@io_k8s_sigs_controller_runtime//pkg/log",
+        "@io_kubevirt_api//core/v1:core",
+    ],
+)
+
+go_test(
+    name = "controllers_test",
+    srcs = ["suite_test.go"],
+    embed = [":controllers"],
+    deps = [
+        "//api/v1alpha1",
+        "@com_github_onsi_ginkgo//:ginkgo",
+        "@com_github_onsi_gomega//:gomega",
+        "@io_k8s_client_go//kubernetes/scheme",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+        "@io_k8s_sigs_controller_runtime//pkg/envtest",
+        "@io_k8s_sigs_controller_runtime//pkg/envtest/printer",
+        "@io_k8s_sigs_controller_runtime//pkg/log",
+        "@io_k8s_sigs_controller_runtime//pkg/log/zap",
+    ],
+)

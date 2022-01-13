@@ -1,0 +1,15 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "ssh",
+    srcs = [
+        "keypair.go",
+        "session.go",
+    ],
+    importpath = "github.com/kkohtaka/kubernetesimal/ssh",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@io_k8s_sigs_controller_runtime//pkg/log",
+        "@org_golang_x_crypto//ssh",
+    ],
+)
