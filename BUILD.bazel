@@ -26,7 +26,7 @@ go_library(
 
 container_image(
     name = "nonroot_image",
-    user = "nonroot",
+    user = "65532:65532",
     visibility = ["//visibility:public"],
 )
 
