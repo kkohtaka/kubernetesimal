@@ -1,12 +1,12 @@
 # Adds namespace to all resources.
-namespace: kubernetesimal-v3-system
+namespace: kubernetesimal
 
 # Value of this field is prepended to the
 # names of all resources, e.g. a deployment named
 # "wordpress" becomes "alices-wordpress".
 # Note that it should also match with the prefix (text before '-') of the namespace
 # field above.
-namePrefix: kubernetesimal-v3-
+namePrefix: ''
 
 # Labels to add to all resources and selectors.
 #commonLabels:

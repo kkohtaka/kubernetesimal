@@ -41,7 +41,7 @@ container_push(
     name = "push_kubernetesimal",
     format = "Docker",
     image = ":kubernetesimal",
-    registry = "docker.pkg.github.com",
-    repository = "kkohtaka/kubernetesimal/kubernetesimal",
+    registry = "container-registry.kohtaka.me",
+    repository = "kubernetesimal/kubernetesimal",
     tag = "latest",
 )
