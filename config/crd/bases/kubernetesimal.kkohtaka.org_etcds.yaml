@@ -52,16 +52,20 @@ spec:
           status:
             description: EtcdStatus defines the observed state of Etcd
             properties:
-              ip:
-                description: IP is an IPv4 address of a VirtualMachineInstance that
-                  composes an etcd node.
-                type: string
               phase:
                 description: Phase indicates phase of the etcd cluster.
                 enum:
                 - Pending
                 - Running
                 type: string
+              serviceRef:
+                description: ServiceRef is a reference to a Service of an etcd node.
+                properties:
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      TODO: Add other useful fields. apiVersion, kind, uid?'
+                    type: string
+                type: object
               sshPrivateKeyRef:
                 description: SSHPrivateKeyRef is a reference to a Secret key that
                   composes an SSH private key.
