@@ -33,6 +33,7 @@ import (
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 	"github.com/kkohtaka/kubernetesimal/controllers"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -45,6 +46,8 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(kubernetesimalv1alpha1.AddToScheme(scheme))
+
+	utilruntime.Must(kubevirtv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
