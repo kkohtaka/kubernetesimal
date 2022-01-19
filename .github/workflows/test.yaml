@@ -20,6 +20,4 @@ jobs:
           path: "~/.cache/bazel"
           key: bazel
       - uses: helm/kind-action@v1.2.0
-      - run: bazel test //...
-        env:
-          USE_EXISTING_CLUSTER: 'true'
+      - run: bazel test --test_env USE_EXISTING_CLUSTER=true //...
