@@ -24,5 +24,5 @@ jobs:
           go-version: 1.16
       - run: |
           go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
-          setup-envtest use
+          source <(setup-envtest use --print env)
           bazel test //...
