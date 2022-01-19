@@ -408,7 +408,7 @@ func (r *EtcdReconciler) reconcileService(
 			k8s.WithNamespace(e.Namespace),
 		),
 		k8s_service.WithType(corev1.ServiceTypeNodePort),
-		k8s_service.WithTargetPort("ssh", 22),
+		k8s_service.WithPort("ssh", 22, 22),
 		k8s_service.WithSelector("app.kubernetes.io/name", "virtualmachineimage"),
 		k8s_service.WithSelector("app.kubernetes.io/instance", newVirtualMachineInstanceName(e)),
 		k8s_service.WithSelector("app.kubernetes.io/part-of", "etcd"),

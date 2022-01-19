@@ -21,11 +21,12 @@ func WithType(typ corev1.ServiceType) ServiceOption {
 	}
 }
 
-func WithTargetPort(name string, targetPort int) ServiceOption {
+func WithPort(name string, port, targetPort int32) ServiceOption {
 	return func(s *corev1.Service) {
 		s.Spec.Ports = append(s.Spec.Ports, corev1.ServicePort{
 			Name:       name,
-			TargetPort: intstr.FromInt(targetPort),
+			Port:       port,
+			TargetPort: intstr.FromInt(int(targetPort)),
 		})
 	}
 }
