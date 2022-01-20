@@ -59,7 +59,6 @@ const (
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
-//+kubebuilder:printcolumn:name="IP",type=string,JSONPath=`.status.ip`
 
 // Etcd is the Schema for the etcds API
 type Etcd struct {

@@ -506,7 +506,6 @@ func (r *EtcdReconciler) updateStatus(
 ) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	// status.IP = ""
 	status.Phase = kubernetesimalv1alpha1.EtcdPhasePending
 	if status.VirtualMachineRef != nil {
 		key := types.NamespacedName{
@@ -519,13 +518,6 @@ func (r *EtcdReconciler) updateStatus(
 				return ctrl.Result{}, fmt.Errorf("unable to get VirtualMachineInstance %s: %w", key, err)
 			}
 		} else {
-			// for i := range vmi.Status.Interfaces {
-			// 	if vmi.Status.Interfaces[i].Name == "default" {
-			// 		status.IP = vmi.Status.Interfaces[i].IP
-			// 		break
-			// 	}
-			// }
-
 			switch vmi.Status.Phase {
 			case kubevirtv1.Running:
 				status.Phase = kubernetesimalv1alpha1.EtcdPhaseRunning
