@@ -19,7 +19,8 @@ package controllers
 import (
 	"bytes"
 	"context"
-	_ "embed"
+	"embed"
+	"encoding/base64"
 	"fmt"
 	"text/template"
 
@@ -204,6 +205,12 @@ func (r *EtcdReconciler) reconcileExternalResources(
 	status.SSHPrivateKeyRef = sshPrivateKeyRef
 	status.SSHPublicKeyRef = sshPublicKeyRef
 
+	serviceRef, err := r.reconcileService(ctx, e, spec, status)
+	if err != nil {
+		return status, fmt.Errorf("unable to prepare a service: %w", err)
+	}
+	status.ServiceRef = serviceRef
+
 	userDataRef, err := r.reconcileUserData(ctx, e, spec, status)
 	if err != nil {
 		return status, fmt.Errorf("unable to prepare a userdata: %w", err)
@@ -215,12 +222,6 @@ func (r *EtcdReconciler) reconcileExternalResources(
 		return status, fmt.Errorf("unable to prepare a virtual machine instance: %w", err)
 	}
 	status.VirtualMachineRef = vmiRef
-
-	serviceRef, err := r.reconcileService(ctx, e, spec, status)
-	if err != nil {
-		return status, fmt.Errorf("unable to prepare a service: %w", err)
-	}
-	status.ServiceRef = serviceRef
 
 	if err := r.reconcileEtcdMember(ctx, e, spec, status); err != nil {
 		return status, fmt.Errorf("unable to prepare an etcd member: %w", err)
@@ -309,8 +310,18 @@ func (r *EtcdReconciler) reconcileSSHKeyPair(
 }
 
 var (
-	//go:embed cloud-config.tmpl
-	cloudConfigTemplate string
+	//go:embed templates/*.tmpl
+	cloudConfigTemplates embed.FS
+)
+
+const (
+	defaultEtcdadmReleaseURL = "https://github.com/kubernetes-sigs/etcdadm/releases/download"
+)
+
+var (
+	defaultEtcdadmVersion = "0.1.5"
+
+	defaultEtcdVersion = "3.5.1"
 )
 
 func (r *EtcdReconciler) reconcileUserData(
@@ -329,17 +340,60 @@ func (r *EtcdReconciler) reconcileUserData(
 		return nil, fmt.Errorf("unable to get an SSH public key: %w", err)
 	}
 
-	buf := bytes.Buffer{}
-	tmpl, err := template.New("cloud-init").Parse(cloudConfigTemplate)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse a template of cloud-config: %w", err)
+	var service corev1.Service
+	if err := r.Get(
+		ctx,
+		types.NamespacedName{
+			Namespace: e.Namespace,
+			Name:      status.ServiceRef.Name,
+		},
+		&service,
+	); err != nil {
+		return nil, fmt.Errorf("unable to get a service %s/%s: %w", e.Namespace, status.ServiceRef.Name, err)
 	}
-	if err := tmpl.Execute(
-		&buf,
+	if service.Spec.ClusterIP == "" {
+		return nil, fmt.Errorf("cluster ip of service %s/%s isn't assigned yet", e.Namespace, status.ServiceRef.Name)
+	}
+
+	startEtcdScriptBuf := bytes.Buffer{}
+	startEtcdScriptTmpl, err := template.New("start-etcd.sh.tmpl").ParseFS(cloudConfigTemplates, "templates/start-etcd.sh.tmpl")
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse a template of start-etcd.sh: %w", err)
+	}
+	if err := startEtcdScriptTmpl.Execute(
+		&startEtcdScriptBuf,
 		&struct {
-			AuthorizedKeys []string
+			EtcdadmReleaseURL string
+			EtcdadmVersion    string
+			EtcdVersion       string
+			ServiceIP         string
+			ServiceName       string
+			ServiceNamespace  string
 		}{
-			AuthorizedKeys: []string{string(publicKey)},
+			EtcdadmReleaseURL: defaultEtcdadmReleaseURL,
+			EtcdadmVersion:    defaultEtcdadmVersion,
+			EtcdVersion:       defaultEtcdVersion,
+			ServiceIP:         service.Spec.ClusterIP,
+			ServiceName:       service.Name,
+			ServiceNamespace:  service.Namespace,
+		},
+	); err != nil {
+		return nil, fmt.Errorf("unable to render start-etcd.sh from a template: %w", err)
+	}
+
+	cloudInitBuf := bytes.Buffer{}
+	cloudInitTmpl, err := template.New("cloud-init.tmpl").ParseFS(cloudConfigTemplates, "templates/cloud-init.tmpl")
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse a template of cloud-init: %w", err)
+	}
+	if err := cloudInitTmpl.Execute(
+		&cloudInitBuf,
+		&struct {
+			AuthorizedKeys  []string
+			StartEtcdScript string
+		}{
+			AuthorizedKeys:  []string{string(publicKey)},
+			StartEtcdScript: base64.StdEncoding.EncodeToString(startEtcdScriptBuf.Bytes()),
 		},
 	); err != nil {
 		return nil, fmt.Errorf("unable to render a cloud-config from a template: %w", err)
@@ -354,7 +408,7 @@ func (r *EtcdReconciler) reconcileUserData(
 			k8s.WithName(newUserDataName(e)),
 			k8s.WithNamespace(e.Namespace),
 		),
-		k8s.WithDataWithKey("userdata", buf.Bytes()),
+		k8s.WithDataWithKey("userdata", cloudInitBuf.Bytes()),
 	); err != nil {
 		return nil, fmt.Errorf("unable to create Secret: %w", err)
 	} else {
@@ -468,7 +522,7 @@ func (r *EtcdReconciler) reconcileEtcdMember(
 	}
 	defer closer()
 
-	if err := ssh.RunCommandOverSSHSession(ctx, client, "echo"); err != nil {
+	if err := ssh.RunCommandOverSSHSession(ctx, client, "sudo /opt/bin/start-etcd.sh"); err != nil {
 		return err
 	}
 	return nil

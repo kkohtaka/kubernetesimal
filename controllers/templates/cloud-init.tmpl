@@ -1,3 +1,4 @@
+{{ define "cloud-init.tmpl" }}
 #cloud-config
 password: fedora
 chpasswd: { expire: False }
@@ -8,3 +9,9 @@ ssh_authorized_keys:
   - {{ . }}
 {{- end }}
 {{- end }}
+write_files:
+- encoding: b64
+  content: {{ .StartEtcdScript }}
+  path: /opt/bin/start-etcd.sh
+  permissions: '0755'
+{{ end }}

@@ -3,7 +3,10 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "controllers",
     srcs = ["etcd_controller.go"],
-    embedsrcs = ["cloud-config.tmpl"],
+    embedsrcs = [
+        "templates/cloud-init.tmpl",
+        "templates/start-etcd.sh.tmpl",
+    ],
     importpath = "github.com/kkohtaka/kubernetesimal/controllers",
     visibility = ["//visibility:public"],
     deps = [

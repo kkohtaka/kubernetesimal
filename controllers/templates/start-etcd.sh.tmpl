@@ -1,0 +1,13 @@
+{{ define "start-etcd.sh.tmpl" }}
+#!/usr/bin/env bash
+
+curl -o /usr/local/bin/etcdadm -L {{ .EtcdadmReleaseURL }}/v{{ .EtcdadmVersion }}/etcdadm-linux-amd64
+chmod a+x /usr/local/bin/etcdadm
+
+etcdadm version
+
+etcdadm init \
+    --name={{ .ServiceName }} \
+    --server-cert-extra-sans={{ .ServiceIP }},{{ .ServiceName }}.{{ .ServiceNamespace }}.svc,{{ .ServiceName }}.{{ .ServiceNamespace }} \
+    --version={{ .EtcdVersion }}
+{{ end }}
