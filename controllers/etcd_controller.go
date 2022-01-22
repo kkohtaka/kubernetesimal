@@ -235,8 +235,7 @@ func (r *EtcdReconciler) reconcileExternalResources(
 }
 
 const (
-	sshKeyPairKeyPrivateKey = "private-key"
-	sshKeyPairKeyPublicKey  = "public-key"
+	sshKeyPairKeyPublicKey = "ssh-publickey"
 )
 
 func (r *EtcdReconciler) reconcileSSHKeyPair(
@@ -288,7 +287,8 @@ func (r *EtcdReconciler) reconcileSSHKeyPair(
 			k8s.WithName(newSSHKeyPairName(e)),
 			k8s.WithNamespace(e.Namespace),
 		),
-		k8s.WithDataWithKey(sshKeyPairKeyPrivateKey, privateKey),
+		k8s.WithType(corev1.SecretTypeSSHAuth),
+		k8s.WithDataWithKey(corev1.SSHAuthPrivateKey, privateKey),
 		k8s.WithDataWithKey(sshKeyPairKeyPublicKey, publicKey),
 	); err != nil {
 		return nil, nil, fmt.Errorf("unable to create a Secret for an SSH keypair: %w", err)
@@ -297,7 +297,7 @@ func (r *EtcdReconciler) reconcileSSHKeyPair(
 				LocalObjectReference: corev1.LocalObjectReference{
 					Name: secret.Name,
 				},
-				Key: sshKeyPairKeyPrivateKey,
+				Key: corev1.SSHAuthPrivateKey,
 			},
 			&corev1.SecretKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{

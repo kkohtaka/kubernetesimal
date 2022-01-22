@@ -14,6 +14,12 @@ import (
 
 type SecretOption func(*corev1.Secret)
 
+func WithType(typ corev1.SecretType) SecretOption {
+	return func(secret *corev1.Secret) {
+		secret.Type = typ
+	}
+}
+
 func WithDataWithKey(key string, value []byte) SecretOption {
 	return func(secret *corev1.Secret) {
 		if secret.Data == nil {
