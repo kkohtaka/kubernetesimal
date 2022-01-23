@@ -14,4 +14,12 @@ write_files:
   content: {{ .StartEtcdScript }}
   path: /opt/bin/start-etcd.sh
   permissions: '0755'
+- encoding: b64
+  content: {{ .CACertificate }}
+  path: /etc/etcd/pki/ca.crt
+  permissions: '0444'
+- encoding: b64
+  content: {{ .CAPrivateKey }}
+  path: /etc/etcd/pki/ca.key
+  permissions: '0400'
 {{ end }}

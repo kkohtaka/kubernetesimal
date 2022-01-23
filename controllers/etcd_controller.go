@@ -419,6 +419,26 @@ func (r *EtcdReconciler) reconcileUserData(
 		return nil, fmt.Errorf("unable to get an SSH public key: %w", err)
 	}
 
+	caCertificate, err := k8s.GetValueFromSecretKeySelector(
+		ctx,
+		r.Client,
+		e.Namespace,
+		status.CACertificateRef,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get a CA certificate: %w", err)
+	}
+
+	caPrivateKey, err := k8s.GetValueFromSecretKeySelector(
+		ctx,
+		r.Client,
+		e.Namespace,
+		status.CAPrivateKeyRef,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get an SSH public key: %w", err)
+	}
+
 	var service corev1.Service
 	if err := r.Get(
 		ctx,
@@ -470,9 +490,13 @@ func (r *EtcdReconciler) reconcileUserData(
 		&struct {
 			AuthorizedKeys  []string
 			StartEtcdScript string
+			CACertificate   string
+			CAPrivateKey    string
 		}{
 			AuthorizedKeys:  []string{string(publicKey)},
 			StartEtcdScript: base64.StdEncoding.EncodeToString(startEtcdScriptBuf.Bytes()),
+			CACertificate:   base64.StdEncoding.EncodeToString(caCertificate),
+			CAPrivateKey:    base64.StdEncoding.EncodeToString(caPrivateKey),
 		},
 	); err != nil {
 		return nil, fmt.Errorf("unable to render a cloud-config from a template: %w", err)
