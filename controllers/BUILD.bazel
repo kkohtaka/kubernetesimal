@@ -13,6 +13,7 @@ go_library(
         "//api/v1alpha1",
         "//k8s",
         "//k8s/service",
+        "//pki",
         "//ssh",
         "@io_k8s_api//core/v1:core",
         "@io_k8s_apimachinery//pkg/api/equality",

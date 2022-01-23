@@ -38,6 +38,7 @@ import (
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 	"github.com/kkohtaka/kubernetesimal/k8s"
 	k8s_service "github.com/kkohtaka/kubernetesimal/k8s/service"
+	"github.com/kkohtaka/kubernetesimal/pki"
 	"github.com/kkohtaka/kubernetesimal/ssh"
 )
 
@@ -198,6 +199,13 @@ func (r *EtcdReconciler) reconcileExternalResources(
 	spec kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
+	caCertificateRef, caPrivateKeyRef, err := r.reconcileCACertificate(ctx, e, spec, status)
+	if err != nil {
+		return status, fmt.Errorf("unable to prepare a CA certificate: %w", err)
+	}
+	status.CAPrivateKeyRef = caPrivateKeyRef
+	status.CACertificateRef = caCertificateRef
+
 	sshPrivateKeyRef, sshPublicKeyRef, err := r.reconcileSSHKeyPair(ctx, e, spec, status)
 	if err != nil {
 		return status, fmt.Errorf("unable to prepare an SSH keypair: %w", err)
@@ -232,6 +240,77 @@ func (r *EtcdReconciler) reconcileExternalResources(
 	}
 
 	return status, nil
+}
+
+func (r *EtcdReconciler) reconcileCACertificate(
+	ctx context.Context,
+	e *kubernetesimalv1alpha1.Etcd,
+	_ kubernetesimalv1alpha1.EtcdSpec,
+	status kubernetesimalv1alpha1.EtcdStatus,
+) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
+	if status.CAPrivateKeyRef != nil {
+		if name := status.CAPrivateKeyRef.LocalObjectReference.Name; name != newCACertificateName(e) {
+			return nil, nil, fmt.Errorf("invalid Secret name %s to store a CA private key", name)
+		}
+	}
+	if status.CACertificateRef != nil {
+		if name := status.CACertificateRef.LocalObjectReference.Name; name != newCACertificateName(e) {
+			return nil, nil, fmt.Errorf("invalid Secret name %s to store a CA certificate", name)
+		}
+	}
+
+	var ca corev1.Secret
+	if status.CAPrivateKeyRef != nil && status.CACertificateRef != nil {
+		if err := r.Client.Get(
+			ctx,
+			types.NamespacedName{Namespace: e.Namespace, Name: status.CAPrivateKeyRef.Name},
+			&ca,
+		); err != nil {
+			if !apierrors.IsNotFound(err) {
+				return nil, nil, fmt.Errorf("unable to get a Secret for an SSH keypair: %w", err)
+			}
+		} else {
+			_, hasPublicKey := ca.Data[status.CACertificateRef.Key]
+			_, hasPrivateKey := ca.Data[status.CAPrivateKeyRef.Key]
+			if hasPublicKey && hasPrivateKey {
+				return status.CACertificateRef, status.CAPrivateKeyRef, nil
+			}
+		}
+	}
+
+	certificate, privateKey, err := pki.CreateCACertificateAndPrivateKey(newCACertificateIssuerName(e))
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to create a CA certificate for etcd: %w", err)
+	}
+	if secret, err := k8s.ReconcileSecret(
+		ctx,
+		e,
+		r.Scheme,
+		r.Client,
+		k8s.NewObjectMeta(
+			k8s.WithName(newCACertificateName(e)),
+			k8s.WithNamespace(e.Namespace),
+		),
+		k8s.WithType(corev1.SecretTypeTLS),
+		k8s.WithDataWithKey(corev1.TLSCertKey, certificate),
+		k8s.WithDataWithKey(corev1.TLSPrivateKeyKey, privateKey),
+	); err != nil {
+		return nil, nil, fmt.Errorf("unable to create a secret for a CA certificate for etcd: %w", err)
+	} else {
+		return &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: secret.Name,
+				},
+				Key: corev1.TLSCertKey,
+			},
+			&corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: secret.Name,
+				},
+				Key: corev1.TLSPrivateKeyKey,
+			},
+			nil
+	}
 }
 
 const (
@@ -535,6 +614,14 @@ func (r *EtcdReconciler) probeEtcdMember(
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) error {
 	return nil
+}
+
+func newCACertificateName(e *kubernetesimalv1alpha1.Etcd) string {
+	return "ca-" + e.Name
+}
+
+func newCACertificateIssuerName(e *kubernetesimalv1alpha1.Etcd) string {
+	return e.Name
 }
 
 func newSSHKeyPairName(e *kubernetesimalv1alpha1.Etcd) string {

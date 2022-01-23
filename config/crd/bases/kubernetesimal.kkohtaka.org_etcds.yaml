@@ -49,6 +49,42 @@ spec:
           status:
             description: EtcdStatus defines the observed state of Etcd
             properties:
+              caCertificateRef:
+                description: CACertificateRef is a reference to a Secret key that
+                  composes a CA certificate.
+                properties:
+                  key:
+                    description: The key of the secret to select from.  Must be a
+                      valid secret key.
+                    type: string
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      TODO: Add other useful fields. apiVersion, kind, uid?'
+                    type: string
+                  optional:
+                    description: Specify whether the Secret or its key must be defined
+                    type: boolean
+                required:
+                - key
+                type: object
+              caPrivateKeyRef:
+                description: CAPrivateKeyRef is a reference to a Secret key that composes
+                  a CA private key.
+                properties:
+                  key:
+                    description: The key of the secret to select from.  Must be a
+                      valid secret key.
+                    type: string
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      TODO: Add other useful fields. apiVersion, kind, uid?'
+                    type: string
+                  optional:
+                    description: Specify whether the Secret or its key must be defined
+                    type: boolean
+                required:
+                - key
+                type: object
               phase:
                 description: Phase indicates phase of the etcd cluster.
                 enum:
