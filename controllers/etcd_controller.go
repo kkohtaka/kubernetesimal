@@ -752,23 +752,13 @@ func (r *EtcdReconciler) updateStatus(
 ) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
+	requeueAfter := time.Duration(0)
 	status.Phase = kubernetesimalv1alpha1.EtcdPhasePending
-	if status.VirtualMachineRef != nil {
-		key := types.NamespacedName{
-			Name:      status.VirtualMachineRef.Name,
-			Namespace: e.Namespace,
-		}
-		var vmi kubevirtv1.VirtualMachineInstance
-		if err := r.Get(ctx, key, &vmi); err != nil {
-			if !apierrors.IsNotFound(err) {
-				return ctrl.Result{}, fmt.Errorf("unable to get VirtualMachineInstance %s: %w", key, err)
-			}
-		} else {
-			switch vmi.Status.Phase {
-			case kubevirtv1.Running:
-				status.Phase = kubernetesimalv1alpha1.EtcdPhaseRunning
-			}
-		}
+	if status.ProbedSinceTime.IsZero() {
+		// If an etcd member is probed yet, retry reconciliation after 5 seconds.
+		requeueAfter = 5 * time.Second
+	} else {
+		status.Phase = kubernetesimalv1alpha1.EtcdPhaseRunning
 	}
 
 	if !apiequality.Semantic.DeepEqual(status, e.Status) {
@@ -778,12 +768,11 @@ func (r *EtcdReconciler) updateStatus(
 			if apierrors.IsNotFound(err) {
 				return ctrl.Result{}, nil
 			}
-		logger.Info("Status was updated.")
 			return ctrl.Result{}, err
 		}
 		logger.Info("Status was updated.")
 	}
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: requeueAfter}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
