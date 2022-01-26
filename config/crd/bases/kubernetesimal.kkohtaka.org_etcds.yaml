@@ -85,6 +85,11 @@ spec:
                 required:
                 - key
                 type: object
+              lastProvisionedTime:
+                description: LastProvisionedTime is the timestamp when the controller
+                  probed an etcd node at the first time.
+                format: date-time
+                type: string
               phase:
                 description: Phase indicates phase of the etcd cluster.
                 enum:

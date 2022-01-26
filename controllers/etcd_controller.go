@@ -249,11 +249,13 @@ func (r *EtcdReconciler) reconcileExternalResources(
 		status.VirtualMachineRef = vmiRef
 	}
 
-	switch status.Phase {
-	case kubernetesimalv1alpha1.EtcdPhaseRunning:
-	default:
-		if err := r.reconcileEtcdMember(ctx, e, spec, status); err != nil {
+	if status.LastProvisionedTime.IsZero() {
+		if provisioned, err := r.provisionEtcdMember(ctx, e, spec, status); err != nil {
 			return status, fmt.Errorf("unable to prepare an etcd member: %w", err)
+		} else if provisioned {
+			status.LastProvisionedTime = &metav1.Time{Time: time.Now()}
+		} else {
+			status.LastProvisionedTime = nil
 		}
 	}
 
@@ -634,12 +636,12 @@ func (r *EtcdReconciler) reconcileService(
 	}
 }
 
-func (r *EtcdReconciler) reconcileEtcdMember(
+func (r *EtcdReconciler) provisionEtcdMember(
 	ctx context.Context,
 	e *kubernetesimalv1alpha1.Etcd,
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
-) error {
+) (bool, error) {
 	logger := log.FromContext(ctx)
 
 	privateKey, err := k8s.GetValueFromSecretKeySelector(
@@ -650,10 +652,10 @@ func (r *EtcdReconciler) reconcileEtcdMember(
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("Skip reconciling an etcd member since SSH private key isn't prepared yet.")
-			return nil
+			logger.Info("Skip provisioning an etcd member since SSH private key isn't prepared yet.")
+			return false, nil
 		}
-		return nil
+		return false, err
 	}
 
 	var service corev1.Service
@@ -666,14 +668,14 @@ func (r *EtcdReconciler) reconcileEtcdMember(
 		&service,
 	); err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("Skip reconciling an etcd member since the etcd Service isn't prepared yet.")
-			return nil
+			logger.Info("Skip provisioning an etcd member since the etcd Service isn't prepared yet.")
+			return false, nil
 		}
-		return err
+		return false, err
 	}
 	if service.Spec.ClusterIP == "" {
-		logger.Info("Skip reconciling an etcd member since cluster ip isn't assigned yet.")
-		return nil
+		logger.Info("Skip provisioning an etcd member since cluster ip isn't assigned yet.")
+		return false, nil
 	}
 	var port int32
 	for i := range service.Spec.Ports {
@@ -683,26 +685,26 @@ func (r *EtcdReconciler) reconcileEtcdMember(
 		}
 	}
 	if port == 0 {
-		logger.Info("Skip reconciling an etcd member since port of service %s/%s isn't assigned yet.")
-		return nil
+		logger.Info("Skip provisioning an etcd member since port of service %s/%s isn't assigned yet.")
+		return false, nil
 	}
 
 	client, closer, err := ssh.StartSSHConnection(ctx, privateKey, service.Spec.ClusterIP, int(port))
 	if err != nil {
 		logger.Info(
-			"Skip reconciling an etcd member since SSH port of an etcd member isn't available yet.",
+			"Skip provisioning an etcd member since SSH port of an etcd member isn't available yet.",
 			"reason", err,
 		)
-		return nil
+		return false, nil
 	}
 	defer closer()
 
 	if err := ssh.RunCommandOverSSHSession(ctx, client, "sudo /opt/bin/start-etcd.sh"); err != nil {
-		return err
+		return false, err
 	}
 	logger.Info("Succeeded in executing a start-up script for an etcd member on the VirtualMachineInstance.")
 
-	return nil
+	return true, nil
 }
 
 func (r *EtcdReconciler) probeEtcdMember(
@@ -752,11 +754,13 @@ func (r *EtcdReconciler) updateStatus(
 ) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	requeueAfter := time.Duration(0)
+	var requeue bool
 	status.Phase = kubernetesimalv1alpha1.EtcdPhasePending
 	if status.ProbedSinceTime.IsZero() {
-		// If an etcd member is probed yet, retry reconciliation after 5 seconds.
-		requeueAfter = 5 * time.Second
+		if !status.LastProvisionedTime.IsZero() {
+			// If an etcd member was provisioned and is probed yet, retry reconciliation.
+			requeue = true
+		}
 	} else {
 		status.Phase = kubernetesimalv1alpha1.EtcdPhaseRunning
 	}
@@ -772,7 +776,7 @@ func (r *EtcdReconciler) updateStatus(
 		}
 		logger.Info("Status was updated.")
 	}
-	return ctrl.Result{RequeueAfter: requeueAfter}, nil
+	return ctrl.Result{Requeue: requeue}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

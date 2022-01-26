@@ -46,6 +46,8 @@ type EtcdStatus struct {
 	VirtualMachineRef *corev1.LocalObjectReference `json:"virtualMachineRef,omitempty"`
 	// ServiceRef is a reference to a Service of an etcd node.
 	ServiceRef *corev1.LocalObjectReference `json:"serviceRef,omitempty"`
+	// LastProvisionedTime is the timestamp when the controller probed an etcd node at the first time.
+	LastProvisionedTime *metav1.Time `json:"lastProvisionedTime,omitempty"`
 	// ProbedSinceTime is the timestamp when the controller probed an etcd node at the first time.
 	ProbedSinceTime *metav1.Time `json:"probedSinceTime,omitempty"`
 }
