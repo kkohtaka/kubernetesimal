@@ -74,14 +74,14 @@ func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, err
 	}
 
 	if e.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(&e, finalizerName) {
 			controllerutil.AddFinalizer(&e, finalizerName)
 			if err := r.Update(ctx, &e); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{Requeue: true}, err
 			}
 			logger.Info("A finalizer was set.")
 			return ctrl.Result{}, nil
@@ -89,7 +89,7 @@ func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	} else {
 		if controllerutil.ContainsFinalizer(&e, finalizerName) {
 			if deleted, err := r.deleteExternalResources(ctx, &e); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{Requeue: true}, err
 			} else if !deleted {
 				return ctrl.Result{}, nil
 			}
@@ -97,7 +97,7 @@ func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 			controllerutil.RemoveFinalizer(&e, finalizerName)
 			if err := r.Update(ctx, &e); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{Requeue: true}, err
 			}
 			logger.Info("The finalizer was unset.")
 		}
@@ -106,7 +106,7 @@ func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 	status, err := r.reconcileExternalResources(ctx, &e, e.Spec, e.Status)
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, err
 	}
 	return r.updateStatus(ctx, &e, status)
 }
@@ -772,7 +772,7 @@ func (r *EtcdReconciler) updateStatus(
 			if apierrors.IsNotFound(err) {
 				return ctrl.Result{}, nil
 			}
-			return ctrl.Result{}, err
+			return ctrl.Result{Requeue: true}, err
 		}
 		logger.Info("Status was updated.")
 	}
