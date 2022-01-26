@@ -8,6 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -60,4 +61,33 @@ func Reconcile(
 		return nil, fmt.Errorf("unable to create Service %s: %w", k8s.ObjectName(&service.ObjectMeta), err)
 	}
 	return &service, nil
+}
+
+func GetAddressFromServiceRef(
+	ctx context.Context,
+	c client.Client,
+	namespace string,
+	portName string,
+	ref *corev1.LocalObjectReference,
+) (string, error) {
+	var service corev1.Service
+	key := types.NamespacedName{
+		Namespace: namespace,
+		Name:      ref.Name,
+	}
+	if err := c.Get(ctx, key, &service); err != nil {
+		return "", fmt.Errorf("unable to get Service %s: %w", key, err)
+	}
+
+	var port int
+	for i := range service.Spec.Ports {
+		if service.Spec.Ports[i].Name == portName {
+			port = int(service.Spec.Ports[i].Port)
+			break
+		}
+	}
+	if port == 0 {
+		return "", fmt.Errorf("unable to find a name %q of a port", portName)
+	}
+	return fmt.Sprintf("%s:%d", service.Spec.ClusterIP, port), nil
 }

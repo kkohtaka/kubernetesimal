@@ -19,14 +19,17 @@ package controllers
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"embed"
 	"encoding/base64"
 	"fmt"
 	"text/template"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	kubevirtv1 "kubevirt.io/api/core/v1"
@@ -38,6 +41,7 @@ import (
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 	"github.com/kkohtaka/kubernetesimal/k8s"
 	k8s_service "github.com/kkohtaka/kubernetesimal/k8s/service"
+	"github.com/kkohtaka/kubernetesimal/net/http"
 	"github.com/kkohtaka/kubernetesimal/pki"
 	"github.com/kkohtaka/kubernetesimal/ssh"
 )
@@ -253,8 +257,14 @@ func (r *EtcdReconciler) reconcileExternalResources(
 		}
 	}
 
-	if err := r.probeEtcdMember(ctx, e, spec, status); err != nil {
+	if probed, err := r.probeEtcdMember(ctx, e, spec, status); err != nil {
 		return status, fmt.Errorf("unable to probe an etcd member: %w", err)
+	} else if probed {
+		if status.ProbedSinceTime.IsZero() {
+			status.ProbedSinceTime = &metav1.Time{Time: time.Now()}
+		}
+	} else {
+		status.ProbedSinceTime = nil
 	}
 
 	return status, nil
@@ -610,6 +620,7 @@ func (r *EtcdReconciler) reconcileService(
 		),
 		k8s_service.WithType(corev1.ServiceTypeNodePort),
 		k8s_service.WithPort("ssh", 22, 22),
+		k8s_service.WithPort("etcd", 2379, 2379),
 		k8s_service.WithSelector("app.kubernetes.io/name", "virtualmachineimage"),
 		k8s_service.WithSelector("app.kubernetes.io/instance", newVirtualMachineInstanceName(e)),
 		k8s_service.WithSelector("app.kubernetes.io/part-of", "etcd"),
@@ -699,8 +710,15 @@ func (r *EtcdReconciler) probeEtcdMember(
 	e *kubernetesimalv1alpha1.Etcd,
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
-) error {
-	return nil
+) (bool, error) {
+	address, err := k8s_service.GetAddressFromServiceRef(ctx, r.Client, e.Namespace, "etcd", status.ServiceRef)
+	if err != nil {
+		return false, fmt.Errorf("unable to get an etcd address from a Service: %w", err)
+	}
+	return http.NewProber(
+		fmt.Sprintf("https://%s/health", address),
+		http.WithTLSConfig(&tls.Config{InsecureSkipVerify: true}),
+	).Once(ctx)
 }
 
 func newCACertificateName(e *kubernetesimalv1alpha1.Etcd) string {

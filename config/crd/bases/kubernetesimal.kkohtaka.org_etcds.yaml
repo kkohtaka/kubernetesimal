@@ -91,6 +91,11 @@ spec:
                 - Pending
                 - Running
                 type: string
+              probedSinceTime:
+                description: ProbedSinceTime is the timestamp when the controller
+                  probed an etcd node at the first time.
+                format: date-time
+                type: string
               serviceRef:
                 description: ServiceRef is a reference to a Service of an etcd node.
                 properties:
