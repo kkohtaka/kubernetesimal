@@ -443,7 +443,7 @@ func (r *EtcdReconciler) reconcileUserData(
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("Skip reconciling userdata since SSH public key isn't prepared yet")
+			logger.Info("Skip reconciling userdata since SSH public key isn't prepared yet.")
 			return nil, nil
 		}
 		return nil, fmt.Errorf("unable to get an SSH public key: %w", err)
@@ -457,7 +457,7 @@ func (r *EtcdReconciler) reconcileUserData(
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("Skip reconciling userdata since CA certificate isn't prepared yet")
+			logger.Info("Skip reconciling userdata since CA certificate isn't prepared yet.")
 			return nil, nil
 		}
 		return nil, fmt.Errorf("unable to get a CA certificate: %w", err)
@@ -483,13 +483,13 @@ func (r *EtcdReconciler) reconcileUserData(
 		&service,
 	); err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("Skip reconciling userdata since the etcd Service isn't prepared yet")
+			logger.Info("Skip reconciling userdata since the etcd Service isn't prepared yet.")
 			return nil, nil
 		}
 		return nil, fmt.Errorf("unable to get a service %s/%s: %w", e.Namespace, status.ServiceRef.Name, err)
 	}
 	if service.Spec.ClusterIP == "" {
-		return nil, fmt.Errorf("cluster ip of service %s/%s isn't assigned yet", e.Namespace, status.ServiceRef.Name)
+		return nil, fmt.Errorf("cluster ip of service %s/%s isn't assigned yet.", e.Namespace, status.ServiceRef.Name)
 	}
 
 	startEtcdScriptBuf := bytes.Buffer{}
@@ -639,7 +639,7 @@ func (r *EtcdReconciler) reconcileEtcdMember(
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("Skip reconciling an etcd member since SSH private key isn't prepared yet")
+			logger.Info("Skip reconciling an etcd member since SSH private key isn't prepared yet.")
 			return nil
 		}
 		return nil
@@ -655,13 +655,13 @@ func (r *EtcdReconciler) reconcileEtcdMember(
 		&service,
 	); err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("Skip reconciling an etcd member since the etcd Service isn't prepared yet")
+			logger.Info("Skip reconciling an etcd member since the etcd Service isn't prepared yet.")
 			return nil
 		}
 		return err
 	}
 	if service.Spec.ClusterIP == "" {
-		logger.Info("Skip reconciling an etcd member since cluster ip isn't assigned yet")
+		logger.Info("Skip reconciling an etcd member since cluster ip isn't assigned yet.")
 		return nil
 	}
 	var port int32
@@ -672,13 +672,16 @@ func (r *EtcdReconciler) reconcileEtcdMember(
 		}
 	}
 	if port == 0 {
-		logger.Info("Skip reconciling an etcd member since port of service %s/%s isn't assigned yet")
+		logger.Info("Skip reconciling an etcd member since port of service %s/%s isn't assigned yet.")
 		return nil
 	}
 
 	client, closer, err := ssh.StartSSHConnection(ctx, privateKey, service.Spec.ClusterIP, int(port))
 	if err != nil {
-		logger.Info("Skip reconciling an etcd member since SSH port of an etcd member isn't available yet")
+		logger.Info(
+			"Skip reconciling an etcd member since SSH port of an etcd member isn't available yet.",
+			"reason", err,
+		)
 		return nil
 	}
 	defer closer()
@@ -686,7 +689,7 @@ func (r *EtcdReconciler) reconcileEtcdMember(
 	if err := ssh.RunCommandOverSSHSession(ctx, client, "sudo /opt/bin/start-etcd.sh"); err != nil {
 		return err
 	}
-	logger.Info("Succeeded in executing a start-up script for an etcd member on the VirtualMachineInstance")
+	logger.Info("Succeeded in executing a start-up script for an etcd member on the VirtualMachineInstance.")
 
 	return nil
 }
@@ -757,10 +760,10 @@ func (r *EtcdReconciler) updateStatus(
 			if apierrors.IsNotFound(err) {
 				return ctrl.Result{}, nil
 			}
-			logger.Error(err, "unable to update status")
+		logger.Info("Status was updated.")
 			return ctrl.Result{}, err
 		}
-		logger.Info("status is updated")
+		logger.Info("Status was updated.")
 	}
 	return ctrl.Result{}, nil
 }
