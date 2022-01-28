@@ -114,7 +114,14 @@ func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 func (r *EtcdReconciler) deleteExternalResources(ctx context.Context, e *kubernetesimalv1alpha1.Etcd) (bool, error) {
 	logger := log.FromContext(ctx)
 
-	if deleted, err := r.deleteSSHKeyPairSecret(ctx, e); err != nil {
+	if deleted, err := r.finalizeCACertificateSecret(ctx, e); err != nil {
+		return false, err
+	} else if !deleted {
+		return false, nil
+	}
+	logger.Info("CA certificate was finalized.")
+
+	if deleted, err := r.finalizeSSHKeyPairSecret(ctx, e); err != nil {
 		return false, err
 	} else if !deleted {
 		return false, nil
@@ -131,23 +138,42 @@ func (r *EtcdReconciler) deleteExternalResources(ctx context.Context, e *kuberne
 	return true, nil
 }
 
-func (r *EtcdReconciler) deleteSSHKeyPairSecret(
+func (r *EtcdReconciler) finalizeCACertificateSecret(
 	ctx context.Context,
 	e *kubernetesimalv1alpha1.Etcd,
 ) (bool, error) {
-	logger := log.FromContext(ctx)
+	if e.Status.CACertificateRef == nil {
+		return true, nil
+	}
+	return r.finalizeSecret(ctx, e.Namespace, e.Status.CACertificateRef.Name)
+}
 
+func (r *EtcdReconciler) finalizeSSHKeyPairSecret(
+	ctx context.Context,
+	e *kubernetesimalv1alpha1.Etcd,
+) (bool, error) {
 	if e.Status.SSHPrivateKeyRef == nil {
 		return true, nil
 	}
+	return r.finalizeSecret(ctx, e.Namespace, e.Status.SSHPrivateKeyRef.Name)
+}
+
+func (r *EtcdReconciler) finalizeSecret(
+	ctx context.Context,
+	namespace, name string,
+) (bool, error) {
+	logger := log.FromContext(ctx)
+
 	key := types.NamespacedName{
-		Namespace: e.Namespace,
-		Name:      e.Status.SSHPrivateKeyRef.Name,
+		Namespace: namespace,
+		Name:      name,
 	}
 	var sshKeyPair corev1.Secret
 	if err := r.Client.Get(ctx, key, &sshKeyPair); err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("The Secret of SSH key-pair has already been deleted.")
+			logger.Info("The Secret has already been deleted.",
+				"secretName", name,
+			)
 			return true, nil
 		}
 		return false, err
@@ -155,14 +181,20 @@ func (r *EtcdReconciler) deleteSSHKeyPairSecret(
 	if sshKeyPair.DeletionTimestamp.IsZero() {
 		if err := r.Client.Delete(ctx, &sshKeyPair, &client.DeleteOptions{}); err != nil {
 			if apierrors.IsNotFound(err) {
-				logger.Info("The Secret of SSH key-pair has already been deleted.")
+				logger.Info("The Secret has already been deleted.",
+					"secretName", name,
+				)
 				return true, nil
 			}
 			return false, err
 		}
-		logger.Info("The Secret of SSH key-pair has started to be deleted.")
+		logger.Info("The Secret has started to be deleted.",
+			"secretName", name,
+		)
 	} else {
-		logger.Info("The Secret of SSH key-pair is beeing deleted.")
+		logger.Info("The Secret is beeing deleted.",
+			"secretName", name,
+		)
 	}
 	return false, nil
 }
