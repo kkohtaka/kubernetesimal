@@ -2,7 +2,13 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "controllers",
-    srcs = ["etcd_controller.go"],
+    srcs = [
+        "etcd.go",
+        "etcd_controller.go",
+        "pki.go",
+        "ssh.go",
+        "vm.go",
+    ],
     embedsrcs = [
         "templates/cloud-init.tmpl",
         "templates/start-etcd.sh.tmpl",
