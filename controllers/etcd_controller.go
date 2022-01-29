@@ -88,10 +88,11 @@ func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		}
 	} else {
 		if controllerutil.ContainsFinalizer(&e, finalizerName) {
-			if deleted, err := r.deleteExternalResources(ctx, &e); err != nil {
+			status, deleted, err := r.finalizeExternalResources(ctx, &e, e.Status)
+			if err != nil {
 				return ctrl.Result{Requeue: true}, err
 			} else if !deleted {
-				return ctrl.Result{}, nil
+				return r.updateStatus(ctx, &e, status)
 			}
 			logger.Info("External resources were deleted.")
 
@@ -100,6 +101,7 @@ func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 				return ctrl.Result{Requeue: true}, err
 			}
 			logger.Info("The finalizer was unset.")
+			return r.updateStatus(ctx, &e, status)
 		}
 		return ctrl.Result{}, nil
 	}
@@ -111,56 +113,117 @@ func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	return r.updateStatus(ctx, &e, status)
 }
 
-func (r *EtcdReconciler) deleteExternalResources(ctx context.Context, e *kubernetesimalv1alpha1.Etcd) (bool, error) {
-	logger := log.FromContext(ctx)
-
-	if deleted, err := r.finalizeCACertificateSecret(ctx, e); err != nil {
-		return false, err
+func (r *EtcdReconciler) finalizeExternalResources(
+	ctx context.Context,
+	e *kubernetesimalv1alpha1.Etcd,
+	status kubernetesimalv1alpha1.EtcdStatus,
+) (kubernetesimalv1alpha1.EtcdStatus, bool, error) {
+	if newStatus, deleted, err := r.finalizeCACertificateSecret(ctx, e, status); err != nil {
+		return status, false, err
 	} else if !deleted {
-		return false, nil
+		return newStatus, false, nil
+	} else {
+		status = newStatus
 	}
-	logger.Info("CA certificate was finalized.")
 
-	if deleted, err := r.finalizeSSHKeyPairSecret(ctx, e); err != nil {
-		return false, err
+	if newStatus, deleted, err := r.finalizeSSHKeyPairSecret(ctx, e, status); err != nil {
+		return status, false, err
 	} else if !deleted {
-		return false, nil
+		return newStatus, false, nil
+	} else {
+		status = newStatus
 	}
-	logger.Info("SSH key-pair was finalized.")
 
-	if deleted, err := r.deleteVirtualMachineInstance(ctx, e); err != nil {
-		return false, err
+	if newStatus, deleted, err := r.finalizeEtcdMember(ctx, e, status); err != nil {
+		return status, false, err
 	} else if !deleted {
-		return false, nil
+		return newStatus, false, nil
+	} else {
+		status = newStatus
 	}
-	logger.Info("VirtualMachine was finalized.")
 
-	return true, nil
+	return status, true, nil
 }
 
 func (r *EtcdReconciler) finalizeCACertificateSecret(
 	ctx context.Context,
 	e *kubernetesimalv1alpha1.Etcd,
-) (bool, error) {
+	status kubernetesimalv1alpha1.EtcdStatus,
+) (kubernetesimalv1alpha1.EtcdStatus, bool, error) {
+	logger := log.FromContext(ctx)
+
 	if e.Status.CACertificateRef == nil {
-		return true, nil
+		return status, true, nil
 	}
-	return r.finalizeSecret(ctx, e.Namespace, e.Status.CACertificateRef.Name)
+	if deleted, err := r.finalizeSecret(ctx, e.Namespace, e.Status.CACertificateRef.Name); err != nil {
+		return status, false, err
+	} else if !deleted {
+		return status, false, nil
+	}
+	logger.Info("CA certificate was finalized.")
+	status.CACertificateRef = nil
+	return status, true, nil
 }
 
 func (r *EtcdReconciler) finalizeSSHKeyPairSecret(
 	ctx context.Context,
 	e *kubernetesimalv1alpha1.Etcd,
-) (bool, error) {
+	status kubernetesimalv1alpha1.EtcdStatus,
+) (kubernetesimalv1alpha1.EtcdStatus, bool, error) {
+	logger := log.FromContext(ctx)
+
 	if e.Status.SSHPrivateKeyRef == nil {
-		return true, nil
+		return status, true, nil
 	}
-	return r.finalizeSecret(ctx, e.Namespace, e.Status.SSHPrivateKeyRef.Name)
+	if deleted, err := r.finalizeSecret(ctx, e.Namespace, e.Status.SSHPrivateKeyRef.Name); err != nil {
+		return status, false, err
+	} else if !deleted {
+		return status, false, nil
+	}
+	logger.Info("SSH key-pair was finalized.")
+	status.SSHPrivateKeyRef = nil
+	status.SSHPublicKeyRef = nil
+	return status, true, nil
+}
+
+func (r *EtcdReconciler) finalizeEtcdMember(
+	ctx context.Context,
+	e *kubernetesimalv1alpha1.Etcd,
+	status kubernetesimalv1alpha1.EtcdStatus,
+) (kubernetesimalv1alpha1.EtcdStatus, bool, error) {
+	logger := log.FromContext(ctx)
+
+	if e.Status.VirtualMachineRef == nil {
+		return status, true, nil
+	}
+	if deleted, err := r.finalizeVirtualMachineInstance(ctx, e.Namespace, e.Status.VirtualMachineRef.Name); err != nil {
+		return status, false, err
+	} else if !deleted {
+		return status, false, nil
+	}
+	logger.Info("VirtualMachine was finalized.")
+	status.VirtualMachineRef = nil
+	return status, true, nil
 }
 
 func (r *EtcdReconciler) finalizeSecret(
 	ctx context.Context,
 	namespace, name string,
+) (bool, error) {
+	return r.finalizeObject(ctx, namespace, name, &corev1.Secret{})
+}
+
+func (r *EtcdReconciler) finalizeVirtualMachineInstance(
+	ctx context.Context,
+	namespace, name string,
+) (bool, error) {
+	return r.finalizeObject(ctx, namespace, name, &kubevirtv1.VirtualMachineInstance{})
+}
+
+func (r *EtcdReconciler) finalizeObject(
+	ctx context.Context,
+	namespace, name string,
+	obj client.Object,
 ) (bool, error) {
 	logger := log.FromContext(ctx)
 
@@ -168,18 +231,17 @@ func (r *EtcdReconciler) finalizeSecret(
 		Namespace: namespace,
 		Name:      name,
 	}
-	var sshKeyPair corev1.Secret
-	if err := r.Client.Get(ctx, key, &sshKeyPair); err != nil {
+	if err := r.Client.Get(ctx, key, obj); err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("The Secret has already been deleted.",
+			logger.Info("The object has already been deleted.",
 				"secretName", name,
 			)
 			return true, nil
 		}
 		return false, err
 	}
-	if sshKeyPair.DeletionTimestamp.IsZero() {
-		if err := r.Client.Delete(ctx, &sshKeyPair, &client.DeleteOptions{}); err != nil {
+	if obj.GetDeletionTimestamp().IsZero() {
+		if err := r.Client.Delete(ctx, obj, &client.DeleteOptions{}); err != nil {
 			if apierrors.IsNotFound(err) {
 				logger.Info("The Secret has already been deleted.",
 					"secretName", name,
@@ -195,42 +257,6 @@ func (r *EtcdReconciler) finalizeSecret(
 		logger.Info("The Secret is beeing deleted.",
 			"secretName", name,
 		)
-	}
-	return false, nil
-}
-
-func (r *EtcdReconciler) deleteVirtualMachineInstance(
-	ctx context.Context,
-	e *kubernetesimalv1alpha1.Etcd,
-) (bool, error) {
-	logger := log.FromContext(ctx)
-
-	if e.Status.VirtualMachineRef == nil {
-		return true, nil
-	}
-	key := types.NamespacedName{
-		Namespace: e.Namespace,
-		Name:      e.Status.VirtualMachineRef.Name,
-	}
-	var vmi kubevirtv1.VirtualMachineInstance
-	if err := r.Client.Get(ctx, key, &vmi); err != nil {
-		if apierrors.IsNotFound(err) {
-			logger.Info("The VirtualMachineInstance for an etcd member has already been deleted.")
-			return true, nil
-		}
-		return false, err
-	}
-	if vmi.DeletionTimestamp.IsZero() {
-		if err := r.Client.Delete(ctx, &vmi, &client.DeleteOptions{}); err != nil {
-			if apierrors.IsNotFound(err) {
-				logger.Info("The VirtualMachineInstance for an etcd member has already been deleted.")
-				return true, nil
-			}
-			return false, err
-		}
-		logger.Info("The VirtualMachineInstance for an etcd member has started to be deleted.")
-	} else {
-		logger.Info("The VirtualMachineInstance for an etcd member is beeing deleted.")
 	}
 	return false, nil
 }
@@ -787,13 +813,16 @@ func (r *EtcdReconciler) updateStatus(
 	logger := log.FromContext(ctx)
 
 	var requeue bool
-	status.Phase = kubernetesimalv1alpha1.EtcdPhasePending
-	if status.ProbedSinceTime.IsZero() {
+	switch {
+	case !e.ObjectMeta.DeletionTimestamp.IsZero():
+		status.Phase = kubernetesimalv1alpha1.EtcdPhaseDeleting
+	case e.Status.ProbedSinceTime.IsZero():
+		status.Phase = kubernetesimalv1alpha1.EtcdPhasePending
 		if !status.LastProvisionedTime.IsZero() {
 			// If an etcd member was provisioned and is probed yet, retry reconciliation.
 			requeue = true
 		}
-	} else {
+	default:
 		status.Phase = kubernetesimalv1alpha1.EtcdPhaseRunning
 	}
 

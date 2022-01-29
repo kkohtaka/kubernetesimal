@@ -52,7 +52,7 @@ type EtcdStatus struct {
 	ProbedSinceTime *metav1.Time `json:"probedSinceTime,omitempty"`
 }
 
-//+kubebuilder:validation:Enum=Pending;Running
+//+kubebuilder:validation:Enum=Pending;Running;Deleting
 
 // EtcdPhase is a label for the phase of the etcd cluster at the current time.
 type EtcdPhase string
@@ -62,6 +62,8 @@ const (
 	EtcdPhasePending EtcdPhase = "Pending"
 	// EtcdPhaseRunning means the etcd cluster is running.
 	EtcdPhaseRunning EtcdPhase = "Running"
+	// EtcdPhaseDeleting means the etcd cluster is running.
+	EtcdPhaseDeleting EtcdPhase = "Deleting"
 )
 
 //+kubebuilder:object:root=true

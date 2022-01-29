@@ -95,6 +95,7 @@ spec:
                 enum:
                 - Pending
                 - Running
+                - Deleting
                 type: string
               probedSinceTime:
                 description: ProbedSinceTime is the timestamp when the controller
