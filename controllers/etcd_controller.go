@@ -147,6 +147,11 @@ func (r *EtcdReconciler) finalizeSecret(
 	ctx context.Context,
 	namespace, name string,
 ) (bool, error) {
+	logger := log.FromContext(ctx).WithValues(
+		"object", name,
+		"resource", "corev1.Secret",
+	)
+	ctx = log.IntoContext(ctx, logger)
 	return r.finalizeObject(ctx, namespace, name, &corev1.Secret{})
 }
 
@@ -163,9 +168,7 @@ func (r *EtcdReconciler) finalizeObject(
 	}
 	if err := r.Client.Get(ctx, key, obj); err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("The object has already been deleted.",
-				"secretName", name,
-			)
+			logger.Info("The object has already been deleted.")
 			return true, nil
 		}
 		return false, err
@@ -173,20 +176,14 @@ func (r *EtcdReconciler) finalizeObject(
 	if obj.GetDeletionTimestamp().IsZero() {
 		if err := r.Client.Delete(ctx, obj, &client.DeleteOptions{}); err != nil {
 			if apierrors.IsNotFound(err) {
-				logger.Info("The Secret has already been deleted.",
-					"secretName", name,
-				)
+				logger.Info("The object has already been deleted.")
 				return true, nil
 			}
 			return false, err
 		}
-		logger.Info("The Secret has started to be deleted.",
-			"secretName", name,
-		)
+		logger.Info("The object has started to be deleted.")
 	} else {
-		logger.Info("The Secret is beeing deleted.",
-			"secretName", name,
-		)
+		logger.Info("The object is beeing deleted.")
 	}
 	return false, nil
 }

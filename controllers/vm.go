@@ -210,11 +210,16 @@ func (r *EtcdReconciler) finalizeVirtualMachineInstance(
 	e *kubernetesimalv1alpha1.Etcd,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, bool, error) {
-	logger := log.FromContext(ctx)
-
 	if e.Status.VirtualMachineRef == nil {
 		return status, true, nil
 	}
+
+	logger := log.FromContext(ctx).WithValues(
+		"object", e.Status.VirtualMachineRef.Name,
+		"resource", "VirtualMachineInstance",
+	)
+	ctx = log.IntoContext(ctx, logger)
+
 	if deleted, err := r.finalizeObject(
 		ctx,
 		e.Namespace,
