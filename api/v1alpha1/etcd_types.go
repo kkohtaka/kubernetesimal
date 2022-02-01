@@ -36,6 +36,10 @@ type EtcdStatus struct {
 	CACertificateRef *corev1.SecretKeySelector `json:"caCertificateRef,omitempty"`
 	// CAPrivateKeyRef is a reference to a Secret key that composes a CA private key.
 	CAPrivateKeyRef *corev1.SecretKeySelector `json:"caPrivateKeyRef,omitempty"`
+	// ClientCertificateRef is a reference to a Secret key that composes a Client certificate.
+	ClientCertificateRef *corev1.SecretKeySelector `json:"clientCertificateRef,omitempty"`
+	// ClientPrivateKeyRef is a reference to a Secret key that composes a Client private key.
+	ClientPrivateKeyRef *corev1.SecretKeySelector `json:"clientPrivateKeyRef,omitempty"`
 	// SSHPrivateKeyRef is a reference to a Secret key that composes an SSH private key.
 	SSHPrivateKeyRef *corev1.SecretKeySelector `json:"sshPrivateKeyRef,omitempty"`
 	// SSHPublicKeyRef is a reference to a Secret key that composes an SSH public key.

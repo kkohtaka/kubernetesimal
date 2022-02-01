@@ -116,6 +116,14 @@ func (r *EtcdReconciler) finalizeExternalResources(
 		status = newStatus
 	}
 
+	if newStatus, deleted, err := r.finalizeClientCertificateSecret(ctx, e, status); err != nil {
+		return status, false, err
+	} else if !deleted {
+		return newStatus, false, nil
+	} else {
+		status = newStatus
+	}
+
 	if newStatus, deleted, err := r.finalizeSSHKeyPairSecret(ctx, e, status); err != nil {
 		return status, false, err
 	} else if !deleted {
@@ -195,6 +203,13 @@ func (r *EtcdReconciler) reconcileExternalResources(
 	}
 	status.CAPrivateKeyRef = caPrivateKeyRef
 	status.CACertificateRef = caCertificateRef
+
+	clientCertificateRef, clientPrivateKeyRef, err := r.reconcileClientCertificate(ctx, e, spec, status)
+	if err != nil {
+		return status, fmt.Errorf("unable to prepare a client certificate: %w", err)
+	}
+	status.ClientPrivateKeyRef = clientPrivateKeyRef
+	status.ClientCertificateRef = clientCertificateRef
 
 	if sshPrivateKeyRef, sshPublicKeyRef, err := r.reconcileSSHKeyPair(ctx, e, spec, status); err != nil {
 		return status, fmt.Errorf("unable to prepare an SSH key-pair: %w", err)

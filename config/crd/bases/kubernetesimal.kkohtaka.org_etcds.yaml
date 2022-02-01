@@ -85,6 +85,42 @@ spec:
                 required:
                 - key
                 type: object
+              clientCertificateRef:
+                description: ClientCertificateRef is a reference to a Secret key that
+                  composes a Client certificate.
+                properties:
+                  key:
+                    description: The key of the secret to select from.  Must be a
+                      valid secret key.
+                    type: string
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      TODO: Add other useful fields. apiVersion, kind, uid?'
+                    type: string
+                  optional:
+                    description: Specify whether the Secret or its key must be defined
+                    type: boolean
+                required:
+                - key
+                type: object
+              clientPrivateKeyRef:
+                description: ClientPrivateKeyRef is a reference to a Secret key that
+                  composes a Client private key.
+                properties:
+                  key:
+                    description: The key of the secret to select from.  Must be a
+                      valid secret key.
+                    type: string
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      TODO: Add other useful fields. apiVersion, kind, uid?'
+                    type: string
+                  optional:
+                    description: Specify whether the Secret or its key must be defined
+                    type: boolean
+                required:
+                - key
+                type: object
               lastProvisionedTime:
                 description: LastProvisionedTime is the timestamp when the controller
                   probed an etcd node at the first time.

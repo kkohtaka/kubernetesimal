@@ -2,6 +2,9 @@ package k8s
 
 import (
 	"context"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -66,4 +69,58 @@ func GetValueFromSecretKeySelector(
 		return nil, fmt.Errorf("unable to get Secret %s: %w", key, err)
 	}
 	return secret.Data[selector.Key], nil
+}
+
+func GetCertificateFromSecretKeySelector(
+	ctx context.Context,
+	c client.Client,
+	namespace string,
+	selector *corev1.SecretKeySelector,
+) (*x509.Certificate, error) {
+	var secret corev1.Secret
+	key := types.NamespacedName{
+		Namespace: namespace,
+		Name:      selector.LocalObjectReference.Name,
+	}
+	if err := c.Get(ctx, key, &secret); err != nil {
+		return nil, fmt.Errorf("unable to get Secret for a certificate: %w", err)
+	}
+
+	p, _ := pem.Decode(secret.Data[corev1.TLSCertKey])
+	if p == nil {
+		return nil, fmt.Errorf("no PEM block found")
+	}
+
+	cert, err := x509.ParseCertificate(p.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse a certificate: %w", err)
+	}
+	return cert, nil
+}
+
+func GetPrivateKeyFromSecretKeySelector(
+	ctx context.Context,
+	c client.Client,
+	namespace string,
+	selector *corev1.SecretKeySelector,
+) (*rsa.PrivateKey, error) {
+	var secret corev1.Secret
+	key := types.NamespacedName{
+		Namespace: namespace,
+		Name:      selector.LocalObjectReference.Name,
+	}
+	if err := c.Get(ctx, key, &secret); err != nil {
+		return nil, fmt.Errorf("unable to get Secret for a private key: %w", err)
+	}
+
+	p, _ := pem.Decode(secret.Data[corev1.TLSPrivateKeyKey])
+	if p == nil {
+		return nil, fmt.Errorf("no PEM block found")
+	}
+
+	privateKey, err := x509.ParsePKCS1PrivateKey(p.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse a private key: %w", err)
+	}
+	return privateKey, nil
 }
