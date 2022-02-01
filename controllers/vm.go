@@ -84,7 +84,7 @@ func (r *EtcdReconciler) reconcileUserData(
 		status.CAPrivateKeyRef,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get an SSH public key: %w", err)
+		return nil, fmt.Errorf("unable to get a CA private key: %w", err)
 	}
 
 	var service corev1.Service
