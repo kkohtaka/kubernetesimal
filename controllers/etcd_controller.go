@@ -197,19 +197,23 @@ func (r *EtcdReconciler) reconcileExternalResources(
 	spec kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
-	caCertificateRef, caPrivateKeyRef, err := r.reconcileCACertificate(ctx, e, spec, status)
-	if err != nil {
+	if certificateRef, privateKeyRef, err := r.reconcileCACertificate(ctx, e, spec, status); err != nil {
 		return status, fmt.Errorf("unable to prepare a CA certificate: %w", err)
+	} else if certificateRef == nil || privateKeyRef == nil {
+		return status, nil
+	} else {
+		status.CAPrivateKeyRef = privateKeyRef
+		status.CACertificateRef = certificateRef
 	}
-	status.CAPrivateKeyRef = caPrivateKeyRef
-	status.CACertificateRef = caCertificateRef
 
-	clientCertificateRef, clientPrivateKeyRef, err := r.reconcileClientCertificate(ctx, e, spec, status)
-	if err != nil {
+	if certificateRef, privateKeyRef, err := r.reconcileClientCertificate(ctx, e, spec, status); err != nil {
 		return status, fmt.Errorf("unable to prepare a client certificate: %w", err)
+	} else if certificateRef == nil || privateKeyRef == nil {
+		return status, nil
+	} else {
+		status.ClientPrivateKeyRef = privateKeyRef
+		status.ClientCertificateRef = certificateRef
 	}
-	status.ClientPrivateKeyRef = clientPrivateKeyRef
-	status.ClientCertificateRef = clientCertificateRef
 
 	if sshPrivateKeyRef, sshPublicKeyRef, err := r.reconcileSSHKeyPair(ctx, e, spec, status); err != nil {
 		return status, fmt.Errorf("unable to prepare an SSH key-pair: %w", err)
