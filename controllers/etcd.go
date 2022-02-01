@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -131,12 +132,75 @@ func (r *EtcdReconciler) probeEtcdMember(
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (bool, error) {
+	logger := log.FromContext(ctx)
+
 	address, err := k8s_service.GetAddressFromServiceRef(ctx, r.Client, e.Namespace, "etcd", status.ServiceRef)
 	if err != nil {
 		return false, fmt.Errorf("unable to get an etcd address from a Service: %w", err)
 	}
+
+	caCertificate, err := k8s.GetValueFromSecretKeySelector(
+		ctx,
+		r.Client,
+		e.Namespace,
+		status.CACertificateRef,
+	)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.Info("Skip probing an etcd since CA certificate isn't prepared yet.")
+			return false, nil
+		}
+		return false, fmt.Errorf("unable to get a CA certificate: %w", err)
+	}
+
+	clientCAs, err := x509.SystemCertPool()
+	if err != nil {
+		return false, fmt.Errorf("unable to load a client CA certificates from the system: %w", err)
+	}
+	if ok := clientCAs.AppendCertsFromPEM(caCertificate); !ok {
+		return false, fmt.Errorf("unable to load a client CA certificate from Secret")
+	}
+
+	clientCertificate, err := k8s.GetValueFromSecretKeySelector(
+		ctx,
+		r.Client,
+		e.Namespace,
+		status.ClientCertificateRef,
+	)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.Info("Skip probing an etcd since a client certificate isn't prepared yet.")
+			return false, nil
+		}
+		return false, fmt.Errorf("unable to get a client certificate: %w", err)
+	}
+
+	clientPrivateKey, err := k8s.GetValueFromSecretKeySelector(
+		ctx,
+		r.Client,
+		e.Namespace,
+		status.ClientPrivateKeyRef,
+	)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.Info("Skip probing an etcd since a client private key isn't prepared yet.")
+			return false, nil
+		}
+		return false, fmt.Errorf("unable to get a client private key: %w", err)
+	}
+
+	certificate, err := tls.X509KeyPair(clientCertificate, clientPrivateKey)
+	if err != nil {
+		return false, fmt.Errorf("unable to load a client certificate: %w", err)
+	}
+
 	return http.NewProber(
 		fmt.Sprintf("https://%s/health", address),
-		http.WithTLSConfig(&tls.Config{InsecureSkipVerify: true}),
+		http.WithTLSConfig(&tls.Config{
+			Certificates: []tls.Certificate{
+				certificate,
+			},
+			ClientCAs: clientCAs,
+		}),
 	).Once(ctx)
 }
