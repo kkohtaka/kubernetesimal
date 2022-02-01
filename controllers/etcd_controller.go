@@ -284,10 +284,8 @@ func (r *EtcdReconciler) updateStatus(
 		status.Phase = kubernetesimalv1alpha1.EtcdPhaseDeleting
 	case e.Status.ProbedSinceTime.IsZero():
 		status.Phase = kubernetesimalv1alpha1.EtcdPhasePending
-		if !status.LastProvisionedTime.IsZero() {
-			// If an etcd member was provisioned and is probed yet, retry reconciliation.
-			requeue = true
-		}
+		// If an etcd member isn't probed yet, retry reconciliation.
+		requeue = true
 	default:
 		status.Phase = kubernetesimalv1alpha1.EtcdPhaseRunning
 	}
