@@ -201,6 +201,8 @@ func (r *EtcdReconciler) probeEtcdMember(
 				certificate,
 			},
 			ClientCAs: clientCAs,
+			// TODO(kkohtaka): Don't use this option
+			InsecureSkipVerify: true,
 		}),
 	).Once(ctx)
 }
