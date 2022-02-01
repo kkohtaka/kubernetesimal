@@ -165,6 +165,9 @@ func (r *EtcdReconciler) reconcileClientCertificate(
 		status.CACertificateRef,
 	)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, nil, nil
+		}
 		return nil, nil, fmt.Errorf("unable to load a CA certificate from a Secret: %w", err)
 	}
 
@@ -175,7 +178,10 @@ func (r *EtcdReconciler) reconcileClientCertificate(
 		status.CAPrivateKeyRef,
 	)
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to load a CA certificate from a Secret: %w", err)
+		if apierrors.IsNotFound(err) {
+			return nil, nil, nil
+		}
+		return nil, nil, fmt.Errorf("unable to load a CA private key from a Secret: %w", err)
 	}
 
 	certificate, privateKey, err := pki.CreateClientCertificateAndPrivateKey(
