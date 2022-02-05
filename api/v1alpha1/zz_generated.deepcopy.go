@@ -113,6 +113,16 @@ func (in *EtcdStatus) DeepCopyInto(out *EtcdStatus) {
 		*out = new(v1.SecretKeySelector)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.ClientCertificateRef != nil {
+		in, out := &in.ClientCertificateRef, &out.ClientCertificateRef
+		*out = new(v1.SecretKeySelector)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.ClientPrivateKeyRef != nil {
+		in, out := &in.ClientPrivateKeyRef, &out.ClientPrivateKeyRef
+		*out = new(v1.SecretKeySelector)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.SSHPrivateKeyRef != nil {
 		in, out := &in.SSHPrivateKeyRef, &out.SSHPrivateKeyRef
 		*out = new(v1.SecretKeySelector)
@@ -137,6 +147,14 @@ func (in *EtcdStatus) DeepCopyInto(out *EtcdStatus) {
 		in, out := &in.ServiceRef, &out.ServiceRef
 		*out = new(v1.LocalObjectReference)
 		**out = **in
+	}
+	if in.LastProvisionedTime != nil {
+		in, out := &in.LastProvisionedTime, &out.LastProvisionedTime
+		*out = (*in).DeepCopy()
+	}
+	if in.ProbedSinceTime != nil {
+		in, out := &in.ProbedSinceTime, &out.ProbedSinceTime
+		*out = (*in).DeepCopy()
 	}
 }
 
