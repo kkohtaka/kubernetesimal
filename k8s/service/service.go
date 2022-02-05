@@ -12,6 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type ServiceOption func(*corev1.Service)
@@ -54,12 +56,24 @@ func Reconcile(
 	for _, fn := range opts {
 		fn(&service)
 	}
-	_, err := ctrl.CreateOrUpdate(ctx, c, &service, func() error {
+	opRes, err := ctrl.CreateOrUpdate(ctx, c, &service, func() error {
 		return ctrl.SetControllerReference(owner, &service, scheme)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to create Service %s: %w", k8s.ObjectName(&service.ObjectMeta), err)
 	}
+
+	logger := log.FromContext(ctx).WithValues(
+		"namespace", service.Namespace,
+		"name", service.Name,
+	)
+	switch opRes {
+	case controllerutil.OperationResultCreated:
+		logger.Info("Service was created")
+	case controllerutil.OperationResultUpdated:
+		logger.Info("Service was updated")
+	}
+
 	return &service, nil
 }
 

@@ -13,6 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type SecretOption func(*corev1.Secret)
@@ -45,12 +47,24 @@ func ReconcileSecret(
 	for _, fn := range opts {
 		fn(&secret)
 	}
-	_, err := ctrl.CreateOrUpdate(ctx, c, &secret, func() error {
+	opRes, err := ctrl.CreateOrUpdate(ctx, c, &secret, func() error {
 		return ctrl.SetControllerReference(owner, &secret, scheme)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to create Secret %s: %w", ObjectName(&secret.ObjectMeta), err)
 	}
+
+	logger := log.FromContext(ctx).WithValues(
+		"namespace", secret.Namespace,
+		"name", secret.Name,
+	)
+	switch opRes {
+	case controllerutil.OperationResultCreated:
+		logger.Info("Secret was created")
+	case controllerutil.OperationResultUpdated:
+		logger.Info("Secret was updated")
+	}
+
 	return &secret, nil
 }
 

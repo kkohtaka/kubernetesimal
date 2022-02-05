@@ -12,6 +12,8 @@ import (
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -114,11 +116,23 @@ func ReconcileVirtualMachineInstance(
 	for _, fn := range opts {
 		fn(&vmi)
 	}
-	_, err := ctrl.CreateOrUpdate(ctx, c, &vmi, func() error {
+	opRes, err := ctrl.CreateOrUpdate(ctx, c, &vmi, func() error {
 		return ctrl.SetControllerReference(owner, &vmi, scheme)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to create VirtualMachineInstance %s: %w", ObjectName(&vmi.ObjectMeta), err)
 	}
+
+	logger := log.FromContext(ctx).WithValues(
+		"namespace", vmi.Namespace,
+		"name", vmi.Name,
+	)
+	switch opRes {
+	case controllerutil.OperationResultCreated:
+		logger.Info("VirtualMachineInstance was created")
+	case controllerutil.OperationResultUpdated:
+		logger.Info("VirtualMachineInstance was updated")
+	}
+
 	return &vmi, nil
 }
