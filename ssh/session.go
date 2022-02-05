@@ -46,6 +46,6 @@ func RunCommandOverSSHSession(ctx context.Context, client *ssh.Client, cmd strin
 		logger.Error(err, "Could not complete a command", "cmd", cmd, "errOut", errOut.String())
 		return fmt.Errorf("unable to complete a command: %w", err)
 	}
-	logger.Info("Succeeded in completing a command", "cmd", cmd, "out", out.String())
+	logger.V(4).Info("Succeeded in completing a command", "cmd", cmd, "out", out.String())
 	return nil
 }
