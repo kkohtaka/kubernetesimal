@@ -28,8 +28,6 @@ func (r *EtcdReconciler) reconcileSSHKeyPair(
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
-	logger := log.FromContext(ctx)
-
 	if status.SSHPrivateKeyRef != nil {
 		if name := status.SSHPrivateKeyRef.LocalObjectReference.Name; name != newSSHKeyPairName(e) {
 			return nil, nil, fmt.Errorf("invalid Secret name %s to store an SSH private key", name)
@@ -79,7 +77,6 @@ func (r *EtcdReconciler) reconcileSSHKeyPair(
 	); err != nil {
 		return nil, nil, fmt.Errorf("unable to prepare a Secret for an SSH key-pair: %w", err)
 	} else {
-		logger.Info("A Secret for an SSH key-pair was prepared.")
 		return &corev1.SecretKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{
 					Name: secret.Name,
@@ -101,8 +98,6 @@ func (r *EtcdReconciler) finalizeSSHKeyPairSecret(
 	e *kubernetesimalv1alpha1.Etcd,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, bool, error) {
-	logger := log.FromContext(ctx)
-
 	if e.Status.SSHPrivateKeyRef == nil {
 		return status, true, nil
 	}
@@ -111,8 +106,8 @@ func (r *EtcdReconciler) finalizeSSHKeyPairSecret(
 	} else if !deleted {
 		return status, false, nil
 	}
-	logger.Info("SSH key-pair was finalized.")
 	status.SSHPrivateKeyRef = nil
 	status.SSHPublicKeyRef = nil
+	log.FromContext(ctx).Info("SSH key-pair was finalized.")
 	return status, true, nil
 }

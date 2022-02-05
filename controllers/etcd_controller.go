@@ -59,57 +59,79 @@ func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	logger := log.FromContext(ctx).WithValues("etcd", req.NamespacedName)
 	ctx = log.IntoContext(ctx, logger)
 
+	if err := r.doReconcile(ctx, req); err != nil {
+		if ShouldRequeue(err) {
+			delay := GetDelay(err)
+			logger.Info(
+				"Reconciliation will be requeued.",
+				"reason", err,
+				"delay", delay,
+			)
+			return ctrl.Result{
+				RequeueAfter: delay,
+			}, nil
+		}
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *EtcdReconciler) doReconcile(ctx context.Context, req ctrl.Request) error {
+	logger := log.FromContext(ctx)
+
 	var e kubernetesimalv1alpha1.Etcd
 	if err := r.Get(ctx, req.NamespacedName, &e); err != nil {
 		if apierrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
+			return nil
 		}
-		return ctrl.Result{Requeue: true}, err
+		return err
 	}
 
 	if e.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(&e, finalizerName) {
 			controllerutil.AddFinalizer(&e, finalizerName)
 			if err := r.Update(ctx, &e); err != nil {
-				return ctrl.Result{Requeue: true}, err
+				if apierrors.IsConflict(err) {
+					return NewRequeueError("conflict").Wrap(err)
+				}
+				return err
 			}
 			logger.Info("A finalizer was set.")
-			return ctrl.Result{}, nil
+			return nil
 		}
 	} else {
 		if controllerutil.ContainsFinalizer(&e, finalizerName) {
 			status, deleted, err := r.finalizeExternalResources(ctx, &e, e.Status)
 			if err != nil {
-				return ctrl.Result{Requeue: true}, err
+				return err
 			} else if !deleted {
 				if err := r.updateStatus(ctx, &e, status); err != nil {
-					return ctrl.Result{Requeue: true}, err
+					return err
 				}
-				return ctrl.Result{Requeue: true}, nil
+				return NewRequeueError("waiting for external resources deleted")
 			}
-			logger.Info("External resources were deleted.")
 
 			controllerutil.RemoveFinalizer(&e, finalizerName)
 			if err := r.Update(ctx, &e); err != nil {
-				return ctrl.Result{Requeue: true}, err
+				return err
 			}
 			logger.Info("The finalizer was unset.")
 
 			if err := r.updateStatus(ctx, &e, status); err != nil {
-				return ctrl.Result{Requeue: true}, err
+				return err
 			}
 		}
-		return ctrl.Result{}, nil
+		return nil
 	}
 
-	res, status, err := r.reconcileExternalResources(ctx, &e, e.Spec, e.Status)
+	status, err := r.reconcileExternalResources(ctx, &e, e.Spec, e.Status)
 	if err != nil {
-		return ctrl.Result{Requeue: true}, err
+		return err
 	}
 	if err := r.updateStatus(ctx, &e, status); err != nil {
-		return ctrl.Result{Requeue: true}, err
+		return err
 	}
-	return res, nil
+	return nil
 }
 
 func (r *EtcdReconciler) finalizeExternalResources(
@@ -156,11 +178,10 @@ func (r *EtcdReconciler) finalizeSecret(
 	ctx context.Context,
 	namespace, name string,
 ) (bool, error) {
-	logger := log.FromContext(ctx).WithValues(
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues(
 		"object", name,
 		"resource", "corev1.Secret",
-	)
-	ctx = log.IntoContext(ctx, logger)
+	))
 	return r.finalizeObject(ctx, namespace, name, &corev1.Secret{})
 }
 
@@ -197,86 +218,78 @@ func (r *EtcdReconciler) finalizeObject(
 	return false, nil
 }
 
+const (
+	probeInterval = 5 * time.Second
+)
+
 func (r *EtcdReconciler) reconcileExternalResources(
 	ctx context.Context,
 	e *kubernetesimalv1alpha1.Etcd,
 	spec kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
-) (ctrl.Result, kubernetesimalv1alpha1.EtcdStatus, error) {
+) (kubernetesimalv1alpha1.EtcdStatus, error) {
+	logger := log.FromContext(ctx)
+
 	if certificateRef, privateKeyRef, err := r.reconcileCACertificate(ctx, e, spec, status); err != nil {
-		return ctrl.Result{}, status, fmt.Errorf("unable to prepare a CA certificate: %w", err)
-	} else if certificateRef == nil || privateKeyRef == nil {
-		return ctrl.Result{Requeue: true}, status, nil
+		return status, fmt.Errorf("unable to prepare a CA certificate: %w", err)
 	} else {
 		status.CAPrivateKeyRef = privateKeyRef
 		status.CACertificateRef = certificateRef
 	}
 
 	if certificateRef, privateKeyRef, err := r.reconcileClientCertificate(ctx, e, spec, status); err != nil {
-		return ctrl.Result{}, status, fmt.Errorf("unable to prepare a client certificate: %w", err)
-	} else if certificateRef == nil || privateKeyRef == nil {
-		return ctrl.Result{Requeue: true}, status, nil
+		return status, fmt.Errorf("unable to prepare a client certificate: %w", err)
 	} else {
 		status.ClientPrivateKeyRef = privateKeyRef
 		status.ClientCertificateRef = certificateRef
 	}
 
 	if sshPrivateKeyRef, sshPublicKeyRef, err := r.reconcileSSHKeyPair(ctx, e, spec, status); err != nil {
-		return ctrl.Result{}, status, fmt.Errorf("unable to prepare an SSH key-pair: %w", err)
-	} else if sshPrivateKeyRef == nil || sshPublicKeyRef == nil {
-		return ctrl.Result{Requeue: true}, status, nil
+		return status, fmt.Errorf("unable to prepare an SSH key-pair: %w", err)
 	} else {
 		status.SSHPrivateKeyRef = sshPrivateKeyRef
 		status.SSHPublicKeyRef = sshPublicKeyRef
 	}
 
 	if serviceRef, err := r.reconcileService(ctx, e, spec, status); err != nil {
-		return ctrl.Result{}, status, fmt.Errorf("unable to prepare a service: %w", err)
-	} else if serviceRef == nil {
-		return ctrl.Result{Requeue: true}, status, nil
+		return status, fmt.Errorf("unable to prepare a service: %w", err)
 	} else {
 		status.ServiceRef = serviceRef
 	}
 
 	if userDataRef, err := r.reconcileUserData(ctx, e, spec, status); err != nil {
-		return ctrl.Result{}, status, fmt.Errorf("unable to prepare a userdata: %w", err)
-	} else if userDataRef == nil {
-		return ctrl.Result{Requeue: true}, status, nil
+		return status, fmt.Errorf("unable to prepare a userdata: %w", err)
 	} else {
 		status.UserDataRef = userDataRef
 	}
 
 	if vmiRef, err := r.reconcileVirtualMachineInstance(ctx, e, spec, status); err != nil {
-		return ctrl.Result{}, status, fmt.Errorf("unable to prepare a virtual machine instance: %w", err)
-	} else if vmiRef == nil {
-		return ctrl.Result{Requeue: true}, status, nil
+		return status, fmt.Errorf("unable to prepare a virtual machine instance: %w", err)
 	} else {
 		status.VirtualMachineRef = vmiRef
 	}
 
 	if status.LastProvisionedTime.IsZero() {
-		if provisioned, err := r.provisionEtcdMember(ctx, e, spec, status); err != nil {
-			return ctrl.Result{}, status, fmt.Errorf("unable to prepare an etcd member: %w", err)
-		} else if provisioned {
-			status.LastProvisionedTime = &metav1.Time{Time: time.Now()}
-		} else {
-			status.LastProvisionedTime = nil
-			return ctrl.Result{Requeue: true}, status, nil
+		if err := r.provisionEtcdMember(ctx, e, spec, status); err != nil {
+			return status, fmt.Errorf("unable to provision an etcd member: %w", err)
 		}
+		status.LastProvisionedTime = &metav1.Time{Time: time.Now()}
+		logger.Info("Provisioning an etcd member was completed.")
 	}
 
 	if probed, err := r.probeEtcdMember(ctx, e, spec, status); err != nil {
-		return ctrl.Result{}, status, fmt.Errorf("unable to probe an etcd member: %w", err)
-	} else if probed {
+		return status, fmt.Errorf("unable to probe an etcd member: %w", err)
+	} else if !probed {
+		status.ProbedSinceTime = nil
+		return status, NewRequeueError("waiting for an etcd member ready").WithDelay(probeInterval)
+	} else {
+		logger.Info("Probing an etcd member was succeeded.")
 		if status.ProbedSinceTime.IsZero() {
 			status.ProbedSinceTime = &metav1.Time{Time: time.Now()}
 		}
-	} else {
-		status.ProbedSinceTime = nil
-		return ctrl.Result{Requeue: true}, status, nil
 	}
 
-	return ctrl.Result{}, status, nil
+	return status, nil
 }
 
 func (r *EtcdReconciler) updateStatus(
@@ -305,7 +318,7 @@ func (r *EtcdReconciler) updateStatus(
 			logger.Error(err, "Status couldn't be updated.")
 			return err
 		}
-		logger.Info("Status was updated.")
+		logger.V(4).Info("Status was updated.")
 	}
 	return nil
 }

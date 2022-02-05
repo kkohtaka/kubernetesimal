@@ -28,8 +28,6 @@ func (r *EtcdReconciler) reconcileCACertificate(
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
-	logger := log.FromContext(ctx)
-
 	if status.CAPrivateKeyRef != nil {
 		if name := status.CAPrivateKeyRef.LocalObjectReference.Name; name != newCACertificateName(e) {
 			return nil, nil, fmt.Errorf("invalid Secret name %s to store a CA private key", name)
@@ -79,7 +77,6 @@ func (r *EtcdReconciler) reconcileCACertificate(
 	); err != nil {
 		return nil, nil, fmt.Errorf("unable to prepare a Secret for a CA certificate for etcd: %w", err)
 	} else {
-		logger.Info("A Secret for CA certificate was prepared.")
 		return &corev1.SecretKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{
 					Name: secret.Name,
@@ -101,8 +98,6 @@ func (r *EtcdReconciler) finalizeCACertificateSecret(
 	e *kubernetesimalv1alpha1.Etcd,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, bool, error) {
-	logger := log.FromContext(ctx)
-
 	if e.Status.CACertificateRef == nil {
 		return status, true, nil
 	}
@@ -111,8 +106,8 @@ func (r *EtcdReconciler) finalizeCACertificateSecret(
 	} else if !deleted {
 		return status, false, nil
 	}
-	logger.Info("CA certificate was finalized.")
 	status.CACertificateRef = nil
+	log.FromContext(ctx).Info("CA certificate was finalized.")
 	return status, true, nil
 }
 
@@ -126,8 +121,6 @@ func (r *EtcdReconciler) reconcileClientCertificate(
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
-	logger := log.FromContext(ctx)
-
 	if status.ClientPrivateKeyRef != nil {
 		if name := status.ClientPrivateKeyRef.LocalObjectReference.Name; name != newClientCertificateName(e) {
 			return nil, nil, fmt.Errorf("invalid Secret name %s to store a client private key", name)
@@ -207,7 +200,6 @@ func (r *EtcdReconciler) reconcileClientCertificate(
 	); err != nil {
 		return nil, nil, fmt.Errorf("unable to prepare a Secret for a client certificate for etcd: %w", err)
 	} else {
-		logger.Info("A Secret for client certificate was prepared.")
 		return &corev1.SecretKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{
 					Name: secret.Name,
@@ -229,8 +221,6 @@ func (r *EtcdReconciler) finalizeClientCertificateSecret(
 	e *kubernetesimalv1alpha1.Etcd,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, bool, error) {
-	logger := log.FromContext(ctx)
-
 	if e.Status.ClientCertificateRef == nil {
 		return status, true, nil
 	}
@@ -239,7 +229,7 @@ func (r *EtcdReconciler) finalizeClientCertificateSecret(
 	} else if !deleted {
 		return status, false, nil
 	}
-	logger.Info("Client certificate was finalized.")
 	status.ClientCertificateRef = nil
+	log.FromContext(ctx).Info("Client certificate was finalized.")
 	return status, true, nil
 }

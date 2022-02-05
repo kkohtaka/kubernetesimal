@@ -47,8 +47,6 @@ func (r *EtcdReconciler) reconcileUserData(
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.LocalObjectReference, error) {
-	logger := log.FromContext(ctx)
-
 	publicKey, err := k8s.GetValueFromSecretKeySelector(
 		ctx,
 		r.Client,
@@ -57,8 +55,7 @@ func (r *EtcdReconciler) reconcileUserData(
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("Skip reconciling userdata since SSH public key isn't prepared yet.")
-			return nil, nil
+			return nil, NewRequeueError("waiting for an SSH public key prepared").Wrap(err)
 		}
 		return nil, fmt.Errorf("unable to get an SSH public key: %w", err)
 	}
@@ -71,8 +68,7 @@ func (r *EtcdReconciler) reconcileUserData(
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("Skip reconciling userdata since CA certificate isn't prepared yet.")
-			return nil, nil
+			return nil, NewRequeueError("waiting for a CA certificate prepared").Wrap(err)
 		}
 		return nil, fmt.Errorf("unable to get a CA certificate: %w", err)
 	}
@@ -84,6 +80,9 @@ func (r *EtcdReconciler) reconcileUserData(
 		status.CAPrivateKeyRef,
 	)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, NewRequeueError("waiting for a CA private key prepared").Wrap(err)
+		}
 		return nil, fmt.Errorf("unable to get a CA private key: %w", err)
 	}
 
@@ -97,13 +96,12 @@ func (r *EtcdReconciler) reconcileUserData(
 		&service,
 	); err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("Skip reconciling userdata since the etcd Service isn't prepared yet.")
-			return nil, nil
+			return nil, NewRequeueError("waiting for the etcd Service prepared").Wrap(err)
 		}
 		return nil, fmt.Errorf("unable to get a service %s/%s: %w", e.Namespace, status.ServiceRef.Name, err)
 	}
 	if service.Spec.ClusterIP == "" {
-		return nil, fmt.Errorf("cluster ip of service %s/%s isn't assigned yet.", e.Namespace, status.ServiceRef.Name)
+		return nil, NewRequeueError("waiting for a cluster IP of the etcd Service prepared").Wrap(err)
 	}
 
 	startEtcdScriptBuf := bytes.Buffer{}
@@ -167,7 +165,6 @@ func (r *EtcdReconciler) reconcileUserData(
 	); err != nil {
 		return nil, fmt.Errorf("unable to create Secret: %w", err)
 	} else {
-		logger.Info("A Secret for a userdata was prepared.")
 		return &corev1.LocalObjectReference{
 			Name: secret.Name,
 		}, nil
@@ -180,8 +177,6 @@ func (r *EtcdReconciler) reconcileVirtualMachineInstance(
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.LocalObjectReference, error) {
-	logger := log.FromContext(ctx)
-
 	if vmi, err := k8s.ReconcileVirtualMachineInstance(
 		ctx,
 		e,
@@ -198,7 +193,6 @@ func (r *EtcdReconciler) reconcileVirtualMachineInstance(
 	); err != nil {
 		return nil, fmt.Errorf("unable to create VirtualMachineInstance: %w", err)
 	} else {
-		logger.Info("A VirtualMachineInstance for an etcd member was prepared.")
 		return &corev1.LocalObjectReference{
 			Name: vmi.Name,
 		}, nil
@@ -230,7 +224,7 @@ func (r *EtcdReconciler) finalizeVirtualMachineInstance(
 	} else if !deleted {
 		return status, false, nil
 	}
-	logger.Info("VirtualMachine was finalized.")
 	status.VirtualMachineRef = nil
+	logger.Info("VirtualMachine was finalized.")
 	return status, true, nil
 }

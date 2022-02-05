@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -28,8 +29,6 @@ func (r *EtcdReconciler) reconcileService(
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.LocalObjectReference, error) {
-	logger := log.FromContext(ctx)
-
 	if service, err := k8s_service.Reconcile(
 		ctx,
 		e,
@@ -48,7 +47,6 @@ func (r *EtcdReconciler) reconcileService(
 	); err != nil {
 		return nil, fmt.Errorf("unable to prepare a Service for an etcd member: %w", err)
 	} else {
-		logger.Info("A Service for an etcd member was prepared.")
 		return &corev1.LocalObjectReference{
 			Name: service.Name,
 		}, nil
@@ -60,9 +58,7 @@ func (r *EtcdReconciler) provisionEtcdMember(
 	e *kubernetesimalv1alpha1.Etcd,
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
-) (bool, error) {
-	logger := log.FromContext(ctx)
-
+) error {
 	privateKey, err := k8s.GetValueFromSecretKeySelector(
 		ctx,
 		r.Client,
@@ -71,10 +67,9 @@ func (r *EtcdReconciler) provisionEtcdMember(
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("Skip provisioning an etcd member since SSH private key isn't prepared yet.")
-			return false, nil
+			return NewRequeueError("waiting for an SSH private key prepared").Wrap(err)
 		}
-		return false, err
+		return err
 	}
 
 	var service corev1.Service
@@ -87,14 +82,12 @@ func (r *EtcdReconciler) provisionEtcdMember(
 		&service,
 	); err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("Skip provisioning an etcd member since the etcd Service isn't prepared yet.")
-			return false, nil
+			return NewRequeueError("waiting for the etcd Service prepared").Wrap(err)
 		}
-		return false, err
+		return err
 	}
 	if service.Spec.ClusterIP == "" {
-		logger.Info("Skip provisioning an etcd member since cluster ip isn't assigned yet.")
-		return false, nil
+		return NewRequeueError("waiting for a cluster IP of the etcd Service prepared").Wrap(err)
 	}
 	var port int32
 	for i := range service.Spec.Ports {
@@ -104,26 +97,22 @@ func (r *EtcdReconciler) provisionEtcdMember(
 		}
 	}
 	if port == 0 {
-		logger.Info("Skip provisioning an etcd member since port of service %s/%s isn't assigned yet.")
-		return false, nil
+		return NewRequeueError("waiting for an SSH port of the etcd Service prepared").Wrap(err)
 	}
 
 	client, closer, err := ssh.StartSSHConnection(ctx, privateKey, service.Spec.ClusterIP, int(port))
 	if err != nil {
-		logger.Info(
-			"Skip provisioning an etcd member since SSH port of an etcd member isn't available yet.",
-			"reason", err,
-		)
-		return false, nil
+		return NewRequeueError("waiting for an SSH port of an etcd member prepared").
+			Wrap(err).
+			WithDelay(5 * time.Second)
 	}
 	defer closer()
 
 	if err := ssh.RunCommandOverSSHSession(ctx, client, "sudo /opt/bin/start-etcd.sh"); err != nil {
-		return false, err
+		return err
 	}
-	logger.Info("Succeeded in executing a start-up script for an etcd member on the VirtualMachineInstance.")
 
-	return true, nil
+	return nil
 }
 
 func (r *EtcdReconciler) probeEtcdMember(
@@ -148,7 +137,7 @@ func (r *EtcdReconciler) probeEtcdMember(
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Info("Skip probing an etcd since CA certificate isn't prepared yet.")
-			return false, nil
+			return false, NewRequeueError("waiting for a CA certificate prepared").Wrap(err)
 		}
 		return false, fmt.Errorf("unable to get a CA certificate: %w", err)
 	}
@@ -170,7 +159,7 @@ func (r *EtcdReconciler) probeEtcdMember(
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Info("Skip probing an etcd since a client certificate isn't prepared yet.")
-			return false, nil
+			return false, NewRequeueError("waiting for a client certificate prepared").Wrap(err)
 		}
 		return false, fmt.Errorf("unable to get a client certificate: %w", err)
 	}
@@ -184,7 +173,7 @@ func (r *EtcdReconciler) probeEtcdMember(
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Info("Skip probing an etcd since a client private key isn't prepared yet.")
-			return false, nil
+			return false, NewRequeueError("waiting for a client private key prepared").Wrap(err)
 		}
 		return false, fmt.Errorf("unable to get a client private key: %w", err)
 	}
