@@ -1,0 +1,70 @@
+name: main
+
+on:
+  push: {}
+  pull_request: {}
+
+jobs:
+  test:
+    name: Run tests
+
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - uses: helm/kind-action@v1.2.0
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+      - run: go test ./...
+        env:
+          USE_EXISTING_CLUSTER: 'true'
+
+
+  build:
+    name: Build a Docker image
+
+    needs:
+      - test
+
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: bazelbuild/setup-bazelisk@v1
+      - uses: actions/cache@v2
+        with:
+          path: "~/.cache/bazel"
+          key: bazel
+      - run: bazel build //:push_kubernetesimal
+
+
+  publish:
+    name: Publish a Docker image
+
+    needs:
+      - build
+
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: bazelbuild/setup-bazelisk@v1
+      - uses: actions/cache@v2
+        with:
+          path: "~/.cache/bazel"
+          key: bazel
+      - uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: bazel run //:push_kubernetesimal
