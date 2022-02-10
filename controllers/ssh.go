@@ -97,17 +97,15 @@ func (r *EtcdReconciler) finalizeSSHKeyPairSecret(
 	ctx context.Context,
 	e *kubernetesimalv1alpha1.Etcd,
 	status kubernetesimalv1alpha1.EtcdStatus,
-) (kubernetesimalv1alpha1.EtcdStatus, bool, error) {
-	if e.Status.SSHPrivateKeyRef == nil {
-		return status, true, nil
+) (kubernetesimalv1alpha1.EtcdStatus, error) {
+	if status.SSHPrivateKeyRef == nil {
+		return status, nil
 	}
-	if deleted, err := r.finalizeSecret(ctx, e.Namespace, e.Status.SSHPrivateKeyRef.Name); err != nil {
-		return status, false, err
-	} else if !deleted {
-		return status, false, nil
+	if err := r.finalizeSecret(ctx, e.Namespace, status.SSHPrivateKeyRef.Name); err != nil {
+		return status, err
 	}
 	status.SSHPrivateKeyRef = nil
 	status.SSHPublicKeyRef = nil
 	log.FromContext(ctx).Info("SSH key-pair was finalized.")
-	return status, true, nil
+	return status, nil
 }

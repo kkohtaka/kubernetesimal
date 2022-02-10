@@ -87,7 +87,9 @@ func (r *EtcdReconciler) provisionEtcdMember(
 		return err
 	}
 	if service.Spec.ClusterIP == "" {
-		return NewRequeueError("waiting for a cluster IP of the etcd Service prepared").Wrap(err)
+		return NewRequeueError("waiting for a cluster IP of the etcd Service prepared").
+			Wrap(err).
+			WithDelay(5 * time.Second)
 	}
 	var port int32
 	for i := range service.Spec.Ports {

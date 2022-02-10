@@ -97,18 +97,16 @@ func (r *EtcdReconciler) finalizeCACertificateSecret(
 	ctx context.Context,
 	e *kubernetesimalv1alpha1.Etcd,
 	status kubernetesimalv1alpha1.EtcdStatus,
-) (kubernetesimalv1alpha1.EtcdStatus, bool, error) {
-	if e.Status.CACertificateRef == nil {
-		return status, true, nil
+) (kubernetesimalv1alpha1.EtcdStatus, error) {
+	if status.CACertificateRef == nil {
+		return status, nil
 	}
-	if deleted, err := r.finalizeSecret(ctx, e.Namespace, e.Status.CACertificateRef.Name); err != nil {
-		return status, false, err
-	} else if !deleted {
-		return status, false, nil
+	if err := r.finalizeSecret(ctx, e.Namespace, status.CACertificateRef.Name); err != nil {
+		return status, err
 	}
 	status.CACertificateRef = nil
 	log.FromContext(ctx).Info("CA certificate was finalized.")
-	return status, true, nil
+	return status, nil
 }
 
 func newClientCertificateName(e *kubernetesimalv1alpha1.Etcd) string {
@@ -220,16 +218,14 @@ func (r *EtcdReconciler) finalizeClientCertificateSecret(
 	ctx context.Context,
 	e *kubernetesimalv1alpha1.Etcd,
 	status kubernetesimalv1alpha1.EtcdStatus,
-) (kubernetesimalv1alpha1.EtcdStatus, bool, error) {
-	if e.Status.ClientCertificateRef == nil {
-		return status, true, nil
+) (kubernetesimalv1alpha1.EtcdStatus, error) {
+	if status.ClientCertificateRef == nil {
+		return status, nil
 	}
-	if deleted, err := r.finalizeSecret(ctx, e.Namespace, e.Status.ClientCertificateRef.Name); err != nil {
-		return status, false, err
-	} else if !deleted {
-		return status, false, nil
+	if err := r.finalizeSecret(ctx, e.Namespace, status.ClientCertificateRef.Name); err != nil {
+		return status, err
 	}
 	status.ClientCertificateRef = nil
 	log.FromContext(ctx).Info("Client certificate was finalized.")
-	return status, true, nil
+	return status, nil
 }

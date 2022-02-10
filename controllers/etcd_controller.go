@@ -59,7 +59,19 @@ func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	logger := log.FromContext(ctx).WithValues("etcd", req.NamespacedName)
 	ctx = log.IntoContext(ctx, logger)
 
-	if err := r.doReconcile(ctx, req); err != nil {
+	var e kubernetesimalv1alpha1.Etcd
+	if err := r.Get(ctx, req.NamespacedName, &e); err != nil {
+		if apierrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
+	status, err := r.doReconcile(ctx, &e, e.Spec, e.Status)
+	if statusUpdateErr := r.updateStatus(ctx, &e, status); statusUpdateErr != nil {
+		logger.Error(statusUpdateErr, "unable to update a status of an object")
+	}
+	if err != nil {
 		if ShouldRequeue(err) {
 			delay := GetDelay(err)
 			logger.Info(
@@ -76,108 +88,84 @@ func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	return ctrl.Result{}, nil
 }
 
-func (r *EtcdReconciler) doReconcile(ctx context.Context, req ctrl.Request) error {
-	logger := log.FromContext(ctx)
-
-	var e kubernetesimalv1alpha1.Etcd
-	if err := r.Get(ctx, req.NamespacedName, &e); err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-		return err
-	}
-
+func (r *EtcdReconciler) doReconcile(
+	ctx context.Context,
+	e *kubernetesimalv1alpha1.Etcd,
+	spec kubernetesimalv1alpha1.EtcdSpec,
+	status kubernetesimalv1alpha1.EtcdStatus,
+) (kubernetesimalv1alpha1.EtcdStatus, error) {
 	if e.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !controllerutil.ContainsFinalizer(&e, finalizerName) {
-			controllerutil.AddFinalizer(&e, finalizerName)
-			if err := r.Update(ctx, &e); err != nil {
+		if !controllerutil.ContainsFinalizer(e, finalizerName) {
+			controllerutil.AddFinalizer(e, finalizerName)
+			if err := r.Update(ctx, e); err != nil {
 				if apierrors.IsConflict(err) {
-					return NewRequeueError("conflict").Wrap(err)
+					return status, NewRequeueError("conflict").Wrap(err)
 				}
-				return err
+				return status, err
 			}
-			logger.Info("A finalizer was set.")
-			return nil
+			return status, NewRequeueError("finalizer was set").WithDelay(time.Second)
 		}
 	} else {
-		if controllerutil.ContainsFinalizer(&e, finalizerName) {
-			status, deleted, err := r.finalizeExternalResources(ctx, &e, e.Status)
-			if err != nil {
-				return err
-			} else if !deleted {
-				if err := r.updateStatus(ctx, &e, status); err != nil {
-					return err
-				}
-				return NewRequeueError("waiting for external resources deleted")
+		if controllerutil.ContainsFinalizer(e, finalizerName) {
+			if newStatus, err := r.finalizeExternalResources(ctx, e, status); err != nil {
+				return newStatus, err
+			} else {
+				status = newStatus
 			}
 
-			controllerutil.RemoveFinalizer(&e, finalizerName)
-			if err := r.Update(ctx, &e); err != nil {
-				return err
+			controllerutil.RemoveFinalizer(e, finalizerName)
+			if err := r.Update(ctx, e); err != nil {
+				return status, err
 			}
-			logger.Info("The finalizer was unset.")
-
-			if err := r.updateStatus(ctx, &e, status); err != nil {
-				return err
+			return status, NewRequeueError("finalizer was unset").WithDelay(time.Second)
 			}
-		}
-		return nil
+		return status, nil
 	}
 
-	status, err := r.reconcileExternalResources(ctx, &e, e.Spec, e.Status)
-	if err != nil {
-		return err
+	if newStatus, err := r.reconcileExternalResources(ctx, e, e.Spec, status); err != nil {
+		return newStatus, err
+	} else {
+		status = newStatus
 	}
-	if err := r.updateStatus(ctx, &e, status); err != nil {
-		return err
-	}
-	return nil
+	return status, nil
 }
 
 func (r *EtcdReconciler) finalizeExternalResources(
 	ctx context.Context,
 	e *kubernetesimalv1alpha1.Etcd,
 	status kubernetesimalv1alpha1.EtcdStatus,
-) (kubernetesimalv1alpha1.EtcdStatus, bool, error) {
-	if newStatus, deleted, err := r.finalizeCACertificateSecret(ctx, e, status); err != nil {
-		return status, false, err
-	} else if !deleted {
-		return newStatus, false, nil
+) (kubernetesimalv1alpha1.EtcdStatus, error) {
+	if newStatus, err := r.finalizeCACertificateSecret(ctx, e, status); err != nil {
+		return newStatus, err
 	} else {
 		status = newStatus
 	}
 
-	if newStatus, deleted, err := r.finalizeClientCertificateSecret(ctx, e, status); err != nil {
-		return status, false, err
-	} else if !deleted {
-		return newStatus, false, nil
+	if newStatus, err := r.finalizeClientCertificateSecret(ctx, e, status); err != nil {
+		return newStatus, err
 	} else {
 		status = newStatus
 	}
 
-	if newStatus, deleted, err := r.finalizeSSHKeyPairSecret(ctx, e, status); err != nil {
-		return status, false, err
-	} else if !deleted {
-		return newStatus, false, nil
+	if newStatus, err := r.finalizeSSHKeyPairSecret(ctx, e, status); err != nil {
+		return newStatus, err
 	} else {
 		status = newStatus
 	}
 
-	if newStatus, deleted, err := r.finalizeVirtualMachineInstance(ctx, e, status); err != nil {
-		return status, false, err
-	} else if !deleted {
-		return newStatus, false, nil
+	if newStatus, err := r.finalizeVirtualMachineInstance(ctx, e, status); err != nil {
+		return newStatus, err
 	} else {
 		status = newStatus
 	}
 
-	return status, true, nil
+	return status, nil
 }
 
 func (r *EtcdReconciler) finalizeSecret(
 	ctx context.Context,
 	namespace, name string,
-) (bool, error) {
+) error {
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues(
 		"object", name,
 		"resource", "corev1.Secret",
@@ -189,7 +177,7 @@ func (r *EtcdReconciler) finalizeObject(
 	ctx context.Context,
 	namespace, name string,
 	obj client.Object,
-) (bool, error) {
+) error {
 	logger := log.FromContext(ctx)
 
 	key := types.NamespacedName{
@@ -198,24 +186,20 @@ func (r *EtcdReconciler) finalizeObject(
 	}
 	if err := r.Client.Get(ctx, key, obj); err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("The object has already been deleted.")
-			return true, nil
+			return nil
 		}
-		return false, err
+		return err
 	}
 	if obj.GetDeletionTimestamp().IsZero() {
 		if err := r.Client.Delete(ctx, obj, &client.DeleteOptions{}); err != nil {
 			if apierrors.IsNotFound(err) {
-				logger.Info("The object has already been deleted.")
-				return true, nil
+				return nil
 			}
-			return false, err
+			return err
 		}
 		logger.Info("The object has started to be deleted.")
-	} else {
-		logger.Info("The object is beeing deleted.")
 	}
-	return false, nil
+	return NewRequeueError("waiting for an object deleted").WithDelay(5 * time.Second)
 }
 
 const (
@@ -302,7 +286,7 @@ func (r *EtcdReconciler) updateStatus(
 	switch {
 	case !e.ObjectMeta.DeletionTimestamp.IsZero():
 		status.Phase = kubernetesimalv1alpha1.EtcdPhaseDeleting
-	case e.Status.ProbedSinceTime.IsZero():
+	case status.ProbedSinceTime.IsZero():
 		status.Phase = kubernetesimalv1alpha1.EtcdPhasePending
 	default:
 		status.Phase = kubernetesimalv1alpha1.EtcdPhaseRunning
