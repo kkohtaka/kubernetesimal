@@ -54,7 +54,7 @@ func ShouldRequeue(err error) bool {
 
 func GetDelay(err error) time.Duration {
 	var re *RequeueError
-	if ok := errors.As(err, &re); !ok {
+	if ok := errors.As(err, &re); ok {
 		return re.delay
 	}
 	return 0
