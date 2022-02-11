@@ -5,9 +5,11 @@ go 1.16
 require (
 	github.com/emicklei/go-restful v2.10.0+incompatible // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/google/go-cmp v0.5.7 // indirect
 	github.com/onsi/ginkgo v1.14.1
 	github.com/onsi/gomega v1.10.2
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
+	go.opentelemetry.io/otel v1.2.0
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 	k8s.io/api v0.20.2
 	k8s.io/apimachinery v0.20.2

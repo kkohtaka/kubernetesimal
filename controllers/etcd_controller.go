@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	"go.opentelemetry.io/otel"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -40,6 +41,8 @@ import (
 type EtcdReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+
+	Name string
 }
 
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds,verbs=get;list;watch;create;update;patch;delete
@@ -58,6 +61,8 @@ const (
 func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx).WithValues("etcd", req.NamespacedName)
 	ctx = log.IntoContext(ctx, logger)
+	ctx, span := otel.Tracer(r.Name).Start(ctx, "Reconcile")
+	defer span.End()
 
 	var e kubernetesimalv1alpha1.Etcd
 	if err := r.Get(ctx, req.NamespacedName, &e); err != nil {
@@ -94,6 +99,9 @@ func (r *EtcdReconciler) doReconcile(
 	spec kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
+	ctx, span := otel.Tracer(r.Name).Start(ctx, "doReconcile")
+	defer span.End()
+
 	if e.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(e, finalizerName) {
 			controllerutil.AddFinalizer(e, finalizerName)
@@ -118,7 +126,7 @@ func (r *EtcdReconciler) doReconcile(
 				return status, err
 			}
 			return status, NewRequeueError("finalizer was unset").WithDelay(time.Second)
-			}
+		}
 		return status, nil
 	}
 
@@ -135,6 +143,9 @@ func (r *EtcdReconciler) finalizeExternalResources(
 	e *kubernetesimalv1alpha1.Etcd,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
+	ctx, span := otel.Tracer(r.Name).Start(ctx, "finalizeExternalResources")
+	defer span.End()
+
 	if newStatus, err := r.finalizeCACertificateSecret(ctx, e, status); err != nil {
 		return newStatus, err
 	} else {
@@ -212,6 +223,8 @@ func (r *EtcdReconciler) reconcileExternalResources(
 	spec kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
+	ctx, span := otel.Tracer(r.Name).Start(ctx, "reconcileExternalResources")
+	defer span.End()
 	logger := log.FromContext(ctx)
 
 	if certificateRef, privateKeyRef, err := r.reconcileCACertificate(ctx, e, spec, status); err != nil {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"go.opentelemetry.io/otel"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -28,6 +29,9 @@ func (r *EtcdReconciler) reconcileCACertificate(
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
+	ctx, span := otel.Tracer(r.Name).Start(ctx, "reconcileCACertificate")
+	defer span.End()
+
 	if status.CAPrivateKeyRef != nil {
 		if name := status.CAPrivateKeyRef.LocalObjectReference.Name; name != newCACertificateName(e) {
 			return nil, nil, fmt.Errorf("invalid Secret name %s to store a CA private key", name)
@@ -98,6 +102,9 @@ func (r *EtcdReconciler) finalizeCACertificateSecret(
 	e *kubernetesimalv1alpha1.Etcd,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
+	ctx, span := otel.Tracer(r.Name).Start(ctx, "finalizeCACertificateSecret")
+	defer span.End()
+
 	if status.CACertificateRef == nil {
 		return status, nil
 	}
@@ -119,6 +126,9 @@ func (r *EtcdReconciler) reconcileClientCertificate(
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
+	ctx, span := otel.Tracer(r.Name).Start(ctx, "reconcileClientCertificate")
+	defer span.End()
+
 	if status.ClientPrivateKeyRef != nil {
 		if name := status.ClientPrivateKeyRef.LocalObjectReference.Name; name != newClientCertificateName(e) {
 			return nil, nil, fmt.Errorf("invalid Secret name %s to store a client private key", name)
@@ -219,6 +229,9 @@ func (r *EtcdReconciler) finalizeClientCertificateSecret(
 	e *kubernetesimalv1alpha1.Etcd,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
+	ctx, span := otel.Tracer(r.Name).Start(ctx, "finalizeClientCertificateSecret")
+	defer span.End()
+
 	if status.ClientCertificateRef == nil {
 		return status, nil
 	}

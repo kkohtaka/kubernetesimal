@@ -34,6 +34,7 @@ go_library(
         "@io_k8s_sigs_controller_runtime//pkg/controller/controllerutil",
         "@io_k8s_sigs_controller_runtime//pkg/log",
         "@io_kubevirt_api//core/v1:core",
+        "@io_opentelemetry_go_otel//:otel",
     ],
 )
 

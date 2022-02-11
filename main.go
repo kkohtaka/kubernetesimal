@@ -82,6 +82,7 @@ func main() {
 	}
 
 	if err = (&controllers.EtcdReconciler{
+		Name:   "etcd-controller",
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {

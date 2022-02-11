@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"go.opentelemetry.io/otel"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -29,6 +30,9 @@ func (r *EtcdReconciler) reconcileService(
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.LocalObjectReference, error) {
+	ctx, span := otel.Tracer(r.Name).Start(ctx, "reconcileService")
+	defer span.End()
+
 	if service, err := k8s_service.Reconcile(
 		ctx,
 		e,
@@ -59,6 +63,9 @@ func (r *EtcdReconciler) provisionEtcdMember(
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) error {
+	ctx, span := otel.Tracer(r.Name).Start(ctx, "provisionEtcdMember")
+	defer span.End()
+
 	privateKey, err := k8s.GetValueFromSecretKeySelector(
 		ctx,
 		r.Client,
@@ -123,6 +130,8 @@ func (r *EtcdReconciler) probeEtcdMember(
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (bool, error) {
+	ctx, span := otel.Tracer(r.Name).Start(ctx, "reconcileVirtualMachineInstance")
+	defer span.End()
 	logger := log.FromContext(ctx)
 
 	address, err := k8s_service.GetAddressFromServiceRef(ctx, r.Client, e.Namespace, "etcd", status.ServiceRef)

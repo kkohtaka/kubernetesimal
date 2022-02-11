@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"go.opentelemetry.io/otel"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -28,6 +29,9 @@ func (r *EtcdReconciler) reconcileSSHKeyPair(
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
+	ctx, span := otel.Tracer(r.Name).Start(ctx, "reconcileSSHKeyPair")
+	defer span.End()
+
 	if status.SSHPrivateKeyRef != nil {
 		if name := status.SSHPrivateKeyRef.LocalObjectReference.Name; name != newSSHKeyPairName(e) {
 			return nil, nil, fmt.Errorf("invalid Secret name %s to store an SSH private key", name)
@@ -98,6 +102,9 @@ func (r *EtcdReconciler) finalizeSSHKeyPairSecret(
 	e *kubernetesimalv1alpha1.Etcd,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
+	ctx, span := otel.Tracer(r.Name).Start(ctx, "finalizeSSHKeyPairSecret")
+	defer span.End()
+
 	if status.SSHPrivateKeyRef == nil {
 		return status, nil
 	}
