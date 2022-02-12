@@ -17,8 +17,15 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/sdk/trace"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -52,14 +59,19 @@ func init() {
 }
 
 func main() {
-	var metricsAddr string
-	var enableLeaderElection bool
-	var probeAddr string
+	var (
+		metricsAddr            string
+		enableLeaderElection   bool
+		probeAddr              string
+		otlpAddr, otlpGRPCAddr string
+	)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.StringVar(&otlpAddr, "otel-collector-address", "", "The address to send traces to over HTTP.")
+	flag.StringVar(&otlpGRPCAddr, "otel-collector-grpc-address", "", "The address to send traces to over gRPC.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -67,6 +79,10 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	ctx := ctrl.SetupSignalHandler()
+
+	go startTracingProvider(ctx, otlpAddr, otlpGRPCAddr)
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
@@ -101,8 +117,56 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
+	}
+}
+
+var (
+	tracingLog = ctrl.Log.WithName("tracing")
+)
+
+func startTracingProvider(ctx context.Context, httpAddr, grpcAddr string) {
+	traceCtx := context.Background()
+
+	var opts []trace.TracerProviderOption
+	if httpAddr != "" {
+		exporter, err := otlptrace.New(
+			traceCtx,
+			otlptracehttp.NewClient(
+				otlptracehttp.WithEndpoint(httpAddr),
+				otlptracehttp.WithInsecure(),
+			),
+		)
+		if err != nil {
+			tracingLog.Error(err, "unable to start OTLP exporter")
+			return
+		}
+		opts = append(opts, trace.WithBatcher(exporter))
+	}
+	if grpcAddr != "" {
+		exporter, err := otlptrace.New(
+			traceCtx,
+			otlptracegrpc.NewClient(
+				otlptracegrpc.WithEndpoint(grpcAddr),
+				otlptracegrpc.WithInsecure(),
+			),
+		)
+		if err != nil {
+			tracingLog.Error(err, "unable to start OTLP exporter")
+			return
+		}
+		opts = append(opts, trace.WithBatcher(exporter))
+	}
+
+	provider := trace.NewTracerProvider(opts...)
+
+	otel.SetTracerProvider(provider)
+
+	<-ctx.Done()
+
+	if err := provider.Shutdown(traceCtx); err != nil {
+		tracingLog.Error(err, "unable to shutdown OTLP provider")
 	}
 }

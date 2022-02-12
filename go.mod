@@ -10,6 +10,11 @@ require (
 	github.com/onsi/gomega v1.10.2
 	github.com/stretchr/testify v1.7.0
 	go.opentelemetry.io/otel v1.2.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.2.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.2.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.2.0
+	go.opentelemetry.io/otel/sdk v1.2.0
+	go.opentelemetry.io/proto/otlp v0.12.0 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 	k8s.io/api v0.20.2
 	k8s.io/apimachinery v0.20.2

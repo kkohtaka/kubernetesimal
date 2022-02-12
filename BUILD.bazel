@@ -21,6 +21,11 @@ go_library(
         "@io_k8s_sigs_controller_runtime//pkg/healthz",
         "@io_k8s_sigs_controller_runtime//pkg/log/zap",
         "@io_kubevirt_api//core/v1:core",
+        "@io_opentelemetry_go_otel//:otel",
+        "@io_opentelemetry_go_otel_exporters_otlp_otlptrace//:otlptrace",
+        "@io_opentelemetry_go_otel_exporters_otlp_otlptrace_otlptracegrpc//:otlptracegrpc",
+        "@io_opentelemetry_go_otel_exporters_otlp_otlptrace_otlptracehttp//:otlptracehttp",
+        "@io_opentelemetry_go_otel_sdk//trace",
     ],
 )
 
