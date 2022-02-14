@@ -22,10 +22,13 @@ import (
 	"os"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -45,8 +48,12 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme = runtime.NewScheme()
+
+	setupLog   = ctrl.Log.WithName("setup")
+	tracingLog = ctrl.Log.WithName("tracing")
+
+	providerResource *resource.Resource = resource.Default()
 )
 
 func init() {
@@ -56,6 +63,17 @@ func init() {
 
 	utilruntime.Must(kubevirtv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
+
+	if r, err := resource.Merge(
+		providerResource,
+		resource.NewSchemaless(
+			attribute.String(string(semconv.ServiceNameKey), "kubernetesimal"),
+		),
+	); err != nil {
+		tracingLog.Error(err, "unable to merge TraceProviderResources")
+	} else {
+		providerResource = r
+	}
 }
 
 func main() {
@@ -145,10 +163,6 @@ func main() {
 	}
 }
 
-var (
-	tracingLog = ctrl.Log.WithName("tracing")
-)
-
 func startTracingProvider(ctx context.Context, httpAddr, grpcAddr string) {
 	traceCtx := context.Background()
 
@@ -181,6 +195,8 @@ func startTracingProvider(ctx context.Context, httpAddr, grpcAddr string) {
 		}
 		opts = append(opts, trace.WithBatcher(exporter))
 	}
+
+	opts = append(opts, trace.WithResource(providerResource))
 
 	provider := trace.NewTracerProvider(opts...)
 
