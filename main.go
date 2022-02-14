@@ -64,6 +64,7 @@ func main() {
 		enableLeaderElection   bool
 		probeAddr              string
 		otlpAddr, otlpGRPCAddr string
+		configFile             string
 	)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -72,6 +73,10 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.StringVar(&otlpAddr, "otel-collector-address", "", "The address to send traces to over HTTP.")
 	flag.StringVar(&otlpGRPCAddr, "otel-collector-grpc-address", "", "The address to send traces to over gRPC.")
+	flag.StringVar(&configFile, "config", "",
+		"The controller will load its initial configuration from this file. "+
+			"Omit this flag to use the default configuration values. "+
+			"Command-line flags override configuration from this file.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -79,6 +84,17 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	var err error
+	ctrlConfig := kubernetesimalv1alpha1.KubernetesimalConfig{}
+	ctrlOpts := ctrl.Options{Scheme: scheme}
+	if configFile != "" {
+		ctrlOpts, err = ctrlOpts.AndFrom(ctrl.ConfigFile().AtPath(configFile).OfKind(&ctrlConfig))
+		if err != nil {
+			setupLog.Error(err, "unable to load the config file")
+			os.Exit(1)
+		}
+	}
 
 	ctx := ctrl.SetupSignalHandler()
 

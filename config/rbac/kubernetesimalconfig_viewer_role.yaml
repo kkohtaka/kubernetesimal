@@ -1,0 +1,14 @@
+# permissions for end users to view kubernetesimalconfigs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubernetesimalconfig-viewer-role
+rules:
+- apiGroups:
+  - kubernetesimal.kkohtaka.org
+  resources:
+  - kubernetesimalconfigs
+  verbs:
+  - get
+  - list
+  - watch
