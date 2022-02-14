@@ -87,7 +87,14 @@ func main() {
 
 	var err error
 	ctrlConfig := kubernetesimalv1alpha1.KubernetesimalConfig{}
-	ctrlOpts := ctrl.Options{Scheme: scheme}
+	ctrlOpts := ctrl.Options{
+		Scheme:                 scheme,
+		MetricsBindAddress:     metricsAddr,
+		Port:                   9443,
+		HealthProbeBindAddress: probeAddr,
+		LeaderElection:         enableLeaderElection,
+		LeaderElectionID:       "b197ccb6.kkohtaka.org",
+	}
 	if configFile != "" {
 		ctrlOpts, err = ctrlOpts.AndFrom(ctrl.ConfigFile().AtPath(configFile).OfKind(&ctrlConfig))
 		if err != nil {
@@ -98,16 +105,15 @@ func main() {
 
 	ctx := ctrl.SetupSignalHandler()
 
+	if otlpAddr == "" && ctrlConfig.Tracing.OTELCollectorAddress != "" {
+		otlpAddr = ctrlConfig.Tracing.OTELCollectorAddress
+	}
+	if otlpAddr == "" && ctrlConfig.Tracing.OTELCollectorGRPCAddress != "" {
+		otlpGRPCAddr = ctrlConfig.Tracing.OTELCollectorGRPCAddress
+	}
 	go startTracingProvider(ctx, otlpAddr, otlpGRPCAddr)
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "b197ccb6.kkohtaka.org",
-	})
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrlOpts)
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)

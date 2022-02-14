@@ -9,3 +9,5 @@ webhook:
 leaderElection:
   leaderElect: true
   resourceName: b197ccb6.kkohtaka.org
+tracing:
+  otelCollectorGRPCAddress: otel-collector.monitoring.svc:4317

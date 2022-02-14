@@ -24,6 +24,14 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+type ControllerTracing struct {
+	// OTELCollectorAddress is the address to send traces to over HTTP.
+	OTELCollectorAddress string `json:"otelCollectorAddress,omitempty"`
+
+	// OTELCollectorGRPCAddress is the address to send traces to over HTTP.
+	OTELCollectorGRPCAddress string `json:"otelCollectorGRPCAddress,omitempty"`
+}
+
 //+kubebuilder:object:root=true
 
 // KubernetesimalConfig is the Schema for the kubernetesimalconfigs API
@@ -33,6 +41,8 @@ type KubernetesimalConfig struct {
 
 	// ControllerManagerConfigurationSpec returns the contfigurations for controllers
 	cfg.ControllerManagerConfigurationSpec `json:",inline"`
+
+	Tracing ControllerTracing `json:"tracing,omitempty"`
 }
 
 func init() {
