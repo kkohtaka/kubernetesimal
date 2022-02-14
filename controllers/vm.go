@@ -9,6 +9,7 @@ import (
 	"text/template"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -48,7 +49,8 @@ func (r *EtcdReconciler) reconcileUserData(
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.LocalObjectReference, error) {
-	ctx, span := otel.Tracer(r.Name).Start(ctx, "reconcileUserData")
+	var span trace.Span
+	ctx, span = otel.Tracer(r.Name).Start(ctx, "reconcileUserData")
 	defer span.End()
 
 	publicKey, err := k8s.GetValueFromSecretKeySelector(
@@ -181,7 +183,8 @@ func (r *EtcdReconciler) reconcileVirtualMachineInstance(
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.LocalObjectReference, error) {
-	ctx, span := otel.Tracer(r.Name).Start(ctx, "reconcileVirtualMachineInstance")
+	var span trace.Span
+	ctx, span = otel.Tracer(r.Name).Start(ctx, "reconcileVirtualMachineInstance")
 	defer span.End()
 
 	if vmi, err := k8s.ReconcileVirtualMachineInstance(
@@ -211,7 +214,8 @@ func (r *EtcdReconciler) finalizeVirtualMachineInstance(
 	e *kubernetesimalv1alpha1.Etcd,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
-	ctx, span := otel.Tracer(r.Name).Start(ctx, "finalizeVirtualMachineInstance")
+	var span trace.Span
+	ctx, span = otel.Tracer(r.Name).Start(ctx, "finalizeVirtualMachineInstance")
 	defer span.End()
 
 	if status.VirtualMachineRef == nil {

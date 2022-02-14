@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -61,7 +62,8 @@ const (
 func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx).WithValues("etcd", req.NamespacedName)
 	ctx = log.IntoContext(ctx, logger)
-	ctx, span := otel.Tracer(r.Name).Start(ctx, "Reconcile")
+	var span trace.Span
+	ctx, span = otel.Tracer(r.Name).Start(ctx, "Reconcile")
 	defer span.End()
 
 	var e kubernetesimalv1alpha1.Etcd
@@ -143,7 +145,8 @@ func (r *EtcdReconciler) finalizeExternalResources(
 	e *kubernetesimalv1alpha1.Etcd,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
-	ctx, span := otel.Tracer(r.Name).Start(ctx, "finalizeExternalResources")
+	var span trace.Span
+	ctx, span = otel.Tracer(r.Name).Start(ctx, "finalizeExternalResources")
 	defer span.End()
 
 	if newStatus, err := r.finalizeCACertificateSecret(ctx, e, status); err != nil {
@@ -223,7 +226,8 @@ func (r *EtcdReconciler) reconcileExternalResources(
 	spec kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
-	ctx, span := otel.Tracer(r.Name).Start(ctx, "reconcileExternalResources")
+	var span trace.Span
+	ctx, span = otel.Tracer(r.Name).Start(ctx, "reconcileExternalResources")
 	defer span.End()
 	logger := log.FromContext(ctx)
 
