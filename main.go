@@ -41,9 +41,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	kubevirtv1 "kubevirt.io/api/core/v1"
+
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 	"github.com/kkohtaka/kubernetesimal/controllers"
-	kubevirtv1 "kubevirt.io/api/core/v1"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -143,6 +144,10 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Etcd")
+		os.Exit(1)
+	}
+	if err = (&kubernetesimalv1alpha1.Etcd{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Etcd")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

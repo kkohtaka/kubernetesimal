@@ -26,6 +26,8 @@ type EtcdSpec struct {
 	// Version is the desired version of the etcd cluster.
 	Version string `json:"version"`
 
+	// +nullable
+
 	// Replicas is the desired number of etcd replicas.
 	Replicas *int32 `json:"replicas"`
 }
@@ -62,6 +64,8 @@ type EtcdStatus struct {
 	// ProbedSinceTime is the timestamp when the controller probed an etcd node at the first time.
 	ProbedSinceTime *metav1.Time `json:"probedSinceTime,omitempty"`
 
+	//+kubebuilder:default=0
+
 	// Replicas is the current number of etcd replicas.
 	Replicas int32 `json:"replicas"`
 }
@@ -84,6 +88,8 @@ const (
 //+kubebuilder:subresource:status
 //+kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas
 //+kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+//+kubebuilder:printcolumn:name="Desired Replicas",type=integer,JSONPath=`.spec.replicas`
+//+kubebuilder:printcolumn:name="Current Replicas",type=integer,JSONPath=`.status.replicas`
 
 // Etcd is the Schema for the etcds API
 type Etcd struct {
