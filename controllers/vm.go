@@ -92,6 +92,32 @@ func (r *EtcdReconciler) reconcileUserData(
 		return nil, fmt.Errorf("unable to get a CA private key: %w", err)
 	}
 
+	peerCertificate, err := k8s.GetValueFromSecretKeySelector(
+		ctx,
+		r.Client,
+		e.Namespace,
+		status.PeerCertificateRef,
+	)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, NewRequeueError("waiting for a peer certificate prepared").Wrap(err)
+		}
+		return nil, fmt.Errorf("unable to get a peer certificate: %w", err)
+	}
+
+	peerPrivateKey, err := k8s.GetValueFromSecretKeySelector(
+		ctx,
+		r.Client,
+		e.Namespace,
+		status.PeerPrivateKeyRef,
+	)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, NewRequeueError("waiting for a peer private key prepared").Wrap(err)
+		}
+		return nil, fmt.Errorf("unable to get a peer private key: %w", err)
+	}
+
 	var service corev1.Service
 	if err := r.Get(
 		ctx,
@@ -144,15 +170,17 @@ func (r *EtcdReconciler) reconcileUserData(
 	if err := cloudInitTmpl.Execute(
 		&cloudInitBuf,
 		&struct {
-			AuthorizedKeys  []string
-			StartEtcdScript string
-			CACertificate   string
-			CAPrivateKey    string
+			AuthorizedKeys                  []string
+			StartEtcdScript                 string
+			CACertificate, CAPrivateKey     string
+			PeerCertificate, PeerPrivateKey string
 		}{
 			AuthorizedKeys:  []string{string(publicKey)},
 			StartEtcdScript: base64.StdEncoding.EncodeToString(startEtcdScriptBuf.Bytes()),
 			CACertificate:   base64.StdEncoding.EncodeToString(caCertificate),
 			CAPrivateKey:    base64.StdEncoding.EncodeToString(caPrivateKey),
+			PeerCertificate: base64.StdEncoding.EncodeToString(peerCertificate),
+			PeerPrivateKey:  base64.StdEncoding.EncodeToString(peerPrivateKey),
 		},
 	); err != nil {
 		return nil, fmt.Errorf("unable to render a cloud-config from a template: %w", err)
