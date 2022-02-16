@@ -161,6 +161,12 @@ func (r *EtcdReconciler) finalizeExternalResources(
 		status = newStatus
 	}
 
+	if newStatus, err := r.finalizePeerCertificateSecret(ctx, e, status); err != nil {
+		return newStatus, err
+	} else {
+		status = newStatus
+	}
+
 	if newStatus, err := r.finalizeSSHKeyPairSecret(ctx, e, status); err != nil {
 		return newStatus, err
 	} else {
@@ -243,6 +249,13 @@ func (r *EtcdReconciler) reconcileExternalResources(
 	} else {
 		status.ClientPrivateKeyRef = privateKeyRef
 		status.ClientCertificateRef = certificateRef
+	}
+
+	if certificateRef, privateKeyRef, err := r.reconcilePeerCertificate(ctx, e, spec, status); err != nil {
+		return status, fmt.Errorf("unable to prepare a certificate for peer communication: %w", err)
+	} else {
+		status.PeerPrivateKeyRef = privateKeyRef
+		status.PeerCertificateRef = certificateRef
 	}
 
 	if sshPrivateKeyRef, sshPublicKeyRef, err := r.reconcileSSHKeyPair(ctx, e, spec, status); err != nil {

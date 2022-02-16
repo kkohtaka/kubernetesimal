@@ -138,6 +138,16 @@ func (in *EtcdStatus) DeepCopyInto(out *EtcdStatus) {
 		*out = new(v1.SecretKeySelector)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.PeerCertificateRef != nil {
+		in, out := &in.PeerCertificateRef, &out.PeerCertificateRef
+		*out = new(v1.SecretKeySelector)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.PeerPrivateKeyRef != nil {
+		in, out := &in.PeerPrivateKeyRef, &out.PeerPrivateKeyRef
+		*out = new(v1.SecretKeySelector)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.SSHPrivateKeyRef != nil {
 		in, out := &in.SSHPrivateKeyRef, &out.SSHPrivateKeyRef
 		*out = new(v1.SecretKeySelector)

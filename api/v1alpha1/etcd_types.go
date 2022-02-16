@@ -40,6 +40,10 @@ type EtcdStatus struct {
 	ClientCertificateRef *corev1.SecretKeySelector `json:"clientCertificateRef,omitempty"`
 	// ClientPrivateKeyRef is a reference to a Secret key that composes a Client private key.
 	ClientPrivateKeyRef *corev1.SecretKeySelector `json:"clientPrivateKeyRef,omitempty"`
+	// PeerCertificateRef is a reference to a Secret key that composes a certificate for peer communication.
+	PeerCertificateRef *corev1.SecretKeySelector `json:"peerCertificateRef,omitempty"`
+	// PeerPrivateKeyRef is a reference to a Secret key that composes a peer private key for peer communication.
+	PeerPrivateKeyRef *corev1.SecretKeySelector `json:"peerPrivateKeyRef,omitempty"`
 	// SSHPrivateKeyRef is a reference to a Secret key that composes an SSH private key.
 	SSHPrivateKeyRef *corev1.SecretKeySelector `json:"sshPrivateKeyRef,omitempty"`
 	// SSHPublicKeyRef is a reference to a Secret key that composes an SSH public key.

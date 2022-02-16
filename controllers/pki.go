@@ -123,6 +123,10 @@ func newClientCertificateName(e *kubernetesimalv1alpha1.Etcd) string {
 	return "api-client-" + e.Name
 }
 
+func newPeerCertificateName(e *kubernetesimalv1alpha1.Etcd) string {
+	return "peer-" + e.Name
+}
+
 func (r *EtcdReconciler) reconcileClientCertificate(
 	ctx context.Context,
 	e *kubernetesimalv1alpha1.Etcd,
@@ -228,6 +232,111 @@ func (r *EtcdReconciler) reconcileClientCertificate(
 	}
 }
 
+func (r *EtcdReconciler) reconcilePeerCertificate(
+	ctx context.Context,
+	e *kubernetesimalv1alpha1.Etcd,
+	_ kubernetesimalv1alpha1.EtcdSpec,
+	status kubernetesimalv1alpha1.EtcdStatus,
+) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
+	var span trace.Span
+	ctx, span = otel.Tracer(r.Name).Start(ctx, "reconcilePeerCertificate")
+	defer span.End()
+
+	if status.PeerPrivateKeyRef != nil {
+		if name := status.PeerPrivateKeyRef.LocalObjectReference.Name; name != newPeerCertificateName(e) {
+			return nil, nil, fmt.Errorf("invalid Secret name %s to store a private key for peer communication", name)
+		}
+	}
+	if status.PeerCertificateRef != nil {
+		if name := status.PeerCertificateRef.LocalObjectReference.Name; name != newPeerCertificateName(e) {
+			return nil, nil, fmt.Errorf("invalid Secret name %s to store a certificate for peer communication", name)
+		}
+	}
+
+	var secret corev1.Secret
+	if status.PeerPrivateKeyRef != nil && status.PeerCertificateRef != nil {
+		if err := r.Client.Get(
+			ctx,
+			types.NamespacedName{Namespace: e.Namespace, Name: status.PeerPrivateKeyRef.Name},
+			&secret,
+		); err != nil {
+			if !apierrors.IsNotFound(err) {
+				return nil, nil, fmt.Errorf("unable to get a Secret for a certificate for peer communication: %w", err)
+			}
+		} else {
+			_, hasPublicKey := secret.Data[status.PeerCertificateRef.Key]
+			_, hasPrivateKey := secret.Data[status.PeerPrivateKeyRef.Key]
+			if hasPublicKey && hasPrivateKey {
+				return status.PeerCertificateRef, status.PeerPrivateKeyRef, nil
+			}
+		}
+	}
+
+	caCert, err := k8s.GetCertificateFromSecretKeySelector(
+		ctx,
+		r.Client,
+		e.Namespace,
+		status.CACertificateRef,
+	)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, nil, nil
+		}
+		return nil, nil, fmt.Errorf("unable to load a CA certificate from a Secret: %w", err)
+	}
+
+	caPrivateKey, err := k8s.GetPrivateKeyFromSecretKeySelector(
+		ctx,
+		r.Client,
+		e.Namespace,
+		status.CAPrivateKeyRef,
+	)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, nil, nil
+		}
+		return nil, nil, fmt.Errorf("unable to load a CA private key from a Secret: %w", err)
+	}
+
+	certificate, privateKey, err := pki.CreateClientCertificateAndPrivateKey(
+		newPeerCertificateName(e),
+		caCert,
+		caPrivateKey,
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to create a certificate for etcd peer communication: %w", err)
+	}
+	if secret, err := k8s.ReconcileSecret(
+		ctx,
+		e,
+		r.Scheme,
+		r.Client,
+		k8s.NewObjectMeta(
+			k8s.WithName(newPeerCertificateName(e)),
+			k8s.WithNamespace(e.Namespace),
+		),
+		k8s.WithType(corev1.SecretTypeTLS),
+		k8s.WithDataWithKey(corev1.TLSCertKey, certificate),
+		k8s.WithDataWithKey(corev1.TLSPrivateKeyKey, privateKey),
+	); err != nil {
+		return nil, nil, fmt.Errorf("unable to prepare a Secret for a certificate for etcd peer communication: %w", err)
+	} else {
+		return &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: secret.Name,
+				},
+				Key: corev1.TLSCertKey,
+			},
+			&corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: secret.Name,
+				},
+				Key: corev1.TLSPrivateKeyKey,
+			},
+			nil
+	}
+}
+
 func (r *EtcdReconciler) finalizeClientCertificateSecret(
 	ctx context.Context,
 	e *kubernetesimalv1alpha1.Etcd,
@@ -244,6 +353,26 @@ func (r *EtcdReconciler) finalizeClientCertificateSecret(
 		return status, err
 	}
 	status.ClientCertificateRef = nil
+	log.FromContext(ctx).Info("Client certificate was finalized.")
+	return status, nil
+}
+
+func (r *EtcdReconciler) finalizePeerCertificateSecret(
+	ctx context.Context,
+	e *kubernetesimalv1alpha1.Etcd,
+	status kubernetesimalv1alpha1.EtcdStatus,
+) (kubernetesimalv1alpha1.EtcdStatus, error) {
+	var span trace.Span
+	ctx, span = otel.Tracer(r.Name).Start(ctx, "finalizePeerCertificateSecret")
+	defer span.End()
+
+	if status.PeerCertificateRef == nil {
+		return status, nil
+	}
+	if err := r.finalizeSecret(ctx, e.Namespace, status.PeerCertificateRef.Name); err != nil {
+		return status, err
+	}
+	status.PeerCertificateRef = nil
 	log.FromContext(ctx).Info("Client certificate was finalized.")
 	return status, nil
 }
