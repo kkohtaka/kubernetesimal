@@ -32,6 +32,8 @@ type EtcdSpec struct {
 
 // EtcdStatus defines the observed state of Etcd
 type EtcdStatus struct {
+	//+kubebuilder:default=Pending
+
 	// Phase indicates phase of the etcd cluster.
 	Phase EtcdPhase `json:"phase"`
 
@@ -65,7 +67,7 @@ type EtcdStatus struct {
 	//+kubebuilder:default=0
 
 	// Replicas is the current number of etcd replicas.
-	Replicas int32 `json:"replicas"`
+	Replicas int32 `json:"replicas,omitempty"`
 }
 
 //+kubebuilder:validation:Enum=Pending;Running;Deleting

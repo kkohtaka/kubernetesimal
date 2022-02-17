@@ -316,10 +316,13 @@ func (r *EtcdReconciler) updateStatus(
 	switch {
 	case !e.ObjectMeta.DeletionTimestamp.IsZero():
 		status.Phase = kubernetesimalv1alpha1.EtcdPhaseDeleting
+		status.Replicas = 0
 	case status.ProbedSinceTime.IsZero():
 		status.Phase = kubernetesimalv1alpha1.EtcdPhasePending
+		status.Replicas = 0
 	default:
 		status.Phase = kubernetesimalv1alpha1.EtcdPhaseRunning
+		status.Replicas = 1
 	}
 
 	if !apiequality.Semantic.DeepEqual(status, e.Status) {
@@ -329,8 +332,7 @@ func (r *EtcdReconciler) updateStatus(
 			if apierrors.IsNotFound(err) {
 				return nil
 			}
-			logger.Error(err, "Status couldn't be updated.")
-			return err
+			return fmt.Errorf("status couldn't be applied a patch: %w", err)
 		}
 		logger.V(4).Info("Status was updated.")
 	}

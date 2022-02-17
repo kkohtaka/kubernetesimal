@@ -171,6 +171,7 @@ spec:
                 - key
                 type: object
               phase:
+                default: Pending
                 description: Phase indicates phase of the etcd cluster.
                 enum:
                 - Pending
@@ -251,7 +252,6 @@ spec:
                 type: object
             required:
             - phase
-            - replicas
             type: object
         type: object
     served: true
