@@ -32,9 +32,8 @@ type EtcdSpec struct {
 
 // EtcdStatus defines the observed state of Etcd
 type EtcdStatus struct {
-	//+kubebuilder:default=Pending
-
 	// Phase indicates phase of the etcd cluster.
+	//+kubebuilder:default=Pending
 	Phase EtcdPhase `json:"phase"`
 
 	// CACertificateRef is a reference to a Secret key that composes a CA certificate.
@@ -64,15 +63,13 @@ type EtcdStatus struct {
 	// ProbedSinceTime is the timestamp when the controller probed an etcd node at the first time.
 	ProbedSinceTime *metav1.Time `json:"probedSinceTime,omitempty"`
 
-	//+kubebuilder:default=0
-
 	// Replicas is the current number of etcd replicas.
+	//+kubebuilder:default=0
 	Replicas int32 `json:"replicas,omitempty"`
 }
 
-//+kubebuilder:validation:Enum=Pending;Running;Deleting
-
 // EtcdPhase is a label for the phase of the etcd cluster at the current time.
+//+kubebuilder:validation:Enum=Pending;Running;Deleting
 type EtcdPhase string
 
 const (
