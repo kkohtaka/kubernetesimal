@@ -3,5 +3,4 @@ kind: Etcd
 metadata:
   name: etcd-sample
   namespace: kubernetesimal-test
-spec:
-  version: 3.4.14
+spec: {}

@@ -125,6 +125,14 @@ go_repository(
     version = "v1.2.0",
 )
 
+go_repository(
+    name = "com_github_blang_semver_v4",
+    build_file_proto_mode = "disable",
+    importpath = "github.com/blang/semver/v4",
+    sum = "h1:1PFHFE6yCCTv8C1TeyNNarDzntLi7wMI5i/pzqYIsAM=",
+    version = "v4.0.0",
+)
+
 protobuf_deps()
 
 ############################################################

@@ -24,12 +24,10 @@ import (
 // EtcdSpec defines the desired state of Etcd
 type EtcdSpec struct {
 	// Version is the desired version of the etcd cluster.
-	Version string `json:"version"`
-
-	// +nullable
+	Version *string `json:"version,omitempty"`
 
 	// Replicas is the desired number of etcd replicas.
-	Replicas *int32 `json:"replicas"`
+	Replicas *int32 `json:"replicas,omitempty"`
 }
 
 // EtcdStatus defines the observed state of Etcd
