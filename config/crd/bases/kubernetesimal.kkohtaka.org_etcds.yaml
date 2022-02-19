@@ -171,10 +171,11 @@ spec:
                 - key
                 type: object
               phase:
-                default: Pending
+                default: Creating
                 description: Phase indicates phase of the etcd cluster.
                 enum:
-                - Pending
+                - Creating
+                - Provisioned
                 - Running
                 - Deleting
                 type: string

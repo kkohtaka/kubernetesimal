@@ -33,7 +33,7 @@ type EtcdSpec struct {
 // EtcdStatus defines the observed state of Etcd
 type EtcdStatus struct {
 	// Phase indicates phase of the etcd cluster.
-	//+kubebuilder:default=Pending
+	//+kubebuilder:default=Creating
 	Phase EtcdPhase `json:"phase"`
 
 	// CACertificateRef is a reference to a Secret key that composes a CA certificate.
@@ -69,12 +69,14 @@ type EtcdStatus struct {
 }
 
 // EtcdPhase is a label for the phase of the etcd cluster at the current time.
-//+kubebuilder:validation:Enum=Pending;Running;Deleting
+//+kubebuilder:validation:Enum=Creating;Provisioned;Running;Deleting
 type EtcdPhase string
 
 const (
-	// EtcdPhasePending means the etcd cluster is wating to become running.
-	EtcdPhasePending EtcdPhase = "Pending"
+	// EtcdPhaseCreating means the etcd cluster is being created.
+	EtcdPhaseCreating EtcdPhase = "Creating"
+	// EtcdPhaseProvisioned means the etcd cluster was provisioned and wating to become running.
+	EtcdPhaseProvisioned EtcdPhase = "Provisioned"
 	// EtcdPhaseRunning means the etcd cluster is running.
 	EtcdPhaseRunning EtcdPhase = "Running"
 	// EtcdPhaseDeleting means the etcd cluster is running.

@@ -317,8 +317,11 @@ func (r *EtcdReconciler) updateStatus(
 	case !e.ObjectMeta.DeletionTimestamp.IsZero():
 		status.Phase = kubernetesimalv1alpha1.EtcdPhaseDeleting
 		status.Replicas = 0
+	case status.LastProvisionedTime.IsZero():
+		status.Phase = kubernetesimalv1alpha1.EtcdPhaseCreating
+		status.Replicas = 0
 	case status.ProbedSinceTime.IsZero():
-		status.Phase = kubernetesimalv1alpha1.EtcdPhasePending
+		status.Phase = kubernetesimalv1alpha1.EtcdPhaseProvisioned
 		status.Replicas = 0
 	default:
 		status.Phase = kubernetesimalv1alpha1.EtcdPhaseRunning
