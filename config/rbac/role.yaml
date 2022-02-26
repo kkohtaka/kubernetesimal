@@ -33,6 +33,32 @@ rules:
 - apiGroups:
   - kubernetesimal.kkohtaka.org
   resources:
+  - etcdnodes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - kubernetesimal.kkohtaka.org
+  resources:
+  - etcdnodes/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - kubernetesimal.kkohtaka.org
+  resources:
+  - etcdnodes/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - kubernetesimal.kkohtaka.org
+  resources:
   - etcds
   verbs:
   - create

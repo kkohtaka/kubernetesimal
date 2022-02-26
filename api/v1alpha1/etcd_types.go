@@ -52,16 +52,13 @@ type EtcdStatus struct {
 	SSHPrivateKeyRef *corev1.SecretKeySelector `json:"sshPrivateKeyRef,omitempty"`
 	// SSHPublicKeyRef is a reference to a Secret key that composes an SSH public key.
 	SSHPublicKeyRef *corev1.SecretKeySelector `json:"sshPublicKeyRef,omitempty"`
-	// UserDataRef is a reference to a Secret that contains a userdata used to start a virtual machine instance.
-	UserDataRef *corev1.LocalObjectReference `json:"userDataRef,omitempty"`
-	// VirtualMachineRef is a reference to a VirtualMachineInstance that composes an etcd node.
-	VirtualMachineRef *corev1.LocalObjectReference `json:"virtualMachineRef,omitempty"`
 	// ServiceRef is a reference to a Service of an etcd node.
 	ServiceRef *corev1.LocalObjectReference `json:"serviceRef,omitempty"`
-	// LastProvisionedTime is the timestamp when the controller probed an etcd node at the first time.
-	LastProvisionedTime *metav1.Time `json:"lastProvisionedTime,omitempty"`
 	// ProbedSinceTime is the timestamp when the controller probed an etcd node at the first time.
 	ProbedSinceTime *metav1.Time `json:"probedSinceTime,omitempty"`
+
+	// Nodes is a list of references of EtcdNodes that composes the etcd cluster.
+	NodeRefs []*corev1.LocalObjectReference `json:"nodeRefs,omitempty"`
 
 	// Replicas is the current number of etcd replicas.
 	//+kubebuilder:default=0
@@ -69,14 +66,12 @@ type EtcdStatus struct {
 }
 
 // EtcdPhase is a label for the phase of the etcd cluster at the current time.
-//+kubebuilder:validation:Enum=Creating;Provisioned;Running;Deleting
+//+kubebuilder:validation:Enum=Creating;Running;Deleting
 type EtcdPhase string
 
 const (
 	// EtcdPhaseCreating means the etcd cluster is being created.
 	EtcdPhaseCreating EtcdPhase = "Creating"
-	// EtcdPhaseProvisioned means the etcd cluster was provisioned and wating to become running.
-	EtcdPhaseProvisioned EtcdPhase = "Provisioned"
 	// EtcdPhaseRunning means the etcd cluster is running.
 	EtcdPhaseRunning EtcdPhase = "Running"
 	// EtcdPhaseDeleting means the etcd cluster is running.

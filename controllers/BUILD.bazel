@@ -6,6 +6,8 @@ go_library(
         "errors.go",
         "etcd.go",
         "etcd_controller.go",
+        "etcdnode_controller.go",
+        "finalizer.go",
         "pki.go",
         "ssh.go",
         "vm.go",

@@ -1,0 +1,20 @@
+# permissions for end users to view etcdnodes.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: etcdnode-viewer-role
+rules:
+- apiGroups:
+  - kubernetesimal.kkohtaka.org
+  resources:
+  - etcdnodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - kubernetesimal.kkohtaka.org
+  resources:
+  - etcdnodes/status
+  verbs:
+  - get

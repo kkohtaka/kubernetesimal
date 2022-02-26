@@ -14,6 +14,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	kubevirtv1 "kubevirt.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
@@ -35,19 +36,19 @@ var (
 	defaultEtcdVersion = "3.5.1"
 )
 
-func newUserDataName(e *kubernetesimalv1alpha1.Etcd) string {
-	return "userdata-" + e.Name
+func newUserDataName(en *kubernetesimalv1alpha1.EtcdNode) string {
+	return "userdata-" + en.Name
 }
 
-func newVirtualMachineInstanceName(e *kubernetesimalv1alpha1.Etcd) string {
-	return e.Name
+func newVirtualMachineInstanceName(en *kubernetesimalv1alpha1.EtcdNode) string {
+	return en.Name
 }
 
-func (r *EtcdReconciler) reconcileUserData(
+func (r *EtcdNodeReconciler) reconcileUserData(
 	ctx context.Context,
-	e *kubernetesimalv1alpha1.Etcd,
-	_ kubernetesimalv1alpha1.EtcdSpec,
-	status kubernetesimalv1alpha1.EtcdStatus,
+	en *kubernetesimalv1alpha1.EtcdNode,
+	spec kubernetesimalv1alpha1.EtcdNodeSpec,
+	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (*corev1.LocalObjectReference, error) {
 	var span trace.Span
 	ctx, span = otel.Tracer(r.Name).Start(ctx, "reconcileUserData")
@@ -56,8 +57,8 @@ func (r *EtcdReconciler) reconcileUserData(
 	publicKey, err := k8s.GetValueFromSecretKeySelector(
 		ctx,
 		r.Client,
-		e.Namespace,
-		status.SSHPublicKeyRef,
+		en.Namespace,
+		spec.SSHPublicKeyRef,
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -69,8 +70,8 @@ func (r *EtcdReconciler) reconcileUserData(
 	caCertificate, err := k8s.GetValueFromSecretKeySelector(
 		ctx,
 		r.Client,
-		e.Namespace,
-		status.CACertificateRef,
+		en.Namespace,
+		spec.CACertificateRef,
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -82,8 +83,8 @@ func (r *EtcdReconciler) reconcileUserData(
 	caPrivateKey, err := k8s.GetValueFromSecretKeySelector(
 		ctx,
 		r.Client,
-		e.Namespace,
-		status.CAPrivateKeyRef,
+		en.Namespace,
+		spec.CAPrivateKeyRef,
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -92,45 +93,19 @@ func (r *EtcdReconciler) reconcileUserData(
 		return nil, fmt.Errorf("unable to get a CA private key: %w", err)
 	}
 
-	peerCertificate, err := k8s.GetValueFromSecretKeySelector(
-		ctx,
-		r.Client,
-		e.Namespace,
-		status.PeerCertificateRef,
-	)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, NewRequeueError("waiting for a peer certificate prepared").Wrap(err)
-		}
-		return nil, fmt.Errorf("unable to get a peer certificate: %w", err)
-	}
-
-	peerPrivateKey, err := k8s.GetValueFromSecretKeySelector(
-		ctx,
-		r.Client,
-		e.Namespace,
-		status.PeerPrivateKeyRef,
-	)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, NewRequeueError("waiting for a peer private key prepared").Wrap(err)
-		}
-		return nil, fmt.Errorf("unable to get a peer private key: %w", err)
-	}
-
 	var service corev1.Service
 	if err := r.Get(
 		ctx,
 		types.NamespacedName{
-			Namespace: e.Namespace,
-			Name:      status.ServiceRef.Name,
+			Namespace: en.Namespace,
+			Name:      spec.ServiceRef.Name,
 		},
 		&service,
 	); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, NewRequeueError("waiting for the etcd Service prepared").Wrap(err)
 		}
-		return nil, fmt.Errorf("unable to get a service %s/%s: %w", e.Namespace, status.ServiceRef.Name, err)
+		return nil, fmt.Errorf("unable to get a service %s/%s: %w", en.Namespace, spec.ServiceRef.Name, err)
 	}
 	if service.Spec.ClusterIP == "" {
 		return nil, NewRequeueError("waiting for a cluster IP of the etcd Service prepared").Wrap(err)
@@ -170,17 +145,14 @@ func (r *EtcdReconciler) reconcileUserData(
 	if err := cloudInitTmpl.Execute(
 		&cloudInitBuf,
 		&struct {
-			AuthorizedKeys                  []string
-			StartEtcdScript                 string
-			CACertificate, CAPrivateKey     string
-			PeerCertificate, PeerPrivateKey string
+			AuthorizedKeys              []string
+			StartEtcdScript             string
+			CACertificate, CAPrivateKey string
 		}{
 			AuthorizedKeys:  []string{string(publicKey)},
 			StartEtcdScript: base64.StdEncoding.EncodeToString(startEtcdScriptBuf.Bytes()),
 			CACertificate:   base64.StdEncoding.EncodeToString(caCertificate),
 			CAPrivateKey:    base64.StdEncoding.EncodeToString(caPrivateKey),
-			PeerCertificate: base64.StdEncoding.EncodeToString(peerCertificate),
-			PeerPrivateKey:  base64.StdEncoding.EncodeToString(peerPrivateKey),
 		},
 	); err != nil {
 		return nil, fmt.Errorf("unable to render a cloud-config from a template: %w", err)
@@ -188,12 +160,12 @@ func (r *EtcdReconciler) reconcileUserData(
 
 	if secret, err := k8s.ReconcileSecret(
 		ctx,
-		e,
+		en,
 		r.Scheme,
 		r.Client,
 		k8s.NewObjectMeta(
-			k8s.WithName(newUserDataName(e)),
-			k8s.WithNamespace(e.Namespace),
+			k8s.WithName(newUserDataName(en)),
+			k8s.WithNamespace(en.Namespace),
 		),
 		k8s.WithDataWithKey("userdata", cloudInitBuf.Bytes()),
 	); err != nil {
@@ -205,11 +177,11 @@ func (r *EtcdReconciler) reconcileUserData(
 	}
 }
 
-func (r *EtcdReconciler) reconcileVirtualMachineInstance(
+func (r *EtcdNodeReconciler) reconcileVirtualMachineInstance(
 	ctx context.Context,
-	e *kubernetesimalv1alpha1.Etcd,
-	_ kubernetesimalv1alpha1.EtcdSpec,
-	status kubernetesimalv1alpha1.EtcdStatus,
+	en *kubernetesimalv1alpha1.EtcdNode,
+	_ kubernetesimalv1alpha1.EtcdNodeSpec,
+	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (*corev1.LocalObjectReference, error) {
 	var span trace.Span
 	ctx, span = otel.Tracer(r.Name).Start(ctx, "reconcileVirtualMachineInstance")
@@ -217,14 +189,14 @@ func (r *EtcdReconciler) reconcileVirtualMachineInstance(
 
 	if vmi, err := k8s.ReconcileVirtualMachineInstance(
 		ctx,
-		e,
+		en,
 		r.Scheme,
 		r.Client,
 		k8s.NewObjectMeta(
-			k8s.WithName(newVirtualMachineInstanceName(e)),
-			k8s.WithNamespace(e.Namespace),
+			k8s.WithName(newVirtualMachineInstanceName(en)),
+			k8s.WithNamespace(en.Namespace),
 			k8s.WithLabel("app.kubernetes.io/name", "virtualmachineimage"),
-			k8s.WithLabel("app.kubernetes.io/instance", newVirtualMachineInstanceName(e)),
+			k8s.WithLabel("app.kubernetes.io/instance", newVirtualMachineInstanceName(en)),
 			k8s.WithLabel("app.kubernetes.io/part-of", "etcd"),
 		),
 		k8s.WithUserData(status.UserDataRef),
@@ -237,14 +209,13 @@ func (r *EtcdReconciler) reconcileVirtualMachineInstance(
 	}
 }
 
-func (r *EtcdReconciler) finalizeVirtualMachineInstance(
+func finalizeVirtualMachineInstance(
 	ctx context.Context,
-	e *kubernetesimalv1alpha1.Etcd,
-	status kubernetesimalv1alpha1.EtcdStatus,
-) (kubernetesimalv1alpha1.EtcdStatus, error) {
-	var span trace.Span
-	ctx, span = otel.Tracer(r.Name).Start(ctx, "finalizeVirtualMachineInstance")
-	defer span.End()
+	client client.Client,
+	en *kubernetesimalv1alpha1.EtcdNode,
+	status kubernetesimalv1alpha1.EtcdNodeStatus,
+) (kubernetesimalv1alpha1.EtcdNodeStatus, error) {
+	// TODO(kkohtaka): Trace this function call
 
 	if status.VirtualMachineRef == nil {
 		return status, nil
@@ -256,9 +227,10 @@ func (r *EtcdReconciler) finalizeVirtualMachineInstance(
 	)
 	ctx = log.IntoContext(ctx, logger)
 
-	if err := r.finalizeObject(
+	if err := finalizeObject(
 		ctx,
-		e.Namespace,
+		client,
+		en.Namespace,
 		status.VirtualMachineRef.Name,
 		&kubevirtv1.VirtualMachineInstance{},
 	); err != nil {

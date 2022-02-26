@@ -1,0 +1,26 @@
+apiVersion: kubernetesimal.kkohtaka.org/v1alpha1
+kind: EtcdNode
+metadata:
+  name: etcdnode-sample
+spec:
+  caCertificateRef:
+    key: tls.crt
+    name: ca-etcd-sample
+  caPrivateKeyRef:
+    key: tls.key
+    name: ca-etcd-sample
+  clientCertificateRef:
+    key: tls.crt
+    name: api-client-etcd-sample
+  clientPrivateKeyRef:
+    key: tls.key
+    name: api-client-etcd-sample
+  serviceRef:
+    name: etcd-sample
+  sshPrivateKeyRef:
+    key: ssh-privatekey
+    name: ssh-keypair-etcd-sample
+  sshPublicKeyRef:
+    key: ssh-publickey
+    name: ssh-keypair-etcd-sample
+  version: 3.5.1

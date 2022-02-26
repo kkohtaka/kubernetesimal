@@ -29,7 +29,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	kubevirtv1 "kubevirt.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -49,13 +48,9 @@ type EtcdReconciler struct {
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds/finalizers,verbs=update
-//+kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachineinstances,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
-
-const (
-	finalizerName = "kubernetesimal.kkohtaka.org/finalizer"
-)
+//+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcdnodes,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -173,28 +168,24 @@ func (r *EtcdReconciler) finalizeExternalResources(
 		status = newStatus
 	}
 
-	if newStatus, err := r.finalizeVirtualMachineInstance(ctx, e, status); err != nil {
-		return newStatus, err
-	} else {
-		status = newStatus
-	}
-
 	return status, nil
 }
 
-func (r *EtcdReconciler) finalizeSecret(
+func finalizeSecret(
 	ctx context.Context,
+	client client.Client,
 	namespace, name string,
 ) error {
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues(
 		"object", name,
 		"resource", "corev1.Secret",
 	))
-	return r.finalizeObject(ctx, namespace, name, &corev1.Secret{})
+	return finalizeObject(ctx, client, namespace, name, &corev1.Secret{})
 }
 
-func (r *EtcdReconciler) finalizeObject(
+func finalizeObject(
 	ctx context.Context,
+	c client.Client,
 	namespace, name string,
 	obj client.Object,
 ) error {
@@ -204,14 +195,14 @@ func (r *EtcdReconciler) finalizeObject(
 		Namespace: namespace,
 		Name:      name,
 	}
-	if err := r.Client.Get(ctx, key, obj); err != nil {
+	if err := c.Get(ctx, key, obj); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
 		return err
 	}
 	if obj.GetDeletionTimestamp().IsZero() {
-		if err := r.Client.Delete(ctx, obj, &client.DeleteOptions{}); err != nil {
+		if err := c.Delete(ctx, obj, &client.DeleteOptions{}); err != nil {
 			if apierrors.IsNotFound(err) {
 				return nil
 			}
@@ -271,36 +262,60 @@ func (r *EtcdReconciler) reconcileExternalResources(
 		status.ServiceRef = serviceRef
 	}
 
-	if userDataRef, err := r.reconcileUserData(ctx, e, spec, status); err != nil {
-		return status, fmt.Errorf("unable to prepare a userdata: %w", err)
-	} else {
-		status.UserDataRef = userDataRef
-	}
-
-	if vmiRef, err := r.reconcileVirtualMachineInstance(ctx, e, spec, status); err != nil {
-		return status, fmt.Errorf("unable to prepare a virtual machine instance: %w", err)
-	} else {
-		status.VirtualMachineRef = vmiRef
-	}
-
-	if status.LastProvisionedTime.IsZero() {
-		if err := r.provisionEtcdMember(ctx, e, spec, status); err != nil {
-			return status, fmt.Errorf("unable to provision an etcd member: %w", err)
+	var (
+		nRunning, nPending int
+	)
+	for _, nodeRef := range status.NodeRefs {
+		var node kubernetesimalv1alpha1.EtcdNode
+		if err := r.Get(ctx, types.NamespacedName{Namespace: e.Namespace, Name: nodeRef.Name}, &node); err != nil {
+			return status, fmt.Errorf("unable to get an etcd node from reference: %w", err)
 		}
-		status.LastProvisionedTime = &metav1.Time{Time: time.Now()}
-		logger.Info("Provisioning an etcd member was completed.")
+		switch node.Status.Phase {
+		case kubernetesimalv1alpha1.EtcdNodePhaseRunning:
+			nRunning++
+		default:
+			nPending++
+		}
+	}
+	status.Replicas = int32(nRunning)
+	if nPending > 0 {
+		logger.V(4).Info("Skip reconciliation since not all nodes are running.")
+		return status, nil
 	}
 
-	if probed, err := r.probeEtcdMember(ctx, e, spec, status); err != nil {
-		return status, fmt.Errorf("unable to probe an etcd member: %w", err)
-	} else if !probed {
-		status.ProbedSinceTime = nil
-		return status, NewRequeueError("waiting for an etcd member ready").WithDelay(probeInterval)
-	} else {
-		logger.Info("Probing an etcd member was succeeded.")
-		if status.ProbedSinceTime.IsZero() {
-			status.ProbedSinceTime = &metav1.Time{Time: time.Now()}
+	if len(status.NodeRefs) > int(*spec.Replicas) {
+		// TODO(kkohtaka): Decrease etcd nodes
+		return status, nil
+	}
+
+	if len(status.NodeRefs) < int(*spec.Replicas) {
+		// TODO(kkohtaka): Fill the proper specification
+		node := &kubernetesimalv1alpha1.EtcdNode{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: e.Name + "-",
+				Namespace:    e.Namespace,
+			},
+			Spec: kubernetesimalv1alpha1.EtcdNodeSpec{
+				Version: *e.Spec.Version,
+
+				CACertificateRef:     *status.CACertificateRef,
+				CAPrivateKeyRef:      *status.CAPrivateKeyRef,
+				ClientCertificateRef: *status.ClientCertificateRef,
+				ClientPrivateKeyRef:  *status.ClientPrivateKeyRef,
+				SSHPrivateKeyRef:     *status.SSHPrivateKeyRef,
+				SSHPublicKeyRef:      *status.SSHPublicKeyRef,
+
+				ServiceRef: *status.ServiceRef,
+			},
 		}
+		_, err := ctrl.CreateOrUpdate(ctx, r.Client, node, func() error {
+			return ctrl.SetControllerReference(e, node, r.Scheme)
+		})
+		if err != nil {
+			return status, fmt.Errorf("unable to create or update an etcd node: %w", err)
+		}
+		status.NodeRefs = append(status.NodeRefs, &corev1.LocalObjectReference{Name: node.Name})
+		return status, nil
 	}
 
 	return status, nil
@@ -316,16 +331,10 @@ func (r *EtcdReconciler) updateStatus(
 	switch {
 	case !e.ObjectMeta.DeletionTimestamp.IsZero():
 		status.Phase = kubernetesimalv1alpha1.EtcdPhaseDeleting
-		status.Replicas = 0
-	case status.LastProvisionedTime.IsZero():
+	case status.Replicas != *e.Spec.Replicas:
 		status.Phase = kubernetesimalv1alpha1.EtcdPhaseCreating
-		status.Replicas = 0
-	case status.ProbedSinceTime.IsZero():
-		status.Phase = kubernetesimalv1alpha1.EtcdPhaseProvisioned
-		status.Replicas = 0
 	default:
 		status.Phase = kubernetesimalv1alpha1.EtcdPhaseRunning
-		status.Replicas = 1
 	}
 
 	if !apiequality.Semantic.DeepEqual(status, e.Status) {
@@ -347,6 +356,7 @@ func (r *EtcdReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubernetesimalv1alpha1.Etcd{}).
 		Owns(&corev1.Secret{}).
-		Owns(&kubevirtv1.VirtualMachineInstance{}).
+		Owns(&corev1.Service{}).
+		Owns(&kubernetesimalv1alpha1.EtcdNode{}).
 		Complete(r)
 }

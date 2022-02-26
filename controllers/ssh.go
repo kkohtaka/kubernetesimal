@@ -111,7 +111,7 @@ func (r *EtcdReconciler) finalizeSSHKeyPairSecret(
 	if status.SSHPrivateKeyRef == nil {
 		return status, nil
 	}
-	if err := r.finalizeSecret(ctx, e.Namespace, status.SSHPrivateKeyRef.Name); err != nil {
+	if err := finalizeSecret(ctx, r.Client, e.Namespace, status.SSHPrivateKeyRef.Name); err != nil {
 		return status, err
 	}
 	status.SSHPrivateKeyRef = nil

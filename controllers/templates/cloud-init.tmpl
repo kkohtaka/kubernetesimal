@@ -22,12 +22,4 @@ write_files:
   content: {{ .CAPrivateKey }}
   path: /etc/etcd/pki/ca.key
   permissions: '0400'
-- encoding: b64
-  content: {{ .PeerCertificate }}
-  path: /etc/etcd/pki/peer.crt
-  permissions: '0444'
-- encoding: b64
-  content: {{ .PeerPrivateKey }}
-  path: /etc/etcd/pki/peer.key
-  permissions: '0400'
 {{ end }}

@@ -6,30 +6,24 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
-  name: etcds.kubernetesimal.kkohtaka.org
+  name: etcdnodes.kubernetesimal.kkohtaka.org
 spec:
   group: kubernetesimal.kkohtaka.org
   names:
-    kind: Etcd
-    listKind: EtcdList
-    plural: etcds
-    singular: etcd
+    kind: EtcdNode
+    listKind: EtcdNodeList
+    plural: etcdnodes
+    singular: etcdnode
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
     - jsonPath: .status.phase
       name: Phase
       type: string
-    - jsonPath: .spec.replicas
-      name: Desired Replicas
-      type: integer
-    - jsonPath: .status.replicas
-      name: Current Replicas
-      type: integer
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Etcd is the Schema for the etcds API
+        description: EtcdNode is the Schema for the etcd nodes API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -44,18 +38,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: EtcdSpec defines the desired state of Etcd
-            properties:
-              replicas:
-                description: Replicas is the desired number of etcd replicas.
-                format: int32
-                type: integer
-              version:
-                description: Version is the desired version of the etcd cluster.
-                type: string
-            type: object
-          status:
-            description: EtcdStatus defines the observed state of Etcd
+            description: EtcdNodeSpec defines the desired state of EtcdNode
             properties:
               caCertificateRef:
                 description: CACertificateRef is a reference to a Secret key that
@@ -129,75 +112,8 @@ spec:
                 required:
                 - key
                 type: object
-              nodeRefs:
-                description: Nodes is a list of references of EtcdNodes that composes
-                  the etcd cluster.
-                items:
-                  description: LocalObjectReference contains enough information to
-                    let you locate the referenced object inside the same namespace.
-                  properties:
-                    name:
-                      description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                        TODO: Add other useful fields. apiVersion, kind, uid?'
-                      type: string
-                  type: object
-                type: array
-              peerCertificateRef:
-                description: PeerCertificateRef is a reference to a Secret key that
-                  composes a certificate for peer communication.
-                properties:
-                  key:
-                    description: The key of the secret to select from.  Must be a
-                      valid secret key.
-                    type: string
-                  name:
-                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                      TODO: Add other useful fields. apiVersion, kind, uid?'
-                    type: string
-                  optional:
-                    description: Specify whether the Secret or its key must be defined
-                    type: boolean
-                required:
-                - key
-                type: object
-              peerPrivateKeyRef:
-                description: PeerPrivateKeyRef is a reference to a Secret key that
-                  composes a peer private key for peer communication.
-                properties:
-                  key:
-                    description: The key of the secret to select from.  Must be a
-                      valid secret key.
-                    type: string
-                  name:
-                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                      TODO: Add other useful fields. apiVersion, kind, uid?'
-                    type: string
-                  optional:
-                    description: Specify whether the Secret or its key must be defined
-                    type: boolean
-                required:
-                - key
-                type: object
-              phase:
-                default: Creating
-                description: Phase indicates phase of the etcd cluster.
-                enum:
-                - Creating
-                - Running
-                - Deleting
-                type: string
-              probedSinceTime:
-                description: ProbedSinceTime is the timestamp when the controller
-                  probed an etcd node at the first time.
-                format: date-time
-                type: string
-              replicas:
-                default: 0
-                description: Replicas is the current number of etcd replicas.
-                format: int32
-                type: integer
               serviceRef:
-                description: ServiceRef is a reference to a Service of an etcd node.
+                description: ServiceRef is a reference to a Service of an etcd cluster.
                 properties:
                   name:
                     description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
@@ -240,6 +156,66 @@ spec:
                 required:
                 - key
                 type: object
+              version:
+                description: Version is the desired version of the etcd cluster.
+                type: string
+            required:
+            - caCertificateRef
+            - caPrivateKeyRef
+            - serviceRef
+            - sshPrivateKeyRef
+            - sshPublicKeyRef
+            - version
+            type: object
+          status:
+            description: EtcdNodeStatus defines the observed state of EtcdNode
+            properties:
+              lastProvisionedTime:
+                description: LastProvisionedTime is the timestamp when the controller
+                  probed an etcd node at the first time.
+                format: date-time
+                type: string
+              peerServiceRef:
+                description: PeerServiceRef is a reference to a Service of an etcd
+                  node.
+                properties:
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      TODO: Add other useful fields. apiVersion, kind, uid?'
+                    type: string
+                type: object
+              phase:
+                default: Creating
+                description: Phase indicates phase of the etcd node.
+                enum:
+                - Creating
+                - Provisioned
+                - Running
+                - Deleting
+                type: string
+              probedSinceTime:
+                description: ProbedSinceTime is the timestamp when the controller
+                  probed an etcd node at the first time.
+                format: date-time
+                type: string
+              userDataRef:
+                description: UserDataRef is a reference to a Secret that contains
+                  a userdata used to start a virtual machine instance.
+                properties:
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      TODO: Add other useful fields. apiVersion, kind, uid?'
+                    type: string
+                type: object
+              virtualMachineRef:
+                description: VirtualMachineRef is a reference to a VirtualMachineInstance
+                  that composes an etcd node.
+                properties:
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      TODO: Add other useful fields. apiVersion, kind, uid?'
+                    type: string
+                type: object
             required:
             - phase
             type: object
@@ -247,9 +223,6 @@ spec:
     served: true
     storage: true
     subresources:
-      scale:
-        specReplicasPath: .spec.replicas
-        statusReplicasPath: .status.replicas
       status: {}
 status:
   acceptedNames:

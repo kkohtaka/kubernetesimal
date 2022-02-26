@@ -111,7 +111,7 @@ func (r *EtcdReconciler) finalizeCACertificateSecret(
 	if status.CACertificateRef == nil {
 		return status, nil
 	}
-	if err := r.finalizeSecret(ctx, e.Namespace, status.CACertificateRef.Name); err != nil {
+	if err := finalizeSecret(ctx, r.Client, e.Namespace, status.CACertificateRef.Name); err != nil {
 		return status, err
 	}
 	status.CACertificateRef = nil
@@ -349,7 +349,7 @@ func (r *EtcdReconciler) finalizeClientCertificateSecret(
 	if status.ClientCertificateRef == nil {
 		return status, nil
 	}
-	if err := r.finalizeSecret(ctx, e.Namespace, status.ClientCertificateRef.Name); err != nil {
+	if err := finalizeSecret(ctx, r.Client, e.Namespace, status.ClientCertificateRef.Name); err != nil {
 		return status, err
 	}
 	status.ClientCertificateRef = nil
@@ -369,7 +369,7 @@ func (r *EtcdReconciler) finalizePeerCertificateSecret(
 	if status.PeerCertificateRef == nil {
 		return status, nil
 	}
-	if err := r.finalizeSecret(ctx, e.Namespace, status.PeerCertificateRef.Name); err != nil {
+	if err := finalizeSecret(ctx, r.Client, e.Namespace, status.PeerCertificateRef.Name); err != nil {
 		return status, err
 	}
 	status.PeerCertificateRef = nil
