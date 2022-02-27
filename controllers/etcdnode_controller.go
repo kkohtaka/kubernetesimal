@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"time"
 
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -42,7 +41,7 @@ type EtcdNodeReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	Name string
+	Tracer trace.Tracer
 }
 
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcdnodes,verbs=get;list;watch;create;update;patch;delete
@@ -58,7 +57,7 @@ func (r *EtcdNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	logger := log.FromContext(ctx).WithValues("etcdnode", req.NamespacedName)
 	ctx = log.IntoContext(ctx, logger)
 	var span trace.Span
-	ctx, span = otel.Tracer(r.Name).Start(ctx, "Reconcile")
+	ctx, span = r.Tracer.Start(ctx, "Reconcile")
 	defer span.End()
 
 	var en kubernetesimalv1alpha1.EtcdNode
@@ -96,7 +95,7 @@ func (r *EtcdNodeReconciler) doReconcile(
 	spec kubernetesimalv1alpha1.EtcdNodeSpec,
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (kubernetesimalv1alpha1.EtcdNodeStatus, error) {
-	ctx, span := otel.Tracer(r.Name).Start(ctx, "doReconcile")
+	ctx, span := r.Tracer.Start(ctx, "doReconcile")
 	defer span.End()
 
 	if en.ObjectMeta.DeletionTimestamp.IsZero() {
@@ -141,7 +140,7 @@ func (r *EtcdNodeReconciler) finalizeExternalResources(
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (kubernetesimalv1alpha1.EtcdNodeStatus, error) {
 	var span trace.Span
-	ctx, span = otel.Tracer(r.Name).Start(ctx, "finalizeExternalResources")
+	ctx, span = r.Tracer.Start(ctx, "finalizeExternalResources")
 	defer span.End()
 
 	if newStatus, err := finalizeVirtualMachineInstance(ctx, r.Client, en, status); err != nil {
@@ -160,7 +159,7 @@ func (r *EtcdNodeReconciler) reconcileExternalResources(
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (kubernetesimalv1alpha1.EtcdNodeStatus, error) {
 	var span trace.Span
-	ctx, span = otel.Tracer(r.Name).Start(ctx, "reconcileExternalResources")
+	ctx, span = r.Tracer.Start(ctx, "reconcileExternalResources")
 	defer span.End()
 	logger := log.FromContext(ctx)
 

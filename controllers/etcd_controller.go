@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"time"
 
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -42,7 +41,7 @@ type EtcdReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	Name string
+	Tracer trace.Tracer
 }
 
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds,verbs=get;list;watch;create;update;patch;delete
@@ -58,7 +57,7 @@ func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	logger := log.FromContext(ctx).WithValues("etcd", req.NamespacedName)
 	ctx = log.IntoContext(ctx, logger)
 	var span trace.Span
-	ctx, span = otel.Tracer(r.Name).Start(ctx, "Reconcile")
+	ctx, span = r.Tracer.Start(ctx, "Reconcile")
 	defer span.End()
 
 	var e kubernetesimalv1alpha1.Etcd
@@ -96,7 +95,7 @@ func (r *EtcdReconciler) doReconcile(
 	spec kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
-	ctx, span := otel.Tracer(r.Name).Start(ctx, "doReconcile")
+	ctx, span := r.Tracer.Start(ctx, "doReconcile")
 	defer span.End()
 
 	if e.ObjectMeta.DeletionTimestamp.IsZero() {
@@ -141,7 +140,7 @@ func (r *EtcdReconciler) finalizeExternalResources(
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
 	var span trace.Span
-	ctx, span = otel.Tracer(r.Name).Start(ctx, "finalizeExternalResources")
+	ctx, span = r.Tracer.Start(ctx, "finalizeExternalResources")
 	defer span.End()
 
 	if newStatus, err := r.finalizeCACertificateSecret(ctx, e, status); err != nil {
@@ -224,7 +223,7 @@ func (r *EtcdReconciler) reconcileExternalResources(
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
 	var span trace.Span
-	ctx, span = otel.Tracer(r.Name).Start(ctx, "reconcileExternalResources")
+	ctx, span = r.Tracer.Start(ctx, "reconcileExternalResources")
 	defer span.End()
 	logger := log.FromContext(ctx)
 

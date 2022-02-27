@@ -1,0 +1,19 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "tracing",
+    srcs = ["tracing.go"],
+    importpath = "github.com/kkohtaka/kubernetesimal/observerbility/tracing",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@io_k8s_client_go//plugin/pkg/client/auth",
+        "@io_k8s_sigs_controller_runtime//:controller-runtime",
+        "@io_opentelemetry_go_otel//attribute",
+        "@io_opentelemetry_go_otel//semconv/v1.4.0:v1_4_0",
+        "@io_opentelemetry_go_otel_exporters_otlp_otlptrace//:otlptrace",
+        "@io_opentelemetry_go_otel_exporters_otlp_otlptrace_otlptracegrpc//:otlptracegrpc",
+        "@io_opentelemetry_go_otel_exporters_otlp_otlptrace_otlptracehttp//:otlptracehttp",
+        "@io_opentelemetry_go_otel_sdk//resource",
+        "@io_opentelemetry_go_otel_sdk//trace",
+    ],
+)

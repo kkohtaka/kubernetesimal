@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -31,7 +30,7 @@ func (r *EtcdReconciler) reconcileCACertificate(
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
 	var span trace.Span
-	ctx, span = otel.Tracer(r.Name).Start(ctx, "reconcileCACertificate")
+	ctx, span = r.Tracer.Start(ctx, "reconcileCACertificate")
 	defer span.End()
 
 	if status.CAPrivateKeyRef != nil {
@@ -105,7 +104,7 @@ func (r *EtcdReconciler) finalizeCACertificateSecret(
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
 	var span trace.Span
-	ctx, span = otel.Tracer(r.Name).Start(ctx, "finalizeCACertificateSecret")
+	ctx, span = r.Tracer.Start(ctx, "finalizeCACertificateSecret")
 	defer span.End()
 
 	if status.CACertificateRef == nil {
@@ -134,7 +133,7 @@ func (r *EtcdReconciler) reconcileClientCertificate(
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
 	var span trace.Span
-	ctx, span = otel.Tracer(r.Name).Start(ctx, "reconcileClientCertificate")
+	ctx, span = r.Tracer.Start(ctx, "reconcileClientCertificate")
 	defer span.End()
 
 	if status.ClientPrivateKeyRef != nil {
@@ -239,7 +238,7 @@ func (r *EtcdReconciler) reconcilePeerCertificate(
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
 	var span trace.Span
-	ctx, span = otel.Tracer(r.Name).Start(ctx, "reconcilePeerCertificate")
+	ctx, span = r.Tracer.Start(ctx, "reconcilePeerCertificate")
 	defer span.End()
 
 	if status.PeerPrivateKeyRef != nil {
@@ -343,7 +342,7 @@ func (r *EtcdReconciler) finalizeClientCertificateSecret(
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
 	var span trace.Span
-	ctx, span = otel.Tracer(r.Name).Start(ctx, "finalizeClientCertificateSecret")
+	ctx, span = r.Tracer.Start(ctx, "finalizeClientCertificateSecret")
 	defer span.End()
 
 	if status.ClientCertificateRef == nil {
@@ -363,7 +362,7 @@ func (r *EtcdReconciler) finalizePeerCertificateSecret(
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
 	var span trace.Span
-	ctx, span = otel.Tracer(r.Name).Start(ctx, "finalizePeerCertificateSecret")
+	ctx, span = r.Tracer.Start(ctx, "finalizePeerCertificateSecret")
 	defer span.End()
 
 	if status.PeerCertificateRef == nil {

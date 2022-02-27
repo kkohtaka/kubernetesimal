@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -31,7 +30,7 @@ func (r *EtcdReconciler) reconcileSSHKeyPair(
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
 	var span trace.Span
-	ctx, span = otel.Tracer(r.Name).Start(ctx, "reconcileSSHKeyPair")
+	ctx, span = r.Tracer.Start(ctx, "reconcileSSHKeyPair")
 	defer span.End()
 
 	if status.SSHPrivateKeyRef != nil {
@@ -105,7 +104,7 @@ func (r *EtcdReconciler) finalizeSSHKeyPairSecret(
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
 	var span trace.Span
-	ctx, span = otel.Tracer(r.Name).Start(ctx, "finalizeSSHKeyPairSecret")
+	ctx, span = r.Tracer.Start(ctx, "finalizeSSHKeyPairSecret")
 	defer span.End()
 
 	if status.SSHPrivateKeyRef == nil {

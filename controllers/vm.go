@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"text/template"
 
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -51,7 +50,7 @@ func (r *EtcdNodeReconciler) reconcileUserData(
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (*corev1.LocalObjectReference, error) {
 	var span trace.Span
-	ctx, span = otel.Tracer(r.Name).Start(ctx, "reconcileUserData")
+	ctx, span = r.Tracer.Start(ctx, "reconcileUserData")
 	defer span.End()
 
 	publicKey, err := k8s.GetValueFromSecretKeySelector(
@@ -184,7 +183,7 @@ func (r *EtcdNodeReconciler) reconcileVirtualMachineInstance(
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (*corev1.LocalObjectReference, error) {
 	var span trace.Span
-	ctx, span = otel.Tracer(r.Name).Start(ctx, "reconcileVirtualMachineInstance")
+	ctx, span = r.Tracer.Start(ctx, "reconcileVirtualMachineInstance")
 	defer span.End()
 
 	if vmi, err := k8s.ReconcileVirtualMachineInstance(
