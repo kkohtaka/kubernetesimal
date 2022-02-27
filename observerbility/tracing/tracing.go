@@ -13,7 +13,6 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 
 	ctrl "sigs.k8s.io/controller-runtime"
-	//+kubebuilder:scaffold:imports
 )
 
 var (
