@@ -174,7 +174,7 @@ func (r *EtcdReconciler) reconcileClientCertificate(
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, nil, nil
+			return nil, nil, NewRequeueError("waiting for a CA certificate prepared")
 		}
 		return nil, nil, fmt.Errorf("unable to load a CA certificate from a Secret: %w", err)
 	}
@@ -187,7 +187,7 @@ func (r *EtcdReconciler) reconcileClientCertificate(
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, nil, nil
+			return nil, nil, NewRequeueError("waiting for a CA private key prepared")
 		}
 		return nil, nil, fmt.Errorf("unable to load a CA private key from a Secret: %w", err)
 	}
@@ -279,7 +279,7 @@ func (r *EtcdReconciler) reconcilePeerCertificate(
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, nil, nil
+			return nil, nil, NewRequeueError("waiting for a CA certificate prepared")
 		}
 		return nil, nil, fmt.Errorf("unable to load a CA certificate from a Secret: %w", err)
 	}
@@ -292,7 +292,7 @@ func (r *EtcdReconciler) reconcilePeerCertificate(
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, nil, nil
+			return nil, nil, NewRequeueError("waiting for a CA private key prepared")
 		}
 		return nil, nil, fmt.Errorf("unable to load a CA private key from a Secret: %w", err)
 	}
