@@ -215,7 +215,9 @@ func finalizeVirtualMachineInstance(
 	en *kubernetesimalv1alpha1.EtcdNode,
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (kubernetesimalv1alpha1.EtcdNodeStatus, error) {
-	// TODO(kkohtaka): Trace this function call
+	var span trace.Span
+	ctx, span = tracing.FromContext(ctx).Start(ctx, "finalizeVirtualMachineInstance")
+	defer span.End()
 
 	if status.VirtualMachineRef == nil {
 		return status, nil
