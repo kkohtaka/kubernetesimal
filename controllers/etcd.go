@@ -17,6 +17,7 @@ import (
 	"github.com/kkohtaka/kubernetesimal/k8s"
 	k8s_service "github.com/kkohtaka/kubernetesimal/k8s/service"
 	"github.com/kkohtaka/kubernetesimal/net/http"
+	"github.com/kkohtaka/kubernetesimal/observerbility/tracing"
 	"github.com/kkohtaka/kubernetesimal/ssh"
 )
 
@@ -35,7 +36,7 @@ func (r *EtcdReconciler) reconcileService(
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.LocalObjectReference, error) {
 	var span trace.Span
-	ctx, span = r.Tracer.Start(ctx, "reconcileService")
+	ctx, span = tracing.FromContext(ctx).Start(ctx, "reconcileService")
 	defer span.End()
 
 	if service, err := k8s_service.Reconcile(
@@ -67,7 +68,7 @@ func (r *EtcdNodeReconciler) reconcilePeerService(
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (*corev1.LocalObjectReference, error) {
 	var span trace.Span
-	ctx, span = r.Tracer.Start(ctx, "reconcileService")
+	ctx, span = tracing.FromContext(ctx).Start(ctx, "reconcileService")
 	defer span.End()
 
 	if service, err := k8s_service.Reconcile(
@@ -102,7 +103,7 @@ func (r *EtcdNodeReconciler) provisionEtcdMember(
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) error {
 	var span trace.Span
-	ctx, span = r.Tracer.Start(ctx, "provisionEtcdMember")
+	ctx, span = tracing.FromContext(ctx).Start(ctx, "provisionEtcdMember")
 	defer span.End()
 
 	privateKey, err := k8s.GetValueFromSecretKeySelector(
@@ -170,7 +171,7 @@ func (r *EtcdNodeReconciler) probeEtcdMember(
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (bool, error) {
 	var span trace.Span
-	ctx, span = r.Tracer.Start(ctx, "reconcileVirtualMachineInstance")
+	ctx, span = tracing.FromContext(ctx).Start(ctx, "reconcileVirtualMachineInstance")
 	defer span.End()
 	logger := log.FromContext(ctx)
 

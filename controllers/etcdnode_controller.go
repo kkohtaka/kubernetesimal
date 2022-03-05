@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
+	"github.com/kkohtaka/kubernetesimal/observerbility/tracing"
 )
 
 // EtcdNodeReconciler reconciles a EtcdNode object
@@ -57,7 +58,7 @@ func (r *EtcdNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	logger := log.FromContext(ctx).WithValues("etcdnode", req.NamespacedName)
 	ctx = log.IntoContext(ctx, logger)
 	var span trace.Span
-	ctx, span = r.Tracer.Start(ctx, "Reconcile")
+	ctx, span = tracing.FromContext(ctx).Start(ctx, "Reconcile")
 	defer span.End()
 
 	var en kubernetesimalv1alpha1.EtcdNode
@@ -95,7 +96,7 @@ func (r *EtcdNodeReconciler) doReconcile(
 	spec kubernetesimalv1alpha1.EtcdNodeSpec,
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (kubernetesimalv1alpha1.EtcdNodeStatus, error) {
-	ctx, span := r.Tracer.Start(ctx, "doReconcile")
+	ctx, span := tracing.FromContext(ctx).Start(ctx, "doReconcile")
 	defer span.End()
 
 	if en.ObjectMeta.DeletionTimestamp.IsZero() {
@@ -140,7 +141,7 @@ func (r *EtcdNodeReconciler) finalizeExternalResources(
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (kubernetesimalv1alpha1.EtcdNodeStatus, error) {
 	var span trace.Span
-	ctx, span = r.Tracer.Start(ctx, "finalizeExternalResources")
+	ctx, span = tracing.FromContext(ctx).Start(ctx, "finalizeExternalResources")
 	defer span.End()
 
 	if newStatus, err := finalizeVirtualMachineInstance(ctx, r.Client, en, status); err != nil {
@@ -159,7 +160,7 @@ func (r *EtcdNodeReconciler) reconcileExternalResources(
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (kubernetesimalv1alpha1.EtcdNodeStatus, error) {
 	var span trace.Span
-	ctx, span = r.Tracer.Start(ctx, "reconcileExternalResources")
+	ctx, span = tracing.FromContext(ctx).Start(ctx, "reconcileExternalResources")
 	defer span.End()
 	logger := log.FromContext(ctx)
 

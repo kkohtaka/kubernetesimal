@@ -12,6 +12,7 @@ import (
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 	"github.com/kkohtaka/kubernetesimal/k8s"
+	"github.com/kkohtaka/kubernetesimal/observerbility/tracing"
 	"github.com/kkohtaka/kubernetesimal/ssh"
 )
 
@@ -30,7 +31,7 @@ func (r *EtcdReconciler) reconcileSSHKeyPair(
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
 	var span trace.Span
-	ctx, span = r.Tracer.Start(ctx, "reconcileSSHKeyPair")
+	ctx, span = tracing.FromContext(ctx).Start(ctx, "reconcileSSHKeyPair")
 	defer span.End()
 
 	if status.SSHPrivateKeyRef != nil {
@@ -104,7 +105,7 @@ func (r *EtcdReconciler) finalizeSSHKeyPairSecret(
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
 	var span trace.Span
-	ctx, span = r.Tracer.Start(ctx, "finalizeSSHKeyPairSecret")
+	ctx, span = tracing.FromContext(ctx).Start(ctx, "finalizeSSHKeyPairSecret")
 	defer span.End()
 
 	if status.SSHPrivateKeyRef == nil {

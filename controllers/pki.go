@@ -12,6 +12,7 @@ import (
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 	"github.com/kkohtaka/kubernetesimal/k8s"
+	"github.com/kkohtaka/kubernetesimal/observerbility/tracing"
 	"github.com/kkohtaka/kubernetesimal/pki"
 )
 
@@ -30,7 +31,7 @@ func (r *EtcdReconciler) reconcileCACertificate(
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
 	var span trace.Span
-	ctx, span = r.Tracer.Start(ctx, "reconcileCACertificate")
+	ctx, span = tracing.FromContext(ctx).Start(ctx, "reconcileCACertificate")
 	defer span.End()
 
 	if status.CAPrivateKeyRef != nil {
@@ -104,7 +105,7 @@ func (r *EtcdReconciler) finalizeCACertificateSecret(
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
 	var span trace.Span
-	ctx, span = r.Tracer.Start(ctx, "finalizeCACertificateSecret")
+	ctx, span = tracing.FromContext(ctx).Start(ctx, "finalizeCACertificateSecret")
 	defer span.End()
 
 	if status.CACertificateRef == nil {
@@ -133,7 +134,7 @@ func (r *EtcdReconciler) reconcileClientCertificate(
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
 	var span trace.Span
-	ctx, span = r.Tracer.Start(ctx, "reconcileClientCertificate")
+	ctx, span = tracing.FromContext(ctx).Start(ctx, "reconcileClientCertificate")
 	defer span.End()
 
 	if status.ClientPrivateKeyRef != nil {
@@ -238,7 +239,7 @@ func (r *EtcdReconciler) reconcilePeerCertificate(
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
 	var span trace.Span
-	ctx, span = r.Tracer.Start(ctx, "reconcilePeerCertificate")
+	ctx, span = tracing.FromContext(ctx).Start(ctx, "reconcilePeerCertificate")
 	defer span.End()
 
 	if status.PeerPrivateKeyRef != nil {
@@ -342,7 +343,7 @@ func (r *EtcdReconciler) finalizeClientCertificateSecret(
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
 	var span trace.Span
-	ctx, span = r.Tracer.Start(ctx, "finalizeClientCertificateSecret")
+	ctx, span = tracing.FromContext(ctx).Start(ctx, "finalizeClientCertificateSecret")
 	defer span.End()
 
 	if status.ClientCertificateRef == nil {
@@ -362,7 +363,7 @@ func (r *EtcdReconciler) finalizePeerCertificateSecret(
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
 	var span trace.Span
-	ctx, span = r.Tracer.Start(ctx, "finalizePeerCertificateSecret")
+	ctx, span = tracing.FromContext(ctx).Start(ctx, "finalizePeerCertificateSecret")
 	defer span.End()
 
 	if status.PeerCertificateRef == nil {

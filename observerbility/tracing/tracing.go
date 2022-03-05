@@ -4,13 +4,15 @@ import (
 	"context"
 	"fmt"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/sdk/resource"
-	"go.opentelemetry.io/otel/sdk/trace"
+	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	"go.opentelemetry.io/otel/trace"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -38,10 +40,10 @@ func init() {
 func NewTracerProvider(
 	ctx context.Context,
 	httpAddr, grpcAddr string,
-) (*trace.TracerProvider, error) {
+) (*tracesdk.TracerProvider, error) {
 	traceCtx := context.Background()
 
-	var opts []trace.TracerProviderOption
+	var opts []tracesdk.TracerProviderOption
 	if httpAddr != "" {
 		exporter, err := otlptrace.New(
 			traceCtx,
@@ -53,7 +55,7 @@ func NewTracerProvider(
 		if err != nil {
 			return nil, fmt.Errorf("unable to start OTLP exporter: %w", err)
 		}
-		opts = append(opts, trace.WithBatcher(exporter))
+		opts = append(opts, tracesdk.WithBatcher(exporter))
 	}
 	if grpcAddr != "" {
 		exporter, err := otlptrace.New(
@@ -66,12 +68,12 @@ func NewTracerProvider(
 		if err != nil {
 			return nil, fmt.Errorf("unable to start OTLP exporter: %w", err)
 		}
-		opts = append(opts, trace.WithBatcher(exporter))
+		opts = append(opts, tracesdk.WithBatcher(exporter))
 	}
 
-	opts = append(opts, trace.WithResource(providerResource))
+	opts = append(opts, tracesdk.WithResource(providerResource))
 
-	provider := trace.NewTracerProvider(opts...)
+	provider := tracesdk.NewTracerProvider(opts...)
 
 	go func() {
 		<-ctx.Done()
@@ -82,4 +84,19 @@ func NewTracerProvider(
 	}()
 
 	return provider, nil
+}
+
+type contextKey struct{}
+
+// FromContext returns a tracer with predefined values from a context.Context.
+func FromContext(ctx context.Context) trace.Tracer {
+	if v, ok := ctx.Value(contextKey{}).(trace.Tracer); ok {
+		return v
+	}
+	return otel.GetTracerProvider().Tracer("")
+}
+
+// NewContext returns a new context derived from ctx that embeds the tracer.
+func NewContext(ctx context.Context, tracer trace.Tracer) context.Context {
+	return context.WithValue(ctx, contextKey{}, tracer)
 }

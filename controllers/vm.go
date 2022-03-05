@@ -18,6 +18,7 @@ import (
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 	"github.com/kkohtaka/kubernetesimal/k8s"
+	"github.com/kkohtaka/kubernetesimal/observerbility/tracing"
 )
 
 var (
@@ -50,7 +51,7 @@ func (r *EtcdNodeReconciler) reconcileUserData(
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (*corev1.LocalObjectReference, error) {
 	var span trace.Span
-	ctx, span = r.Tracer.Start(ctx, "reconcileUserData")
+	ctx, span = tracing.FromContext(ctx).Start(ctx, "reconcileUserData")
 	defer span.End()
 
 	publicKey, err := k8s.GetValueFromSecretKeySelector(
@@ -183,7 +184,7 @@ func (r *EtcdNodeReconciler) reconcileVirtualMachineInstance(
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (*corev1.LocalObjectReference, error) {
 	var span trace.Span
-	ctx, span = r.Tracer.Start(ctx, "reconcileVirtualMachineInstance")
+	ctx, span = tracing.FromContext(ctx).Start(ctx, "reconcileVirtualMachineInstance")
 	defer span.End()
 
 	if vmi, err := k8s.ReconcileVirtualMachineInstance(
