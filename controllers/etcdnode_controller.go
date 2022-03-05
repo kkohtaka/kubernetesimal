@@ -164,33 +164,33 @@ func (r *EtcdNodeReconciler) reconcileExternalResources(
 	defer span.End()
 	logger := log.FromContext(ctx)
 
-	if serviceRef, err := r.reconcilePeerService(ctx, en, spec, status); err != nil {
+	if serviceRef, err := reconcilePeerService(ctx, r.Client, r.Scheme, en, spec, status); err != nil {
 		return status, fmt.Errorf("unable to prepare a peer service: %w", err)
 	} else {
 		status.PeerServiceRef = serviceRef
 	}
 
-	if userDataRef, err := r.reconcileUserData(ctx, en, spec, status); err != nil {
+	if userDataRef, err := reconcileUserData(ctx, r.Client, r.Scheme, en, spec, status); err != nil {
 		return status, fmt.Errorf("unable to prepare a userdata: %w", err)
 	} else {
 		status.UserDataRef = userDataRef
 	}
 
-	if vmiRef, err := r.reconcileVirtualMachineInstance(ctx, en, spec, status); err != nil {
+	if vmiRef, err := reconcileVirtualMachineInstance(ctx, r.Client, r.Scheme, en, spec, status); err != nil {
 		return status, fmt.Errorf("unable to prepare a virtual machine instance: %w", err)
 	} else {
 		status.VirtualMachineRef = vmiRef
 	}
 
 	if status.LastProvisionedTime.IsZero() {
-		if err := r.provisionEtcdMember(ctx, en, spec, status); err != nil {
+		if err := provisionEtcdMember(ctx, r.Client, en, spec, status); err != nil {
 			return status, fmt.Errorf("unable to provision an etcd member: %w", err)
 		}
 		status.LastProvisionedTime = &metav1.Time{Time: time.Now()}
 		logger.Info("Provisioning an etcd member was completed.")
 	}
 
-	if probed, err := r.probeEtcdMember(ctx, en, spec, status); err != nil {
+	if probed, err := probeEtcdMember(ctx, r.Client, en, spec, status); err != nil {
 		return status, fmt.Errorf("unable to probe an etcd member: %w", err)
 	} else if !probed {
 		status.ProbedSinceTime = nil

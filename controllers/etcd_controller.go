@@ -148,25 +148,25 @@ func (r *EtcdReconciler) finalizeExternalResources(
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "finalizeExternalResources")
 	defer span.End()
 
-	if newStatus, err := r.finalizeCACertificateSecret(ctx, e, status); err != nil {
+	if newStatus, err := finalizeCACertificateSecret(ctx, r.Client, e, status); err != nil {
 		return newStatus, err
 	} else {
 		status = newStatus
 	}
 
-	if newStatus, err := r.finalizeClientCertificateSecret(ctx, e, status); err != nil {
+	if newStatus, err := finalizeClientCertificateSecret(ctx, r.Client, e, status); err != nil {
 		return newStatus, err
 	} else {
 		status = newStatus
 	}
 
-	if newStatus, err := r.finalizePeerCertificateSecret(ctx, e, status); err != nil {
+	if newStatus, err := finalizePeerCertificateSecret(ctx, r.Client, e, status); err != nil {
 		return newStatus, err
 	} else {
 		status = newStatus
 	}
 
-	if newStatus, err := r.finalizeSSHKeyPairSecret(ctx, e, status); err != nil {
+	if newStatus, err := finalizeSSHKeyPairSecret(ctx, r.Client, e, status); err != nil {
 		return newStatus, err
 	} else {
 		status = newStatus
@@ -232,35 +232,63 @@ func (r *EtcdReconciler) reconcileExternalResources(
 	defer span.End()
 	logger := log.FromContext(ctx)
 
-	if certificateRef, privateKeyRef, err := r.reconcileCACertificate(ctx, e, spec, status); err != nil {
+	if certificateRef, privateKeyRef, err := reconcileCACertificate(
+		ctx,
+		r.Client,
+		r.Scheme,
+		e,
+		spec,
+		status,
+	); err != nil {
 		return status, fmt.Errorf("unable to prepare a CA certificate: %w", err)
 	} else {
 		status.CAPrivateKeyRef = privateKeyRef
 		status.CACertificateRef = certificateRef
 	}
 
-	if certificateRef, privateKeyRef, err := r.reconcileClientCertificate(ctx, e, spec, status); err != nil {
+	if certificateRef, privateKeyRef, err := reconcileClientCertificate(
+		ctx,
+		r.Client,
+		r.Scheme,
+		e,
+		spec,
+		status,
+	); err != nil {
 		return status, fmt.Errorf("unable to prepare a client certificate: %w", err)
 	} else {
 		status.ClientPrivateKeyRef = privateKeyRef
 		status.ClientCertificateRef = certificateRef
 	}
 
-	if certificateRef, privateKeyRef, err := r.reconcilePeerCertificate(ctx, e, spec, status); err != nil {
+	if certificateRef, privateKeyRef, err := reconcilePeerCertificate(
+		ctx,
+		r.Client,
+		r.Scheme,
+		e,
+		spec,
+		status,
+	); err != nil {
 		return status, fmt.Errorf("unable to prepare a certificate for peer communication: %w", err)
 	} else {
 		status.PeerPrivateKeyRef = privateKeyRef
 		status.PeerCertificateRef = certificateRef
 	}
 
-	if sshPrivateKeyRef, sshPublicKeyRef, err := r.reconcileSSHKeyPair(ctx, e, spec, status); err != nil {
+	if sshPrivateKeyRef, sshPublicKeyRef, err := reconcileSSHKeyPair(
+		ctx,
+		r.Client,
+		r.Scheme,
+		e,
+		spec,
+		status,
+	); err != nil {
 		return status, fmt.Errorf("unable to prepare an SSH key-pair: %w", err)
 	} else {
 		status.SSHPrivateKeyRef = sshPrivateKeyRef
 		status.SSHPublicKeyRef = sshPublicKeyRef
 	}
 
-	if serviceRef, err := r.reconcileService(ctx, e, spec, status); err != nil {
+	if serviceRef, err := reconcileService(ctx, r.Client, r.Scheme, e, spec, status); err != nil {
 		return status, fmt.Errorf("unable to prepare a service: %w", err)
 	} else {
 		status.ServiceRef = serviceRef

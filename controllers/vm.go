@@ -11,6 +11,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,8 +45,10 @@ func newVirtualMachineInstanceName(en *kubernetesimalv1alpha1.EtcdNode) string {
 	return en.Name
 }
 
-func (r *EtcdNodeReconciler) reconcileUserData(
+func reconcileUserData(
 	ctx context.Context,
+	c client.Client,
+	scheme *runtime.Scheme,
 	en *kubernetesimalv1alpha1.EtcdNode,
 	spec kubernetesimalv1alpha1.EtcdNodeSpec,
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
@@ -56,7 +59,7 @@ func (r *EtcdNodeReconciler) reconcileUserData(
 
 	publicKey, err := k8s.GetValueFromSecretKeySelector(
 		ctx,
-		r.Client,
+		c,
 		en.Namespace,
 		spec.SSHPublicKeyRef,
 	)
@@ -69,7 +72,7 @@ func (r *EtcdNodeReconciler) reconcileUserData(
 
 	caCertificate, err := k8s.GetValueFromSecretKeySelector(
 		ctx,
-		r.Client,
+		c,
 		en.Namespace,
 		spec.CACertificateRef,
 	)
@@ -82,7 +85,7 @@ func (r *EtcdNodeReconciler) reconcileUserData(
 
 	caPrivateKey, err := k8s.GetValueFromSecretKeySelector(
 		ctx,
-		r.Client,
+		c,
 		en.Namespace,
 		spec.CAPrivateKeyRef,
 	)
@@ -94,7 +97,7 @@ func (r *EtcdNodeReconciler) reconcileUserData(
 	}
 
 	var service corev1.Service
-	if err := r.Get(
+	if err := c.Get(
 		ctx,
 		types.NamespacedName{
 			Namespace: en.Namespace,
@@ -161,12 +164,12 @@ func (r *EtcdNodeReconciler) reconcileUserData(
 	if secret, err := k8s.ReconcileSecret(
 		ctx,
 		en,
-		r.Scheme,
-		r.Client,
+		c,
 		k8s.NewObjectMeta(
 			k8s.WithName(newUserDataName(en)),
 			k8s.WithNamespace(en.Namespace),
 		),
+		k8s.WithOwner(en, scheme),
 		k8s.WithDataWithKey("userdata", cloudInitBuf.Bytes()),
 	); err != nil {
 		return nil, fmt.Errorf("unable to create Secret: %w", err)
@@ -177,8 +180,10 @@ func (r *EtcdNodeReconciler) reconcileUserData(
 	}
 }
 
-func (r *EtcdNodeReconciler) reconcileVirtualMachineInstance(
+func reconcileVirtualMachineInstance(
 	ctx context.Context,
+	c client.Client,
+	scheme *runtime.Scheme,
 	en *kubernetesimalv1alpha1.EtcdNode,
 	_ kubernetesimalv1alpha1.EtcdNodeSpec,
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
@@ -190,8 +195,7 @@ func (r *EtcdNodeReconciler) reconcileVirtualMachineInstance(
 	if vmi, err := k8s.ReconcileVirtualMachineInstance(
 		ctx,
 		en,
-		r.Scheme,
-		r.Client,
+		c,
 		k8s.NewObjectMeta(
 			k8s.WithName(newVirtualMachineInstanceName(en)),
 			k8s.WithNamespace(en.Namespace),
@@ -199,6 +203,7 @@ func (r *EtcdNodeReconciler) reconcileVirtualMachineInstance(
 			k8s.WithLabel("app.kubernetes.io/instance", newVirtualMachineInstanceName(en)),
 			k8s.WithLabel("app.kubernetes.io/part-of", "etcd"),
 		),
+		k8s.WithVMIOwner(en, scheme),
 		k8s.WithUserData(status.UserDataRef),
 	); err != nil {
 		return nil, fmt.Errorf("unable to create VirtualMachineInstance: %w", err)

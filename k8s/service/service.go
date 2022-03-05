@@ -16,48 +16,65 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-type ServiceOption func(*corev1.Service)
+type ServiceOption func(*corev1.Service) error
 
 func WithType(typ corev1.ServiceType) ServiceOption {
-	return func(s *corev1.Service) {
+	return func(s *corev1.Service) error {
 		s.Spec.Type = typ
+		return nil
 	}
 }
 
 func WithPort(name string, port, targetPort int32) ServiceOption {
-	return func(s *corev1.Service) {
+	return func(s *corev1.Service) error {
+		for i := range s.Spec.Ports {
+			if s.Spec.Ports[i].Name == name {
+				s.Spec.Ports[i].Port = port
+				s.Spec.Ports[i].TargetPort = intstr.FromInt(int(targetPort))
+				return nil
+			}
+		}
 		s.Spec.Ports = append(s.Spec.Ports, corev1.ServicePort{
 			Name:       name,
 			Port:       port,
 			TargetPort: intstr.FromInt(int(targetPort)),
 		})
+		return nil
 	}
 }
 
 func WithSelector(key, value string) ServiceOption {
-	return func(s *corev1.Service) {
+	return func(s *corev1.Service) error {
 		if s.Spec.Selector == nil {
 			s.Spec.Selector = make(map[string]string)
 		}
 		s.Spec.Selector[key] = value
+		return nil
+	}
+}
+
+func WithOwner(owner metav1.Object, scheme *runtime.Scheme) ServiceOption {
+	return func(s *corev1.Service) error {
+		return ctrl.SetControllerReference(owner, s, scheme)
 	}
 }
 
 func Reconcile(
 	ctx context.Context,
 	owner metav1.Object,
-	scheme *runtime.Scheme,
 	c client.Client,
 	meta *metav1.ObjectMeta,
-	opts ...func(*corev1.Service),
+	opts ...ServiceOption,
 ) (*corev1.Service, error) {
 	var service corev1.Service
 	meta.DeepCopyInto(&service.ObjectMeta)
-	for _, fn := range opts {
-		fn(&service)
-	}
 	opRes, err := ctrl.CreateOrUpdate(ctx, c, &service, func() error {
-		return ctrl.SetControllerReference(owner, &service, scheme)
+		for _, fn := range opts {
+			if err := fn(&service); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to create Service %s: %w", k8s.ObjectName(&service.ObjectMeta), err)

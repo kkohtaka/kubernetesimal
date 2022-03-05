@@ -77,10 +77,10 @@ func newDefaultVirtualMachineInstance() kubevirtv1.VirtualMachineInstance {
 	}
 }
 
-type VirtualMachineInstanceOption func(*kubevirtv1.VirtualMachineInstance)
+type VirtualMachineInstanceOption func(*kubevirtv1.VirtualMachineInstance) error
 
 func WithUserData(userDataRef *corev1.LocalObjectReference) VirtualMachineInstanceOption {
-	return func(vmi *kubevirtv1.VirtualMachineInstance) {
+	return func(vmi *kubevirtv1.VirtualMachineInstance) error {
 		var volume *kubevirtv1.Volume
 		for i := range vmi.Spec.Volumes {
 			if vmi.Spec.Volumes[i].Name == DiskKeyForCloudInit {
@@ -100,24 +100,32 @@ func WithUserData(userDataRef *corev1.LocalObjectReference) VirtualMachineInstan
 		} else {
 			volume.CloudInitNoCloud.UserDataSecretRef = userDataRef
 		}
+		return nil
+	}
+}
+
+func WithVMIOwner(owner metav1.Object, scheme *runtime.Scheme) VirtualMachineInstanceOption {
+	return func(vmi *kubevirtv1.VirtualMachineInstance) error {
+		return ctrl.SetControllerReference(owner, vmi, scheme)
 	}
 }
 
 func ReconcileVirtualMachineInstance(
 	ctx context.Context,
 	owner metav1.Object,
-	scheme *runtime.Scheme,
 	c client.Client,
 	meta *metav1.ObjectMeta,
 	opts ...VirtualMachineInstanceOption,
 ) (*kubevirtv1.VirtualMachineInstance, error) {
 	vmi := newDefaultVirtualMachineInstance()
 	meta.DeepCopyInto(&vmi.ObjectMeta)
-	for _, fn := range opts {
-		fn(&vmi)
-	}
 	opRes, err := ctrl.CreateOrUpdate(ctx, c, &vmi, func() error {
-		return ctrl.SetControllerReference(owner, &vmi, scheme)
+		for _, fn := range opts {
+			if err := fn(&vmi); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to create VirtualMachineInstance %s: %w", ObjectName(&vmi.ObjectMeta), err)

@@ -17,38 +17,47 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-type SecretOption func(*corev1.Secret)
+type SecretOption func(*corev1.Secret) error
 
 func WithType(typ corev1.SecretType) SecretOption {
-	return func(secret *corev1.Secret) {
+	return func(secret *corev1.Secret) error {
 		secret.Type = typ
+		return nil
 	}
 }
 
 func WithDataWithKey(key string, value []byte) SecretOption {
-	return func(secret *corev1.Secret) {
+	return func(secret *corev1.Secret) error {
 		if secret.Data == nil {
 			secret.Data = make(map[string][]byte)
 		}
 		secret.Data[key] = value
+		return nil
+	}
+}
+
+func WithOwner(owner metav1.Object, scheme *runtime.Scheme) SecretOption {
+	return func(s *corev1.Secret) error {
+		return ctrl.SetControllerReference(owner, s, scheme)
 	}
 }
 
 func ReconcileSecret(
 	ctx context.Context,
 	owner metav1.Object,
-	scheme *runtime.Scheme,
 	c client.Client,
 	meta *metav1.ObjectMeta,
-	opts ...func(*corev1.Secret),
+	opts ...SecretOption,
 ) (*corev1.Secret, error) {
 	var secret corev1.Secret
 	meta.DeepCopyInto(&secret.ObjectMeta)
-	for _, fn := range opts {
-		fn(&secret)
-	}
 	opRes, err := ctrl.CreateOrUpdate(ctx, c, &secret, func() error {
-		return ctrl.SetControllerReference(owner, &secret, scheme)
+		for _, fn := range opts {
+			if err := fn(&secret); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to create Secret %s: %w", ObjectName(&secret.ObjectMeta), err)
@@ -63,6 +72,8 @@ func ReconcileSecret(
 		logger.Info("Secret was created")
 	case controllerutil.OperationResultUpdated:
 		logger.Info("Secret was updated")
+	case controllerutil.OperationResultNone:
+		logger.V(4).Info("Secret was unchanged")
 	}
 
 	return &secret, nil

@@ -10,7 +10,9 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
@@ -29,8 +31,10 @@ func newPeerServiceName(e *kubernetesimalv1alpha1.EtcdNode) string {
 	return e.Name
 }
 
-func (r *EtcdReconciler) reconcileService(
+func reconcileService(
 	ctx context.Context,
+	c client.Client,
+	scheme *runtime.Scheme,
 	e *kubernetesimalv1alpha1.Etcd,
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
@@ -42,12 +46,12 @@ func (r *EtcdReconciler) reconcileService(
 	if service, err := k8s_service.Reconcile(
 		ctx,
 		e,
-		r.Scheme,
-		r.Client,
+		c,
 		k8s.NewObjectMeta(
 			k8s.WithName(newServiceName(e)),
 			k8s.WithNamespace(e.Namespace),
 		),
+		k8s_service.WithOwner(e, scheme),
 		k8s_service.WithType(corev1.ServiceTypeNodePort),
 		k8s_service.WithPort("etcd", 2379, 2379),
 		k8s_service.WithSelector("app.kubernetes.io/name", "virtualmachineimage"),
@@ -61,8 +65,10 @@ func (r *EtcdReconciler) reconcileService(
 	}
 }
 
-func (r *EtcdNodeReconciler) reconcilePeerService(
+func reconcilePeerService(
 	ctx context.Context,
+	c client.Client,
+	scheme *runtime.Scheme,
 	en *kubernetesimalv1alpha1.EtcdNode,
 	_ kubernetesimalv1alpha1.EtcdNodeSpec,
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
@@ -74,12 +80,12 @@ func (r *EtcdNodeReconciler) reconcilePeerService(
 	if service, err := k8s_service.Reconcile(
 		ctx,
 		en,
-		r.Scheme,
-		r.Client,
+		c,
 		k8s.NewObjectMeta(
 			k8s.WithName(newPeerServiceName(en)),
 			k8s.WithNamespace(en.Namespace),
 		),
+		k8s_service.WithOwner(en, scheme),
 		k8s_service.WithType(corev1.ServiceTypeNodePort),
 		k8s_service.WithPort("ssh", 22, 22),
 		k8s_service.WithPort("etcd", 2379, 2379),
@@ -96,8 +102,9 @@ func (r *EtcdNodeReconciler) reconcilePeerService(
 	}
 }
 
-func (r *EtcdNodeReconciler) provisionEtcdMember(
+func provisionEtcdMember(
 	ctx context.Context,
+	c client.Client,
 	en *kubernetesimalv1alpha1.EtcdNode,
 	spec kubernetesimalv1alpha1.EtcdNodeSpec,
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
@@ -108,7 +115,7 @@ func (r *EtcdNodeReconciler) provisionEtcdMember(
 
 	privateKey, err := k8s.GetValueFromSecretKeySelector(
 		ctx,
-		r.Client,
+		c,
 		en.Namespace,
 		spec.SSHPrivateKeyRef,
 	)
@@ -120,7 +127,7 @@ func (r *EtcdNodeReconciler) provisionEtcdMember(
 	}
 
 	var peerService corev1.Service
-	if err := r.Get(
+	if err := c.Get(
 		ctx,
 		types.NamespacedName{
 			Namespace: en.Namespace,
@@ -164,8 +171,9 @@ func (r *EtcdNodeReconciler) provisionEtcdMember(
 	return nil
 }
 
-func (r *EtcdNodeReconciler) probeEtcdMember(
+func probeEtcdMember(
 	ctx context.Context,
+	c client.Client,
 	e *kubernetesimalv1alpha1.EtcdNode,
 	spec kubernetesimalv1alpha1.EtcdNodeSpec,
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
@@ -175,14 +183,14 @@ func (r *EtcdNodeReconciler) probeEtcdMember(
 	defer span.End()
 	logger := log.FromContext(ctx)
 
-	address, err := k8s_service.GetAddressFromServiceRef(ctx, r.Client, e.Namespace, "etcd", status.PeerServiceRef)
+	address, err := k8s_service.GetAddressFromServiceRef(ctx, c, e.Namespace, "etcd", status.PeerServiceRef)
 	if err != nil {
 		return false, fmt.Errorf("unable to get an etcd address from a peer Service: %w", err)
 	}
 
 	caCertificate, err := k8s.GetValueFromSecretKeySelector(
 		ctx,
-		r.Client,
+		c,
 		e.Namespace,
 		spec.CACertificateRef,
 	)
@@ -204,7 +212,7 @@ func (r *EtcdNodeReconciler) probeEtcdMember(
 
 	clientCertificate, err := k8s.GetValueFromSecretKeySelector(
 		ctx,
-		r.Client,
+		c,
 		e.Namespace,
 		spec.ClientCertificateRef,
 	)
@@ -218,7 +226,7 @@ func (r *EtcdNodeReconciler) probeEtcdMember(
 
 	clientPrivateKey, err := k8s.GetValueFromSecretKeySelector(
 		ctx,
-		r.Client,
+		c,
 		e.Namespace,
 		spec.ClientPrivateKeyRef,
 	)

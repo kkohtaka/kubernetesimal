@@ -7,7 +7,9 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
@@ -24,8 +26,10 @@ func newCACertificateIssuerName(e *kubernetesimalv1alpha1.Etcd) string {
 	return e.Name
 }
 
-func (r *EtcdReconciler) reconcileCACertificate(
+func reconcileCACertificate(
 	ctx context.Context,
+	c client.Client,
+	scheme *runtime.Scheme,
 	e *kubernetesimalv1alpha1.Etcd,
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
@@ -47,7 +51,7 @@ func (r *EtcdReconciler) reconcileCACertificate(
 
 	var ca corev1.Secret
 	if status.CAPrivateKeyRef != nil && status.CACertificateRef != nil {
-		if err := r.Client.Get(
+		if err := c.Get(
 			ctx,
 			types.NamespacedName{Namespace: e.Namespace, Name: status.CAPrivateKeyRef.Name},
 			&ca,
@@ -71,12 +75,12 @@ func (r *EtcdReconciler) reconcileCACertificate(
 	if secret, err := k8s.ReconcileSecret(
 		ctx,
 		e,
-		r.Scheme,
-		r.Client,
+		c,
 		k8s.NewObjectMeta(
 			k8s.WithName(newCACertificateName(e)),
 			k8s.WithNamespace(e.Namespace),
 		),
+		k8s.WithOwner(e, scheme),
 		k8s.WithType(corev1.SecretTypeTLS),
 		k8s.WithDataWithKey(corev1.TLSCertKey, certificate),
 		k8s.WithDataWithKey(corev1.TLSPrivateKeyKey, privateKey),
@@ -99,8 +103,9 @@ func (r *EtcdReconciler) reconcileCACertificate(
 	}
 }
 
-func (r *EtcdReconciler) finalizeCACertificateSecret(
+func finalizeCACertificateSecret(
 	ctx context.Context,
+	c client.Client,
 	e *kubernetesimalv1alpha1.Etcd,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
@@ -111,7 +116,7 @@ func (r *EtcdReconciler) finalizeCACertificateSecret(
 	if status.CACertificateRef == nil {
 		return status, nil
 	}
-	if err := finalizeSecret(ctx, r.Client, e.Namespace, status.CACertificateRef.Name); err != nil {
+	if err := finalizeSecret(ctx, c, e.Namespace, status.CACertificateRef.Name); err != nil {
 		return status, err
 	}
 	status.CACertificateRef = nil
@@ -127,8 +132,10 @@ func newPeerCertificateName(e *kubernetesimalv1alpha1.Etcd) string {
 	return "peer-" + e.Name
 }
 
-func (r *EtcdReconciler) reconcileClientCertificate(
+func reconcileClientCertificate(
 	ctx context.Context,
+	c client.Client,
+	scheme *runtime.Scheme,
 	e *kubernetesimalv1alpha1.Etcd,
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
@@ -150,7 +157,7 @@ func (r *EtcdReconciler) reconcileClientCertificate(
 
 	var secret corev1.Secret
 	if status.ClientPrivateKeyRef != nil && status.ClientCertificateRef != nil {
-		if err := r.Client.Get(
+		if err := c.Get(
 			ctx,
 			types.NamespacedName{Namespace: e.Namespace, Name: status.ClientPrivateKeyRef.Name},
 			&secret,
@@ -169,7 +176,7 @@ func (r *EtcdReconciler) reconcileClientCertificate(
 
 	caCert, err := k8s.GetCertificateFromSecretKeySelector(
 		ctx,
-		r.Client,
+		c,
 		e.Namespace,
 		status.CACertificateRef,
 	)
@@ -182,7 +189,7 @@ func (r *EtcdReconciler) reconcileClientCertificate(
 
 	caPrivateKey, err := k8s.GetPrivateKeyFromSecretKeySelector(
 		ctx,
-		r.Client,
+		c,
 		e.Namespace,
 		status.CAPrivateKeyRef,
 	)
@@ -204,12 +211,12 @@ func (r *EtcdReconciler) reconcileClientCertificate(
 	if secret, err := k8s.ReconcileSecret(
 		ctx,
 		e,
-		r.Scheme,
-		r.Client,
+		c,
 		k8s.NewObjectMeta(
 			k8s.WithName(newClientCertificateName(e)),
 			k8s.WithNamespace(e.Namespace),
 		),
+		k8s.WithOwner(e, scheme),
 		k8s.WithType(corev1.SecretTypeTLS),
 		k8s.WithDataWithKey(corev1.TLSCertKey, certificate),
 		k8s.WithDataWithKey(corev1.TLSPrivateKeyKey, privateKey),
@@ -232,8 +239,10 @@ func (r *EtcdReconciler) reconcileClientCertificate(
 	}
 }
 
-func (r *EtcdReconciler) reconcilePeerCertificate(
+func reconcilePeerCertificate(
 	ctx context.Context,
+	c client.Client,
+	scheme *runtime.Scheme,
 	e *kubernetesimalv1alpha1.Etcd,
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
@@ -255,7 +264,7 @@ func (r *EtcdReconciler) reconcilePeerCertificate(
 
 	var secret corev1.Secret
 	if status.PeerPrivateKeyRef != nil && status.PeerCertificateRef != nil {
-		if err := r.Client.Get(
+		if err := c.Get(
 			ctx,
 			types.NamespacedName{Namespace: e.Namespace, Name: status.PeerPrivateKeyRef.Name},
 			&secret,
@@ -274,7 +283,7 @@ func (r *EtcdReconciler) reconcilePeerCertificate(
 
 	caCert, err := k8s.GetCertificateFromSecretKeySelector(
 		ctx,
-		r.Client,
+		c,
 		e.Namespace,
 		status.CACertificateRef,
 	)
@@ -287,7 +296,7 @@ func (r *EtcdReconciler) reconcilePeerCertificate(
 
 	caPrivateKey, err := k8s.GetPrivateKeyFromSecretKeySelector(
 		ctx,
-		r.Client,
+		c,
 		e.Namespace,
 		status.CAPrivateKeyRef,
 	)
@@ -309,12 +318,12 @@ func (r *EtcdReconciler) reconcilePeerCertificate(
 	if secret, err := k8s.ReconcileSecret(
 		ctx,
 		e,
-		r.Scheme,
-		r.Client,
+		c,
 		k8s.NewObjectMeta(
 			k8s.WithName(newPeerCertificateName(e)),
 			k8s.WithNamespace(e.Namespace),
 		),
+		k8s.WithOwner(e, scheme),
 		k8s.WithType(corev1.SecretTypeTLS),
 		k8s.WithDataWithKey(corev1.TLSCertKey, certificate),
 		k8s.WithDataWithKey(corev1.TLSPrivateKeyKey, privateKey),
@@ -337,8 +346,9 @@ func (r *EtcdReconciler) reconcilePeerCertificate(
 	}
 }
 
-func (r *EtcdReconciler) finalizeClientCertificateSecret(
+func finalizeClientCertificateSecret(
 	ctx context.Context,
+	c client.Client,
 	e *kubernetesimalv1alpha1.Etcd,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
@@ -349,7 +359,7 @@ func (r *EtcdReconciler) finalizeClientCertificateSecret(
 	if status.ClientCertificateRef == nil {
 		return status, nil
 	}
-	if err := finalizeSecret(ctx, r.Client, e.Namespace, status.ClientCertificateRef.Name); err != nil {
+	if err := finalizeSecret(ctx, c, e.Namespace, status.ClientCertificateRef.Name); err != nil {
 		return status, err
 	}
 	status.ClientCertificateRef = nil
@@ -357,8 +367,9 @@ func (r *EtcdReconciler) finalizeClientCertificateSecret(
 	return status, nil
 }
 
-func (r *EtcdReconciler) finalizePeerCertificateSecret(
+func finalizePeerCertificateSecret(
 	ctx context.Context,
+	c client.Client,
 	e *kubernetesimalv1alpha1.Etcd,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
@@ -369,7 +380,7 @@ func (r *EtcdReconciler) finalizePeerCertificateSecret(
 	if status.PeerCertificateRef == nil {
 		return status, nil
 	}
-	if err := finalizeSecret(ctx, r.Client, e.Namespace, status.PeerCertificateRef.Name); err != nil {
+	if err := finalizeSecret(ctx, c, e.Namespace, status.PeerCertificateRef.Name); err != nil {
 		return status, err
 	}
 	status.PeerCertificateRef = nil
