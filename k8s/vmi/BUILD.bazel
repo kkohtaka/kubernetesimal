@@ -1,20 +1,16 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 go_library(
-    name = "k8s",
-    srcs = [
-        "object.go",
-        "secret.go",
-        "vmi.go",
-    ],
-    importpath = "github.com/kkohtaka/kubernetesimal/k8s",
+    name = "vmi",
+    srcs = ["vmi.go"],
+    importpath = "github.com/kkohtaka/kubernetesimal/k8s/vmi",
     visibility = ["//visibility:public"],
     deps = [
+        "//k8s/object",
         "@io_k8s_api//core/v1:core",
         "@io_k8s_apimachinery//pkg/api/resource",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_apimachinery//pkg/runtime",
-        "@io_k8s_apimachinery//pkg/types",
         "@io_k8s_sigs_controller_runtime//:controller-runtime",
         "@io_k8s_sigs_controller_runtime//pkg/client",
         "@io_k8s_sigs_controller_runtime//pkg/controller/controllerutil",

@@ -2,9 +2,9 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
-	"github.com/kkohtaka/kubernetesimal/k8s"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -14,19 +14,27 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	k8s_object "github.com/kkohtaka/kubernetesimal/k8s/object"
 )
 
-type ServiceOption func(*corev1.Service) error
-
-func WithType(typ corev1.ServiceType) ServiceOption {
-	return func(s *corev1.Service) error {
+func WithType(typ corev1.ServiceType) k8s_object.ObjectOption {
+	return func(o runtime.Object) error {
+		s, ok := o.(*corev1.Service)
+		if !ok {
+			return errors.New("not a instance of Service")
+		}
 		s.Spec.Type = typ
 		return nil
 	}
 }
 
-func WithPort(name string, port, targetPort int32) ServiceOption {
-	return func(s *corev1.Service) error {
+func WithPort(name string, port, targetPort int32) k8s_object.ObjectOption {
+	return func(o runtime.Object) error {
+		s, ok := o.(*corev1.Service)
+		if !ok {
+			return errors.New("not a instance of Service")
+		}
 		for i := range s.Spec.Ports {
 			if s.Spec.Ports[i].Name == name {
 				s.Spec.Ports[i].Port = port
@@ -43,8 +51,12 @@ func WithPort(name string, port, targetPort int32) ServiceOption {
 	}
 }
 
-func WithSelector(key, value string) ServiceOption {
-	return func(s *corev1.Service) error {
+func WithSelector(key, value string) k8s_object.ObjectOption {
+	return func(o runtime.Object) error {
+		s, ok := o.(*corev1.Service)
+		if !ok {
+			return errors.New("not a instance of Service")
+		}
 		if s.Spec.Selector == nil {
 			s.Spec.Selector = make(map[string]string)
 		}
@@ -53,21 +65,16 @@ func WithSelector(key, value string) ServiceOption {
 	}
 }
 
-func WithOwner(owner metav1.Object, scheme *runtime.Scheme) ServiceOption {
-	return func(s *corev1.Service) error {
-		return ctrl.SetControllerReference(owner, s, scheme)
-	}
-}
-
 func Reconcile(
 	ctx context.Context,
 	owner metav1.Object,
 	c client.Client,
-	meta *metav1.ObjectMeta,
-	opts ...ServiceOption,
+	name, namespace string,
+	opts ...k8s_object.ObjectOption,
 ) (*corev1.Service, error) {
 	var service corev1.Service
-	meta.DeepCopyInto(&service.ObjectMeta)
+	service.Name = name
+	service.Namespace = namespace
 	opRes, err := ctrl.CreateOrUpdate(ctx, c, &service, func() error {
 		for _, fn := range opts {
 			if err := fn(&service); err != nil {
@@ -77,7 +84,7 @@ func Reconcile(
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("unable to create Service %s: %w", k8s.ObjectName(&service.ObjectMeta), err)
+		return nil, fmt.Errorf("unable to create Service %s: %w", k8s_object.ObjectName(&service.ObjectMeta), err)
 	}
 
 	logger := log.FromContext(ctx).WithValues(

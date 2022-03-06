@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	_ "embed"
+	"errors"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -14,6 +15,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	k8s_object "github.com/kkohtaka/kubernetesimal/k8s/object"
 )
 
 const (
@@ -77,10 +80,12 @@ func newDefaultVirtualMachineInstance() kubevirtv1.VirtualMachineInstance {
 	}
 }
 
-type VirtualMachineInstanceOption func(*kubevirtv1.VirtualMachineInstance) error
-
-func WithUserData(userDataRef *corev1.LocalObjectReference) VirtualMachineInstanceOption {
-	return func(vmi *kubevirtv1.VirtualMachineInstance) error {
+func WithUserData(userDataRef *corev1.LocalObjectReference) k8s_object.ObjectOption {
+	return func(o runtime.Object) error {
+		vmi, ok := o.(*kubevirtv1.VirtualMachineInstance)
+		if !ok {
+			return errors.New("not a instance of VirtualMachineInstance")
+		}
 		var volume *kubevirtv1.Volume
 		for i := range vmi.Spec.Volumes {
 			if vmi.Spec.Volumes[i].Name == DiskKeyForCloudInit {
@@ -104,21 +109,16 @@ func WithUserData(userDataRef *corev1.LocalObjectReference) VirtualMachineInstan
 	}
 }
 
-func WithVMIOwner(owner metav1.Object, scheme *runtime.Scheme) VirtualMachineInstanceOption {
-	return func(vmi *kubevirtv1.VirtualMachineInstance) error {
-		return ctrl.SetControllerReference(owner, vmi, scheme)
-	}
-}
-
 func ReconcileVirtualMachineInstance(
 	ctx context.Context,
 	owner metav1.Object,
 	c client.Client,
-	meta *metav1.ObjectMeta,
-	opts ...VirtualMachineInstanceOption,
+	name, namespace string,
+	opts ...k8s_object.ObjectOption,
 ) (*kubevirtv1.VirtualMachineInstance, error) {
 	vmi := newDefaultVirtualMachineInstance()
-	meta.DeepCopyInto(&vmi.ObjectMeta)
+	vmi.Name = name
+	vmi.Namespace = namespace
 	opRes, err := ctrl.CreateOrUpdate(ctx, c, &vmi, func() error {
 		for _, fn := range opts {
 			if err := fn(&vmi); err != nil {
@@ -128,7 +128,11 @@ func ReconcileVirtualMachineInstance(
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("unable to create VirtualMachineInstance %s: %w", ObjectName(&vmi.ObjectMeta), err)
+		return nil, fmt.Errorf(
+			"unable to create VirtualMachineInstance %s: %w",
+			k8s_object.ObjectName(&vmi.ObjectMeta),
+			err,
+		)
 	}
 
 	logger := log.FromContext(ctx).WithValues(

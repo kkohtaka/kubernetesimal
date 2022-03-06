@@ -13,7 +13,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
-	"github.com/kkohtaka/kubernetesimal/k8s"
+	k8s_object "github.com/kkohtaka/kubernetesimal/k8s/object"
+	k8s_secret "github.com/kkohtaka/kubernetesimal/k8s/secret"
 	"github.com/kkohtaka/kubernetesimal/observerbility/tracing"
 	"github.com/kkohtaka/kubernetesimal/pki"
 )
@@ -72,18 +73,16 @@ func reconcileCACertificate(
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to create a CA certificate for etcd: %w", err)
 	}
-	if secret, err := k8s.ReconcileSecret(
+	if secret, err := k8s_secret.ReconcileSecret(
 		ctx,
 		e,
 		c,
-		k8s.NewObjectMeta(
-			k8s.WithName(newCACertificateName(e)),
-			k8s.WithNamespace(e.Namespace),
-		),
-		k8s.WithOwner(e, scheme),
-		k8s.WithType(corev1.SecretTypeTLS),
-		k8s.WithDataWithKey(corev1.TLSCertKey, certificate),
-		k8s.WithDataWithKey(corev1.TLSPrivateKeyKey, privateKey),
+		newCACertificateName(e),
+		e.Namespace,
+		k8s_object.WithOwner(e, scheme),
+		k8s_secret.WithType(corev1.SecretTypeTLS),
+		k8s_secret.WithDataWithKey(corev1.TLSCertKey, certificate),
+		k8s_secret.WithDataWithKey(corev1.TLSPrivateKeyKey, privateKey),
 	); err != nil {
 		return nil, nil, fmt.Errorf("unable to prepare a Secret for a CA certificate for etcd: %w", err)
 	} else {
@@ -174,7 +173,7 @@ func reconcileClientCertificate(
 		}
 	}
 
-	caCert, err := k8s.GetCertificateFromSecretKeySelector(
+	caCert, err := k8s_secret.GetCertificateFromSecretKeySelector(
 		ctx,
 		c,
 		e.Namespace,
@@ -187,7 +186,7 @@ func reconcileClientCertificate(
 		return nil, nil, fmt.Errorf("unable to load a CA certificate from a Secret: %w", err)
 	}
 
-	caPrivateKey, err := k8s.GetPrivateKeyFromSecretKeySelector(
+	caPrivateKey, err := k8s_secret.GetPrivateKeyFromSecretKeySelector(
 		ctx,
 		c,
 		e.Namespace,
@@ -208,18 +207,16 @@ func reconcileClientCertificate(
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to create a client certificate for etcd: %w", err)
 	}
-	if secret, err := k8s.ReconcileSecret(
+	if secret, err := k8s_secret.ReconcileSecret(
 		ctx,
 		e,
 		c,
-		k8s.NewObjectMeta(
-			k8s.WithName(newClientCertificateName(e)),
-			k8s.WithNamespace(e.Namespace),
-		),
-		k8s.WithOwner(e, scheme),
-		k8s.WithType(corev1.SecretTypeTLS),
-		k8s.WithDataWithKey(corev1.TLSCertKey, certificate),
-		k8s.WithDataWithKey(corev1.TLSPrivateKeyKey, privateKey),
+		newClientCertificateName(e),
+		e.Namespace,
+		k8s_object.WithOwner(e, scheme),
+		k8s_secret.WithType(corev1.SecretTypeTLS),
+		k8s_secret.WithDataWithKey(corev1.TLSCertKey, certificate),
+		k8s_secret.WithDataWithKey(corev1.TLSPrivateKeyKey, privateKey),
 	); err != nil {
 		return nil, nil, fmt.Errorf("unable to prepare a Secret for a client certificate for etcd: %w", err)
 	} else {
@@ -281,7 +278,7 @@ func reconcilePeerCertificate(
 		}
 	}
 
-	caCert, err := k8s.GetCertificateFromSecretKeySelector(
+	caCert, err := k8s_secret.GetCertificateFromSecretKeySelector(
 		ctx,
 		c,
 		e.Namespace,
@@ -294,7 +291,7 @@ func reconcilePeerCertificate(
 		return nil, nil, fmt.Errorf("unable to load a CA certificate from a Secret: %w", err)
 	}
 
-	caPrivateKey, err := k8s.GetPrivateKeyFromSecretKeySelector(
+	caPrivateKey, err := k8s_secret.GetPrivateKeyFromSecretKeySelector(
 		ctx,
 		c,
 		e.Namespace,
@@ -315,18 +312,16 @@ func reconcilePeerCertificate(
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to create a certificate for etcd peer communication: %w", err)
 	}
-	if secret, err := k8s.ReconcileSecret(
+	if secret, err := k8s_secret.ReconcileSecret(
 		ctx,
 		e,
 		c,
-		k8s.NewObjectMeta(
-			k8s.WithName(newPeerCertificateName(e)),
-			k8s.WithNamespace(e.Namespace),
-		),
-		k8s.WithOwner(e, scheme),
-		k8s.WithType(corev1.SecretTypeTLS),
-		k8s.WithDataWithKey(corev1.TLSCertKey, certificate),
-		k8s.WithDataWithKey(corev1.TLSPrivateKeyKey, privateKey),
+		newPeerCertificateName(e),
+		e.Namespace,
+		k8s_object.WithOwner(e, scheme),
+		k8s_secret.WithType(corev1.SecretTypeTLS),
+		k8s_secret.WithDataWithKey(corev1.TLSCertKey, certificate),
+		k8s_secret.WithDataWithKey(corev1.TLSPrivateKeyKey, privateKey),
 	); err != nil {
 		return nil, nil, fmt.Errorf("unable to prepare a Secret for a certificate for etcd peer communication: %w", err)
 	} else {

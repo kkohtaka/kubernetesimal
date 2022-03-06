@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -15,19 +16,27 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	k8s_object "github.com/kkohtaka/kubernetesimal/k8s/object"
 )
 
-type SecretOption func(*corev1.Secret) error
-
-func WithType(typ corev1.SecretType) SecretOption {
-	return func(secret *corev1.Secret) error {
+func WithType(typ corev1.SecretType) k8s_object.ObjectOption {
+	return func(o runtime.Object) error {
+		secret, ok := o.(*corev1.Secret)
+		if !ok {
+			return errors.New("not a instance of Secret")
+		}
 		secret.Type = typ
 		return nil
 	}
 }
 
-func WithDataWithKey(key string, value []byte) SecretOption {
-	return func(secret *corev1.Secret) error {
+func WithDataWithKey(key string, value []byte) k8s_object.ObjectOption {
+	return func(o runtime.Object) error {
+		secret, ok := o.(*corev1.Secret)
+		if !ok {
+			return errors.New("not a instance of Secret")
+		}
 		if secret.Data == nil {
 			secret.Data = make(map[string][]byte)
 		}
@@ -36,21 +45,16 @@ func WithDataWithKey(key string, value []byte) SecretOption {
 	}
 }
 
-func WithOwner(owner metav1.Object, scheme *runtime.Scheme) SecretOption {
-	return func(s *corev1.Secret) error {
-		return ctrl.SetControllerReference(owner, s, scheme)
-	}
-}
-
 func ReconcileSecret(
 	ctx context.Context,
 	owner metav1.Object,
 	c client.Client,
-	meta *metav1.ObjectMeta,
-	opts ...SecretOption,
+	name, namespace string,
+	opts ...k8s_object.ObjectOption,
 ) (*corev1.Secret, error) {
 	var secret corev1.Secret
-	meta.DeepCopyInto(&secret.ObjectMeta)
+	secret.Name = name
+	secret.Namespace = namespace
 	opRes, err := ctrl.CreateOrUpdate(ctx, c, &secret, func() error {
 		for _, fn := range opts {
 			if err := fn(&secret); err != nil {
@@ -60,7 +64,7 @@ func ReconcileSecret(
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("unable to create Secret %s: %w", ObjectName(&secret.ObjectMeta), err)
+		return nil, fmt.Errorf("unable to create Secret %s: %w", k8s_object.ObjectName(&secret.ObjectMeta), err)
 	}
 
 	logger := log.FromContext(ctx).WithValues(

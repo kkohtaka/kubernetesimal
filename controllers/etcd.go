@@ -16,7 +16,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
-	"github.com/kkohtaka/kubernetesimal/k8s"
+	k8s_object "github.com/kkohtaka/kubernetesimal/k8s/object"
+	k8s_secret "github.com/kkohtaka/kubernetesimal/k8s/secret"
 	k8s_service "github.com/kkohtaka/kubernetesimal/k8s/service"
 	"github.com/kkohtaka/kubernetesimal/net/http"
 	"github.com/kkohtaka/kubernetesimal/observerbility/tracing"
@@ -47,11 +48,9 @@ func reconcileService(
 		ctx,
 		e,
 		c,
-		k8s.NewObjectMeta(
-			k8s.WithName(newServiceName(e)),
-			k8s.WithNamespace(e.Namespace),
-		),
-		k8s_service.WithOwner(e, scheme),
+		newServiceName(e),
+		e.Namespace,
+		k8s_object.WithOwner(e, scheme),
 		k8s_service.WithType(corev1.ServiceTypeNodePort),
 		k8s_service.WithPort("etcd", 2379, 2379),
 		k8s_service.WithSelector("app.kubernetes.io/name", "virtualmachineimage"),
@@ -81,11 +80,9 @@ func reconcilePeerService(
 		ctx,
 		en,
 		c,
-		k8s.NewObjectMeta(
-			k8s.WithName(newPeerServiceName(en)),
-			k8s.WithNamespace(en.Namespace),
-		),
-		k8s_service.WithOwner(en, scheme),
+		newPeerServiceName(en),
+		en.Namespace,
+		k8s_object.WithOwner(en, scheme),
 		k8s_service.WithType(corev1.ServiceTypeNodePort),
 		k8s_service.WithPort("ssh", 22, 22),
 		k8s_service.WithPort("etcd", 2379, 2379),
@@ -113,7 +110,7 @@ func provisionEtcdMember(
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "provisionEtcdMember")
 	defer span.End()
 
-	privateKey, err := k8s.GetValueFromSecretKeySelector(
+	privateKey, err := k8s_secret.GetValueFromSecretKeySelector(
 		ctx,
 		c,
 		en.Namespace,
@@ -188,7 +185,7 @@ func probeEtcdMember(
 		return false, fmt.Errorf("unable to get an etcd address from a peer Service: %w", err)
 	}
 
-	caCertificate, err := k8s.GetValueFromSecretKeySelector(
+	caCertificate, err := k8s_secret.GetValueFromSecretKeySelector(
 		ctx,
 		c,
 		e.Namespace,
@@ -210,7 +207,7 @@ func probeEtcdMember(
 		return false, fmt.Errorf("unable to load a client CA certificate from Secret")
 	}
 
-	clientCertificate, err := k8s.GetValueFromSecretKeySelector(
+	clientCertificate, err := k8s_secret.GetValueFromSecretKeySelector(
 		ctx,
 		c,
 		e.Namespace,
@@ -224,7 +221,7 @@ func probeEtcdMember(
 		return false, fmt.Errorf("unable to get a client certificate: %w", err)
 	}
 
-	clientPrivateKey, err := k8s.GetValueFromSecretKeySelector(
+	clientPrivateKey, err := k8s_secret.GetValueFromSecretKeySelector(
 		ctx,
 		c,
 		e.Namespace,

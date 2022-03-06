@@ -18,7 +18,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
-	"github.com/kkohtaka/kubernetesimal/k8s"
+	k8s_object "github.com/kkohtaka/kubernetesimal/k8s/object"
+	k8s_secret "github.com/kkohtaka/kubernetesimal/k8s/secret"
+	k8s_vmi "github.com/kkohtaka/kubernetesimal/k8s/vmi"
 	"github.com/kkohtaka/kubernetesimal/observerbility/tracing"
 )
 
@@ -57,7 +59,7 @@ func reconcileUserData(
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "reconcileUserData")
 	defer span.End()
 
-	publicKey, err := k8s.GetValueFromSecretKeySelector(
+	publicKey, err := k8s_secret.GetValueFromSecretKeySelector(
 		ctx,
 		c,
 		en.Namespace,
@@ -70,7 +72,7 @@ func reconcileUserData(
 		return nil, fmt.Errorf("unable to get an SSH public key: %w", err)
 	}
 
-	caCertificate, err := k8s.GetValueFromSecretKeySelector(
+	caCertificate, err := k8s_secret.GetValueFromSecretKeySelector(
 		ctx,
 		c,
 		en.Namespace,
@@ -83,7 +85,7 @@ func reconcileUserData(
 		return nil, fmt.Errorf("unable to get a CA certificate: %w", err)
 	}
 
-	caPrivateKey, err := k8s.GetValueFromSecretKeySelector(
+	caPrivateKey, err := k8s_secret.GetValueFromSecretKeySelector(
 		ctx,
 		c,
 		en.Namespace,
@@ -161,16 +163,14 @@ func reconcileUserData(
 		return nil, fmt.Errorf("unable to render a cloud-config from a template: %w", err)
 	}
 
-	if secret, err := k8s.ReconcileSecret(
+	if secret, err := k8s_secret.ReconcileSecret(
 		ctx,
 		en,
 		c,
-		k8s.NewObjectMeta(
-			k8s.WithName(newUserDataName(en)),
-			k8s.WithNamespace(en.Namespace),
-		),
-		k8s.WithOwner(en, scheme),
-		k8s.WithDataWithKey("userdata", cloudInitBuf.Bytes()),
+		newUserDataName(en),
+		en.Namespace,
+		k8s_object.WithOwner(en, scheme),
+		k8s_secret.WithDataWithKey("userdata", cloudInitBuf.Bytes()),
 	); err != nil {
 		return nil, fmt.Errorf("unable to create Secret: %w", err)
 	} else {
@@ -192,19 +192,17 @@ func reconcileVirtualMachineInstance(
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "reconcileVirtualMachineInstance")
 	defer span.End()
 
-	if vmi, err := k8s.ReconcileVirtualMachineInstance(
+	if vmi, err := k8s_vmi.ReconcileVirtualMachineInstance(
 		ctx,
 		en,
 		c,
-		k8s.NewObjectMeta(
-			k8s.WithName(newVirtualMachineInstanceName(en)),
-			k8s.WithNamespace(en.Namespace),
-			k8s.WithLabel("app.kubernetes.io/name", "virtualmachineimage"),
-			k8s.WithLabel("app.kubernetes.io/instance", newVirtualMachineInstanceName(en)),
-			k8s.WithLabel("app.kubernetes.io/part-of", "etcd"),
-		),
-		k8s.WithVMIOwner(en, scheme),
-		k8s.WithUserData(status.UserDataRef),
+		newVirtualMachineInstanceName(en),
+		en.Namespace,
+		k8s_object.WithLabel("app.kubernetes.io/name", "virtualmachineimage"),
+		k8s_object.WithLabel("app.kubernetes.io/instance", newVirtualMachineInstanceName(en)),
+		k8s_object.WithLabel("app.kubernetes.io/part-of", "etcd"),
+		k8s_object.WithOwner(en, scheme),
+		k8s_vmi.WithUserData(status.UserDataRef),
 	); err != nil {
 		return nil, fmt.Errorf("unable to create VirtualMachineInstance: %w", err)
 	} else {

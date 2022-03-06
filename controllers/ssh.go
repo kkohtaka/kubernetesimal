@@ -13,7 +13,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
-	"github.com/kkohtaka/kubernetesimal/k8s"
+	k8s_object "github.com/kkohtaka/kubernetesimal/k8s/object"
+	k8s_secret "github.com/kkohtaka/kubernetesimal/k8s/secret"
 	"github.com/kkohtaka/kubernetesimal/observerbility/tracing"
 	"github.com/kkohtaka/kubernetesimal/ssh"
 )
@@ -72,18 +73,16 @@ func reconcileSSHKeyPair(
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to create an SSH key-pair: %w", err)
 	}
-	if secret, err := k8s.ReconcileSecret(
+	if secret, err := k8s_secret.ReconcileSecret(
 		ctx,
 		e,
 		c,
-		k8s.NewObjectMeta(
-			k8s.WithName(newSSHKeyPairName(e)),
-			k8s.WithNamespace(e.Namespace),
-		),
-		k8s.WithOwner(e, scheme),
-		k8s.WithType(corev1.SecretTypeSSHAuth),
-		k8s.WithDataWithKey(corev1.SSHAuthPrivateKey, privateKey),
-		k8s.WithDataWithKey(sshKeyPairKeyPublicKey, publicKey),
+		newSSHKeyPairName(e),
+		e.Namespace,
+		k8s_object.WithOwner(e, scheme),
+		k8s_secret.WithType(corev1.SecretTypeSSHAuth),
+		k8s_secret.WithDataWithKey(corev1.SSHAuthPrivateKey, privateKey),
+		k8s_secret.WithDataWithKey(sshKeyPairKeyPublicKey, publicKey),
 	); err != nil {
 		return nil, nil, fmt.Errorf("unable to prepare a Secret for an SSH key-pair: %w", err)
 	} else {
