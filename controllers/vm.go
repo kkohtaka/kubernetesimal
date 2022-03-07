@@ -163,7 +163,7 @@ func reconcileUserData(
 		return nil, fmt.Errorf("unable to render a cloud-config from a template: %w", err)
 	}
 
-	if secret, err := k8s_secret.ReconcileSecret(
+	if secret, err := k8s_secret.CreateOnlyIfNotExist(
 		ctx,
 		en,
 		c,

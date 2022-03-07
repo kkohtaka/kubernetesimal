@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -45,7 +46,41 @@ func WithDataWithKey(key string, value []byte) k8s_object.ObjectOption {
 	}
 }
 
-func ReconcileSecret(
+func CreateOnlyIfNotExist(
+	ctx context.Context,
+	owner metav1.Object,
+	c client.Client,
+	name, namespace string,
+	opts ...k8s_object.ObjectOption,
+) (*corev1.Secret, error) {
+	var secret corev1.Secret
+	secret.Name = name
+	secret.Namespace = namespace
+	for _, fn := range opts {
+		if err := fn(&secret); err != nil {
+			return nil, err
+		}
+	}
+	if err := c.Create(ctx, &secret); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			if err := c.Get(ctx, client.ObjectKeyFromObject(&secret), &secret); err != nil {
+				return nil, err
+			}
+			return &secret, nil
+		}
+		return nil, fmt.Errorf("unable to create Secret %s: %w", k8s_object.ObjectName(&secret.ObjectMeta), err)
+	}
+
+	logger := log.FromContext(ctx).WithValues(
+		"namespace", secret.Namespace,
+		"name", secret.Name,
+	)
+	logger.Info("Secret was created")
+
+	return &secret, nil
+}
+
+func Reconcile(
 	ctx context.Context,
 	owner metav1.Object,
 	c client.Client,

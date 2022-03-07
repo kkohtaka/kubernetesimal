@@ -73,7 +73,7 @@ func reconcileCACertificate(
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to create a CA certificate for etcd: %w", err)
 	}
-	if secret, err := k8s_secret.ReconcileSecret(
+	if secret, err := k8s_secret.CreateOnlyIfNotExist(
 		ctx,
 		e,
 		c,
@@ -207,7 +207,7 @@ func reconcileClientCertificate(
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to create a client certificate for etcd: %w", err)
 	}
-	if secret, err := k8s_secret.ReconcileSecret(
+	if secret, err := k8s_secret.CreateOnlyIfNotExist(
 		ctx,
 		e,
 		c,
@@ -312,7 +312,7 @@ func reconcilePeerCertificate(
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to create a certificate for etcd peer communication: %w", err)
 	}
-	if secret, err := k8s_secret.ReconcileSecret(
+	if secret, err := k8s_secret.CreateOnlyIfNotExist(
 		ctx,
 		e,
 		c,

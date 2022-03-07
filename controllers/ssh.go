@@ -73,7 +73,7 @@ func reconcileSSHKeyPair(
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to create an SSH key-pair: %w", err)
 	}
-	if secret, err := k8s_secret.ReconcileSecret(
+	if secret, err := k8s_secret.CreateOnlyIfNotExist(
 		ctx,
 		e,
 		c,
