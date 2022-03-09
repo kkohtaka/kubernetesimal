@@ -6,6 +6,7 @@ import (
 	"embed"
 	"encoding/base64"
 	"fmt"
+	"strings"
 	"text/template"
 
 	"go.opentelemetry.io/otel/trace"
@@ -116,6 +117,24 @@ func reconcileUserData(
 		return nil, NewRequeueError("waiting for a cluster IP of the etcd Service prepared").Wrap(err)
 	}
 
+	var peerService corev1.Service
+	if err := c.Get(
+		ctx,
+		types.NamespacedName{
+			Namespace: en.Namespace,
+			Name:      status.PeerServiceRef.Name,
+		},
+		&peerService,
+	); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, NewRequeueError("waiting for the etcd peer Service prepared").Wrap(err)
+		}
+		return nil, fmt.Errorf("unable to get a peer service %s/%s: %w", en.Namespace, status.PeerServiceRef.Name, err)
+	}
+	if peerService.Spec.ClusterIP == "" {
+		return nil, NewRequeueError("waiting for a cluster IP of the etcd peer Service prepared").Wrap(err)
+	}
+
 	startEtcdScriptBuf := bytes.Buffer{}
 	startEtcdScriptTmpl, err := template.New("start-etcd.sh.tmpl").ParseFS(cloudConfigTemplates, "templates/start-etcd.sh.tmpl")
 	if err != nil {
@@ -127,16 +146,24 @@ func reconcileUserData(
 			EtcdadmReleaseURL string
 			EtcdadmVersion    string
 			EtcdVersion       string
-			ServiceIP         string
 			ServiceName       string
-			ServiceNamespace  string
+			ExtraSANs         string
 		}{
 			EtcdadmReleaseURL: defaultEtcdadmReleaseURL,
 			EtcdadmVersion:    defaultEtcdadmVersion,
 			EtcdVersion:       defaultEtcdVersion,
-			ServiceIP:         service.Spec.ClusterIP,
-			ServiceName:       service.Name,
-			ServiceNamespace:  service.Namespace,
+			ServiceName:       peerService.Name,
+			ExtraSANs: strings.Join(
+				[]string{
+					peerService.Spec.ClusterIP,
+					fmt.Sprintf("%s.%s.svc", peerService.Name, peerService.Namespace),
+					fmt.Sprintf("%s.%s", peerService.Name, peerService.Namespace),
+					service.Spec.ClusterIP,
+					fmt.Sprintf("%s.%s.svc", service.Name, service.Namespace),
+					fmt.Sprintf("%s.%s", service.Name, service.Namespace),
+				},
+				",",
+			),
 		},
 	); err != nil {
 		return nil, fmt.Errorf("unable to render start-etcd.sh from a template: %w", err)

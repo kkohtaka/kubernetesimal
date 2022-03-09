@@ -199,11 +199,11 @@ func probeEtcdMember(
 		return false, fmt.Errorf("unable to get a CA certificate: %w", err)
 	}
 
-	clientCAs, err := x509.SystemCertPool()
+	rootCAs, err := x509.SystemCertPool()
 	if err != nil {
 		return false, fmt.Errorf("unable to load a client CA certificates from the system: %w", err)
 	}
-	if ok := clientCAs.AppendCertsFromPEM(caCertificate); !ok {
+	if ok := rootCAs.AppendCertsFromPEM(caCertificate); !ok {
 		return false, fmt.Errorf("unable to load a client CA certificate from Secret")
 	}
 
@@ -246,8 +246,7 @@ func probeEtcdMember(
 			Certificates: []tls.Certificate{
 				certificate,
 			},
-			ClientCAs: clientCAs,
-			// TODO(kkohtaka): Don't use this option
+			RootCAs:            rootCAs,
 			InsecureSkipVerify: true,
 		}),
 	).Once(ctx)
