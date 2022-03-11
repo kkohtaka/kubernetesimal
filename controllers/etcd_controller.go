@@ -148,6 +148,12 @@ func (r *EtcdReconciler) finalizeExternalResources(
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "finalizeExternalResources")
 	defer span.End()
 
+	if newStatus, err := finalizeEtcdNodes(ctx, r.Client, e, status); err != nil {
+		return newStatus, err
+	} else {
+		status = newStatus
+	}
+
 	if newStatus, err := finalizeCACertificateSecret(ctx, r.Client, e, status); err != nil {
 		return newStatus, err
 	} else {
@@ -173,48 +179,6 @@ func (r *EtcdReconciler) finalizeExternalResources(
 	}
 
 	return status, nil
-}
-
-func finalizeSecret(
-	ctx context.Context,
-	client client.Client,
-	namespace, name string,
-) error {
-	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues(
-		"object", name,
-		"resource", "corev1.Secret",
-	))
-	return finalizeObject(ctx, client, namespace, name, &corev1.Secret{})
-}
-
-func finalizeObject(
-	ctx context.Context,
-	c client.Client,
-	namespace, name string,
-	obj client.Object,
-) error {
-	logger := log.FromContext(ctx)
-
-	key := types.NamespacedName{
-		Namespace: namespace,
-		Name:      name,
-	}
-	if err := c.Get(ctx, key, obj); err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-		return err
-	}
-	if obj.GetDeletionTimestamp().IsZero() {
-		if err := c.Delete(ctx, obj, &client.DeleteOptions{}); err != nil {
-			if apierrors.IsNotFound(err) {
-				return nil
-			}
-			return err
-		}
-		logger.Info("The object has started to be deleted.")
-	}
-	return NewRequeueError("waiting for an object deleted").WithDelay(5 * time.Second)
 }
 
 const (
