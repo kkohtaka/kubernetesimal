@@ -7,6 +7,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -19,19 +20,19 @@ import (
 	"github.com/kkohtaka/kubernetesimal/pki"
 )
 
-func newCACertificateName(e *kubernetesimalv1alpha1.Etcd) string {
-	return "ca-" + e.Name
+func newCACertificateName(e metav1.Object) string {
+	return "ca-" + e.GetName()
 }
 
-func newCACertificateIssuerName(e *kubernetesimalv1alpha1.Etcd) string {
-	return e.Name
+func newCACertificateIssuerName(e metav1.Object) string {
+	return e.GetName()
 }
 
 func reconcileCACertificate(
 	ctx context.Context,
 	c client.Client,
 	scheme *runtime.Scheme,
-	e *kubernetesimalv1alpha1.Etcd,
+	e metav1.Object,
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
@@ -54,7 +55,7 @@ func reconcileCACertificate(
 	if status.CAPrivateKeyRef != nil && status.CACertificateRef != nil {
 		if err := c.Get(
 			ctx,
-			types.NamespacedName{Namespace: e.Namespace, Name: status.CAPrivateKeyRef.Name},
+			types.NamespacedName{Namespace: e.GetNamespace(), Name: status.CAPrivateKeyRef.Name},
 			&ca,
 		); err != nil {
 			if !apierrors.IsNotFound(err) {
@@ -78,7 +79,7 @@ func reconcileCACertificate(
 		e,
 		c,
 		newCACertificateName(e),
-		e.Namespace,
+		e.GetNamespace(),
 		k8s_object.WithOwner(e, scheme),
 		k8s_secret.WithType(corev1.SecretTypeTLS),
 		k8s_secret.WithDataWithKey(corev1.TLSCertKey, certificate),
@@ -105,7 +106,7 @@ func reconcileCACertificate(
 func finalizeCACertificateSecret(
 	ctx context.Context,
 	c client.Client,
-	e *kubernetesimalv1alpha1.Etcd,
+	e metav1.Object,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
 	var span trace.Span
@@ -115,7 +116,7 @@ func finalizeCACertificateSecret(
 	if status.CACertificateRef == nil {
 		return status, nil
 	}
-	if err := finalizeSecret(ctx, c, e.Namespace, status.CACertificateRef.Name); err != nil {
+	if err := finalizeSecret(ctx, c, e.GetNamespace(), status.CACertificateRef.Name); err != nil {
 		return status, err
 	}
 	status.CACertificateRef = nil
@@ -123,19 +124,19 @@ func finalizeCACertificateSecret(
 	return status, nil
 }
 
-func newClientCertificateName(e *kubernetesimalv1alpha1.Etcd) string {
-	return "api-client-" + e.Name
+func newClientCertificateName(e metav1.Object) string {
+	return "api-client-" + e.GetName()
 }
 
-func newPeerCertificateName(e *kubernetesimalv1alpha1.Etcd) string {
-	return "peer-" + e.Name
+func newPeerCertificateName(e metav1.Object) string {
+	return "peer-" + e.GetName()
 }
 
 func reconcileClientCertificate(
 	ctx context.Context,
 	c client.Client,
 	scheme *runtime.Scheme,
-	e *kubernetesimalv1alpha1.Etcd,
+	e metav1.Object,
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
@@ -158,7 +159,7 @@ func reconcileClientCertificate(
 	if status.ClientPrivateKeyRef != nil && status.ClientCertificateRef != nil {
 		if err := c.Get(
 			ctx,
-			types.NamespacedName{Namespace: e.Namespace, Name: status.ClientPrivateKeyRef.Name},
+			types.NamespacedName{Namespace: e.GetNamespace(), Name: status.ClientPrivateKeyRef.Name},
 			&secret,
 		); err != nil {
 			if !apierrors.IsNotFound(err) {
@@ -176,7 +177,7 @@ func reconcileClientCertificate(
 	caCert, err := k8s_secret.GetCertificateFromSecretKeySelector(
 		ctx,
 		c,
-		e.Namespace,
+		e.GetNamespace(),
 		status.CACertificateRef,
 	)
 	if err != nil {
@@ -189,7 +190,7 @@ func reconcileClientCertificate(
 	caPrivateKey, err := k8s_secret.GetPrivateKeyFromSecretKeySelector(
 		ctx,
 		c,
-		e.Namespace,
+		e.GetNamespace(),
 		status.CAPrivateKeyRef,
 	)
 	if err != nil {
@@ -212,7 +213,7 @@ func reconcileClientCertificate(
 		e,
 		c,
 		newClientCertificateName(e),
-		e.Namespace,
+		e.GetNamespace(),
 		k8s_object.WithOwner(e, scheme),
 		k8s_secret.WithType(corev1.SecretTypeTLS),
 		k8s_secret.WithDataWithKey(corev1.TLSCertKey, certificate),
@@ -240,7 +241,7 @@ func reconcilePeerCertificate(
 	ctx context.Context,
 	c client.Client,
 	scheme *runtime.Scheme,
-	e *kubernetesimalv1alpha1.Etcd,
+	e metav1.Object,
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
@@ -263,7 +264,7 @@ func reconcilePeerCertificate(
 	if status.PeerPrivateKeyRef != nil && status.PeerCertificateRef != nil {
 		if err := c.Get(
 			ctx,
-			types.NamespacedName{Namespace: e.Namespace, Name: status.PeerPrivateKeyRef.Name},
+			types.NamespacedName{Namespace: e.GetNamespace(), Name: status.PeerPrivateKeyRef.Name},
 			&secret,
 		); err != nil {
 			if !apierrors.IsNotFound(err) {
@@ -281,7 +282,7 @@ func reconcilePeerCertificate(
 	caCert, err := k8s_secret.GetCertificateFromSecretKeySelector(
 		ctx,
 		c,
-		e.Namespace,
+		e.GetNamespace(),
 		status.CACertificateRef,
 	)
 	if err != nil {
@@ -294,7 +295,7 @@ func reconcilePeerCertificate(
 	caPrivateKey, err := k8s_secret.GetPrivateKeyFromSecretKeySelector(
 		ctx,
 		c,
-		e.Namespace,
+		e.GetNamespace(),
 		status.CAPrivateKeyRef,
 	)
 	if err != nil {
@@ -317,7 +318,7 @@ func reconcilePeerCertificate(
 		e,
 		c,
 		newPeerCertificateName(e),
-		e.Namespace,
+		e.GetNamespace(),
 		k8s_object.WithOwner(e, scheme),
 		k8s_secret.WithType(corev1.SecretTypeTLS),
 		k8s_secret.WithDataWithKey(corev1.TLSCertKey, certificate),
@@ -344,7 +345,7 @@ func reconcilePeerCertificate(
 func finalizeClientCertificateSecret(
 	ctx context.Context,
 	c client.Client,
-	e *kubernetesimalv1alpha1.Etcd,
+	e metav1.Object,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
 	var span trace.Span
@@ -354,7 +355,7 @@ func finalizeClientCertificateSecret(
 	if status.ClientCertificateRef == nil {
 		return status, nil
 	}
-	if err := finalizeSecret(ctx, c, e.Namespace, status.ClientCertificateRef.Name); err != nil {
+	if err := finalizeSecret(ctx, c, e.GetNamespace(), status.ClientCertificateRef.Name); err != nil {
 		return status, err
 	}
 	status.ClientCertificateRef = nil
@@ -365,7 +366,7 @@ func finalizeClientCertificateSecret(
 func finalizePeerCertificateSecret(
 	ctx context.Context,
 	c client.Client,
-	e *kubernetesimalv1alpha1.Etcd,
+	e metav1.Object,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
 	var span trace.Span
@@ -375,7 +376,7 @@ func finalizePeerCertificateSecret(
 	if status.PeerCertificateRef == nil {
 		return status, nil
 	}
-	if err := finalizeSecret(ctx, c, e.Namespace, status.PeerCertificateRef.Name); err != nil {
+	if err := finalizeSecret(ctx, c, e.GetNamespace(), status.PeerCertificateRef.Name); err != nil {
 		return status, err
 	}
 	status.PeerCertificateRef = nil

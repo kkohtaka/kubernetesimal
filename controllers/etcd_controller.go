@@ -103,7 +103,7 @@ func (r *EtcdReconciler) doReconcile(
 	ctx, span := tracing.FromContext(ctx).Start(ctx, "doReconcile")
 	defer span.End()
 
-	if e.ObjectMeta.DeletionTimestamp.IsZero() {
+	if e.GetDeletionTimestamp().IsZero() {
 		if !controllerutil.ContainsFinalizer(e, finalizerName) {
 			if err := addFinalizer(ctx, r.Client, e, finalizerName); err != nil {
 				if apierrors.IsNotFound(err) {
@@ -132,7 +132,7 @@ func (r *EtcdReconciler) doReconcile(
 		return status, nil
 	}
 
-	if newStatus, err := r.reconcileExternalResources(ctx, e, e.Spec, status); err != nil {
+	if newStatus, err := r.reconcileExternalResources(ctx, e, spec, status); err != nil {
 		return newStatus, err
 	} else {
 		status = newStatus
@@ -142,7 +142,7 @@ func (r *EtcdReconciler) doReconcile(
 
 func (r *EtcdReconciler) finalizeExternalResources(
 	ctx context.Context,
-	e *kubernetesimalv1alpha1.Etcd,
+	e metav1.Object,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
 	var span trace.Span
@@ -188,7 +188,7 @@ const (
 
 func (r *EtcdReconciler) reconcileExternalResources(
 	ctx context.Context,
-	e *kubernetesimalv1alpha1.Etcd,
+	e metav1.Object,
 	spec kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
@@ -264,7 +264,7 @@ func (r *EtcdReconciler) reconcileExternalResources(
 	)
 	for _, nodeRef := range status.NodeRefs {
 		var node kubernetesimalv1alpha1.EtcdNode
-		if err := r.Get(ctx, types.NamespacedName{Namespace: e.Namespace, Name: nodeRef.Name}, &node); err != nil {
+		if err := r.Get(ctx, types.NamespacedName{Namespace: e.GetNamespace(), Name: nodeRef.Name}, &node); err != nil {
 			return status, fmt.Errorf("unable to get an etcd node from reference: %w", err)
 		}
 		switch node.Status.Phase {
@@ -289,11 +289,11 @@ func (r *EtcdReconciler) reconcileExternalResources(
 		// TODO(kkohtaka): Fill the proper specification
 		node := &kubernetesimalv1alpha1.EtcdNode{
 			ObjectMeta: metav1.ObjectMeta{
-				GenerateName: e.Name + "-",
-				Namespace:    e.Namespace,
+				GenerateName: e.GetName() + "-",
+				Namespace:    e.GetNamespace(),
 			},
 			Spec: kubernetesimalv1alpha1.EtcdNodeSpec{
-				Version: *e.Spec.Version,
+				Version: *spec.Version,
 
 				CACertificateRef:     *status.CACertificateRef,
 				CAPrivateKeyRef:      *status.CAPrivateKeyRef,

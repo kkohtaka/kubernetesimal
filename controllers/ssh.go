@@ -7,6 +7,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -19,8 +20,8 @@ import (
 	"github.com/kkohtaka/kubernetesimal/ssh"
 )
 
-func newSSHKeyPairName(e *kubernetesimalv1alpha1.Etcd) string {
-	return "ssh-keypair-" + e.Name
+func newSSHKeyPairName(e metav1.Object) string {
+	return "ssh-keypair-" + e.GetName()
 }
 
 const (
@@ -31,7 +32,7 @@ func reconcileSSHKeyPair(
 	ctx context.Context,
 	c client.Client,
 	scheme *runtime.Scheme,
-	e *kubernetesimalv1alpha1.Etcd,
+	e metav1.Object,
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
@@ -54,7 +55,7 @@ func reconcileSSHKeyPair(
 	if status.SSHPrivateKeyRef != nil && status.SSHPublicKeyRef != nil {
 		if err := c.Get(
 			ctx,
-			types.NamespacedName{Namespace: e.Namespace, Name: status.SSHPrivateKeyRef.Name},
+			types.NamespacedName{Namespace: e.GetNamespace(), Name: status.SSHPrivateKeyRef.Name},
 			&sshKeyPair,
 		); err != nil {
 			if !apierrors.IsNotFound(err) {
@@ -78,7 +79,7 @@ func reconcileSSHKeyPair(
 		e,
 		c,
 		newSSHKeyPairName(e),
-		e.Namespace,
+		e.GetNamespace(),
 		k8s_object.WithOwner(e, scheme),
 		k8s_secret.WithType(corev1.SecretTypeSSHAuth),
 		k8s_secret.WithDataWithKey(corev1.SSHAuthPrivateKey, privateKey),
@@ -105,7 +106,7 @@ func reconcileSSHKeyPair(
 func finalizeSSHKeyPairSecret(
 	ctx context.Context,
 	c client.Client,
-	e *kubernetesimalv1alpha1.Etcd,
+	e metav1.Object,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
 	var span trace.Span
@@ -115,7 +116,7 @@ func finalizeSSHKeyPairSecret(
 	if status.SSHPrivateKeyRef == nil {
 		return status, nil
 	}
-	if err := finalizeSecret(ctx, c, e.Namespace, status.SSHPrivateKeyRef.Name); err != nil {
+	if err := finalizeSecret(ctx, c, e.GetNamespace(), status.SSHPrivateKeyRef.Name); err != nil {
 		return status, err
 	}
 	status.SSHPrivateKeyRef = nil

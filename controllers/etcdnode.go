@@ -6,6 +6,7 @@ import (
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 	"github.com/kkohtaka/kubernetesimal/observerbility/tracing"
 	"go.opentelemetry.io/otel/trace"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -13,7 +14,7 @@ import (
 func finalizeEtcdNodes(
 	ctx context.Context,
 	c client.Client,
-	e *kubernetesimalv1alpha1.Etcd,
+	e metav1.Object,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
 	var span trace.Span
@@ -24,7 +25,7 @@ func finalizeEtcdNodes(
 		return status, nil
 	}
 	for _, ref := range status.NodeRefs {
-		if err := finalizeEtcdNode(ctx, c, e.Namespace, ref.Name); err != nil {
+		if err := finalizeEtcdNode(ctx, c, e.GetNamespace(), ref.Name); err != nil {
 			return status, err
 		}
 	}

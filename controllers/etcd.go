@@ -10,6 +10,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -24,19 +25,19 @@ import (
 	"github.com/kkohtaka/kubernetesimal/ssh"
 )
 
-func newServiceName(e *kubernetesimalv1alpha1.Etcd) string {
-	return e.Name
+func newServiceName(e metav1.Object) string {
+	return e.GetName()
 }
 
-func newPeerServiceName(e *kubernetesimalv1alpha1.EtcdNode) string {
-	return e.Name
+func newPeerServiceName(en metav1.Object) string {
+	return en.GetName()
 }
 
 func reconcileService(
 	ctx context.Context,
 	c client.Client,
 	scheme *runtime.Scheme,
-	e *kubernetesimalv1alpha1.Etcd,
+	e metav1.Object,
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.LocalObjectReference, error) {
@@ -49,7 +50,7 @@ func reconcileService(
 		e,
 		c,
 		newServiceName(e),
-		e.Namespace,
+		e.GetNamespace(),
 		k8s_object.WithOwner(e, scheme),
 		k8s_service.WithType(corev1.ServiceTypeNodePort),
 		k8s_service.WithPort("etcd", 2379, 2379),
