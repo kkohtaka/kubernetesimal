@@ -101,12 +101,11 @@ func (r *EtcdNodeReconciler) doReconcile(
 
 	if en.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(en, finalizerName) {
-			controllerutil.AddFinalizer(en, finalizerName)
-			if err := r.Update(ctx, en); err != nil {
-				if apierrors.IsConflict(err) {
-					return status, NewRequeueError("conflict").Wrap(err)
+			if err := addFinalizer(ctx, r.Client, en, finalizerName); err != nil {
+				if apierrors.IsNotFound(err) {
+					return status, nil
 				}
-				return status, err
+				return status, fmt.Errorf("unable to set finalizer: %w", err)
 			}
 			return status, NewRequeueError("finalizer was set").WithDelay(time.Second)
 		}
@@ -118,9 +117,11 @@ func (r *EtcdNodeReconciler) doReconcile(
 				status = newStatus
 			}
 
-			controllerutil.RemoveFinalizer(en, finalizerName)
-			if err := r.Update(ctx, en); err != nil {
-				return status, err
+			if err := removeFinalizer(ctx, r.Client, en, finalizerName); err != nil {
+				if apierrors.IsNotFound(err) {
+					return status, nil
+				}
+				return status, fmt.Errorf("unable to unset finalizer: %w", err)
 			}
 			return status, NewRequeueError("finalizer was unset").WithDelay(time.Second)
 		}

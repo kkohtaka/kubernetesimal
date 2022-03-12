@@ -8,12 +8,25 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
 	finalizerName = "kubernetesimal.kkohtaka.org/finalizer"
 )
+
+func addFinalizer(ctx context.Context, c client.Client, o client.Object, finalizer string) error {
+	newO := o.DeepCopyObject().(client.Object)
+	controllerutil.AddFinalizer(newO, finalizerName)
+	return c.Patch(ctx, newO, client.MergeFrom(o))
+}
+
+func removeFinalizer(ctx context.Context, c client.Client, o client.Object, finalizer string) error {
+	newO := o.DeepCopyObject().(client.Object)
+	controllerutil.RemoveFinalizer(newO, finalizerName)
+	return c.Patch(ctx, newO, client.MergeFrom(o))
+}
 
 func finalizeSecret(
 	ctx context.Context,
