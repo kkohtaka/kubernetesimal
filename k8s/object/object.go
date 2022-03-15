@@ -9,6 +9,39 @@ import (
 
 type ObjectOption func(runtime.Object) error
 
+func WithName(name string) ObjectOption {
+	return func(o runtime.Object) error {
+		meta, err := meta.Accessor(o)
+		if err != nil {
+			return err
+		}
+		meta.SetName(name)
+		return nil
+	}
+}
+
+func WithNamespace(namespace string) ObjectOption {
+	return func(o runtime.Object) error {
+		meta, err := meta.Accessor(o)
+		if err != nil {
+			return err
+		}
+		meta.SetNamespace(namespace)
+		return nil
+	}
+}
+
+func WithGeneratorName(generatorName string) ObjectOption {
+	return func(o runtime.Object) error {
+		meta, err := meta.Accessor(o)
+		if err != nil {
+			return err
+		}
+		meta.SetGenerateName(generatorName)
+		return nil
+	}
+}
+
 func WithLabel(key, value string) ObjectOption {
 	return func(o runtime.Object) error {
 		meta, err := meta.Accessor(o)

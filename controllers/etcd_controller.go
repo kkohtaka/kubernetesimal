@@ -34,6 +34,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
+	k8s_etcdnode "github.com/kkohtaka/kubernetesimal/k8s/etcdnode"
+	k8s_object "github.com/kkohtaka/kubernetesimal/k8s/object"
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
 )
 
@@ -286,33 +288,28 @@ func (r *EtcdReconciler) reconcileExternalResources(
 	}
 
 	if len(status.NodeRefs) < int(*spec.Replicas) {
-		// TODO(kkohtaka): Fill the proper specification
-		node := &kubernetesimalv1alpha1.EtcdNode{
-			ObjectMeta: metav1.ObjectMeta{
-				GenerateName: e.GetName() + "-",
-				Namespace:    e.GetNamespace(),
-			},
-			Spec: kubernetesimalv1alpha1.EtcdNodeSpec{
-				Version: *spec.Version,
-
-				CACertificateRef:     *status.CACertificateRef,
-				CAPrivateKeyRef:      *status.CAPrivateKeyRef,
-				ClientCertificateRef: *status.ClientCertificateRef,
-				ClientPrivateKeyRef:  *status.ClientPrivateKeyRef,
-				SSHPrivateKeyRef:     *status.SSHPrivateKeyRef,
-				SSHPublicKeyRef:      *status.SSHPublicKeyRef,
-
-				ServiceRef: *status.ServiceRef,
-			},
+		if node, err := k8s_etcdnode.CreateOnlyIfNotExist(
+			ctx,
+			r.Client,
+			k8s_object.WithGeneratorName(e.GetName()+"-"),
+			k8s_object.WithNamespace(e.GetNamespace()),
+			k8s_object.WithOwner(e, r.Scheme),
+			k8s_etcdnode.WithVersion(*spec.Version),
+			k8s_etcdnode.WithCACertificateRef(*status.CACertificateRef),
+			k8s_etcdnode.WithCAPrivateKeyRef(*status.CAPrivateKeyRef),
+			k8s_etcdnode.WithClientCertificateRef(*status.ClientCertificateRef),
+			k8s_etcdnode.WithClientPrivateKeyRef(*status.ClientPrivateKeyRef),
+			k8s_etcdnode.WithSSHPrivateKeyRef(*status.SSHPrivateKeyRef),
+			k8s_etcdnode.WithSSHPublicKeyRef(*status.SSHPublicKeyRef),
+			k8s_etcdnode.WithServiceRef(*status.ServiceRef),
+		); err != nil {
+			return status, fmt.Errorf("unable to create EtcdNode: %w", err)
+		} else {
+			status.NodeRefs = append(status.NodeRefs, &corev1.LocalObjectReference{
+				Name: node.Name,
+			})
+			return status, nil
 		}
-		_, err := ctrl.CreateOrUpdate(ctx, r.Client, node, func() error {
-			return ctrl.SetControllerReference(e, node, r.Scheme)
-		})
-		if err != nil {
-			return status, fmt.Errorf("unable to create or update an etcd node: %w", err)
-		}
-		status.NodeRefs = append(status.NodeRefs, &corev1.LocalObjectReference{Name: node.Name})
-		return status, nil
 	}
 
 	return status, nil
