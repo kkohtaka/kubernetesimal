@@ -62,7 +62,7 @@ jobs:
         with:
           path: "~/.cache/bazel"
           key: bazel
-      - uses: docker/login-action@v1
+      - uses: docker/login-action@v2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
