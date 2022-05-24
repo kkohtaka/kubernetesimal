@@ -16,7 +16,7 @@ import (
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 	k8s_object "github.com/kkohtaka/kubernetesimal/k8s/object"
 	k8s_secret "github.com/kkohtaka/kubernetesimal/k8s/secret"
-	"github.com/kkohtaka/kubernetesimal/observerbility/tracing"
+	"github.com/kkohtaka/kubernetesimal/observability/tracing"
 	"github.com/kkohtaka/kubernetesimal/ssh"
 )
 

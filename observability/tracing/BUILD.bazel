@@ -3,7 +3,7 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library")
 go_library(
     name = "tracing",
     srcs = ["tracing.go"],
-    importpath = "github.com/kkohtaka/kubernetesimal/observerbility/tracing",
+    importpath = "github.com/kkohtaka/kubernetesimal/observability/tracing",
     visibility = ["//visibility:public"],
     deps = [
         "@io_k8s_sigs_controller_runtime//:controller-runtime",

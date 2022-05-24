@@ -27,7 +27,7 @@ go_library(
         "//k8s/service",
         "//k8s/vmi",
         "//net/http",
-        "//observerbility/tracing",
+        "//observability/tracing",
         "//pki",
         "//ssh",
         "@io_k8s_api//core/v1:core",

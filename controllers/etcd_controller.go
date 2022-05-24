@@ -34,7 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
-	"github.com/kkohtaka/kubernetesimal/observerbility/tracing"
+	"github.com/kkohtaka/kubernetesimal/observability/tracing"
 )
 
 // EtcdReconciler reconciles a Etcd object

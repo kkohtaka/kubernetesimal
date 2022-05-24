@@ -13,7 +13,7 @@ go_library(
     deps = [
         "//api/v1alpha1",
         "//controllers",
-        "//observerbility/tracing",
+        "//observability/tracing",
         "@io_k8s_apimachinery//pkg/runtime",
         "@io_k8s_apimachinery//pkg/util/runtime",
         "@io_k8s_client_go//kubernetes/scheme",
