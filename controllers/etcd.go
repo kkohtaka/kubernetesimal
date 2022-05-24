@@ -21,7 +21,7 @@ import (
 	k8s_secret "github.com/kkohtaka/kubernetesimal/k8s/secret"
 	k8s_service "github.com/kkohtaka/kubernetesimal/k8s/service"
 	"github.com/kkohtaka/kubernetesimal/net/http"
-	"github.com/kkohtaka/kubernetesimal/observerbility/tracing"
+	"github.com/kkohtaka/kubernetesimal/observability/tracing"
 	"github.com/kkohtaka/kubernetesimal/ssh"
 )
 

@@ -22,7 +22,7 @@ import (
 	k8s_object "github.com/kkohtaka/kubernetesimal/k8s/object"
 	k8s_secret "github.com/kkohtaka/kubernetesimal/k8s/secret"
 	k8s_vmi "github.com/kkohtaka/kubernetesimal/k8s/vmi"
-	"github.com/kkohtaka/kubernetesimal/observerbility/tracing"
+	"github.com/kkohtaka/kubernetesimal/observability/tracing"
 )
 
 var (

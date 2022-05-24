@@ -35,7 +35,7 @@ import (
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 	"github.com/kkohtaka/kubernetesimal/controllers"
-	"github.com/kkohtaka/kubernetesimal/observerbility/tracing"
+	"github.com/kkohtaka/kubernetesimal/observability/tracing"
 	//+kubebuilder:scaffold:imports
 )
 
