@@ -9,7 +9,7 @@ require (
 	github.com/google/go-cmp v0.5.7 // indirect
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.10.2
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.7.1
 	go.opentelemetry.io/otel v1.2.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.2.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.2.0
