@@ -124,6 +124,9 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Tracer: provider.Tracer("etcd-controller"),
+		Expectations: controllers.NewUIDTrackingControllerExpectations(
+			controllers.NewControllerExpectations(),
+		),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Etcd")
 		os.Exit(1)
