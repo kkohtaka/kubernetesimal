@@ -28,10 +28,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 	k8s_etcdnode "github.com/kkohtaka/kubernetesimal/k8s/etcdnode"
@@ -45,6 +49,8 @@ type EtcdReconciler struct {
 	Scheme *runtime.Scheme
 
 	Tracer trace.Tracer
+
+	Expectations *UIDTrackingControllerExpectations
 }
 
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds,verbs=get;list;watch;create;update;patch;delete
@@ -261,6 +267,10 @@ func (r *EtcdReconciler) reconcileExternalResources(
 		status.ServiceRef = serviceRef
 	}
 
+	if needSync := !r.Expectations.SatisfiedExpectations(keyFromObject(e)); needSync {
+		return status, NewRequeueError("expected creations or deletions are left")
+	}
+
 	var (
 		nRunning, nPending int
 	)
@@ -288,6 +298,9 @@ func (r *EtcdReconciler) reconcileExternalResources(
 	}
 
 	if len(status.NodeRefs) < int(*spec.Replicas) {
+		if err := r.Expectations.ExpectCreations(keyFromObject(e), 1); err != nil {
+			return status, fmt.Errorf("unable to update expectations: %w", err)
+		}
 		if node, err := k8s_etcdnode.CreateOnlyIfNotExist(
 			ctx,
 			r.Client,
@@ -303,6 +316,7 @@ func (r *EtcdReconciler) reconcileExternalResources(
 			k8s_etcdnode.WithSSHPublicKeyRef(*status.SSHPublicKeyRef),
 			k8s_etcdnode.WithServiceRef(*status.ServiceRef),
 		); err != nil {
+			r.Expectations.CreationObserved(keyFromObject(e))
 			return status, fmt.Errorf("unable to create EtcdNode: %w", err)
 		} else {
 			status.NodeRefs = append(status.NodeRefs, &corev1.LocalObjectReference{
@@ -352,5 +366,28 @@ func (r *EtcdReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.Service{}).
 		Owns(&kubernetesimalv1alpha1.EtcdNode{}).
+		Watches(&source.Kind{Type: &kubernetesimalv1alpha1.EtcdNode{}}, &handler.Funcs{
+			CreateFunc: func(ce event.CreateEvent, rli workqueue.RateLimitingInterface) {
+				if ownerRef := metav1.GetControllerOf(ce.Object); ownerRef != nil {
+					r.Expectations.CreationObserved(
+						client.ObjectKey{
+							Namespace: ce.Object.GetNamespace(),
+							Name:      ownerRef.Name,
+						}.String(),
+					)
+				}
+			},
+			DeleteFunc: func(ce event.DeleteEvent, rli workqueue.RateLimitingInterface) {
+				if ownerRef := metav1.GetControllerOf(ce.Object); ownerRef != nil {
+					r.Expectations.DeletionObserved(
+						client.ObjectKey{
+							Namespace: ce.Object.GetNamespace(),
+							Name:      ownerRef.Name,
+						}.String(),
+						client.ObjectKeyFromObject(ce.Object).String(),
+					)
+				}
+			},
+		}).
 		Complete(r)
 }
