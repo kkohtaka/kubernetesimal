@@ -35,7 +35,7 @@ const (
 )
 
 var (
-	defaultEtcdadmVersion = "2022.05.22"
+	defaultEtcdadmVersion = "2022.05.31"
 
 	defaultEtcdVersion = "3.5.1"
 )
