@@ -7,13 +7,12 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubevirtv1 "kubevirt.io/api/core/v1"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	k8s_object "github.com/kkohtaka/kubernetesimal/k8s/object"
@@ -109,25 +108,25 @@ func WithUserData(userDataRef *corev1.LocalObjectReference) k8s_object.ObjectOpt
 	}
 }
 
-func ReconcileVirtualMachineInstance(
+func CreateIfNotExist(
 	ctx context.Context,
 	owner metav1.Object,
 	c client.Client,
-	name, namespace string,
 	opts ...k8s_object.ObjectOption,
 ) (*kubevirtv1.VirtualMachineInstance, error) {
 	vmi := newDefaultVirtualMachineInstance()
-	vmi.Name = name
-	vmi.Namespace = namespace
-	opRes, err := ctrl.CreateOrUpdate(ctx, c, &vmi, func() error {
-		for _, fn := range opts {
-			if err := fn(&vmi); err != nil {
-				return err
-			}
+	for _, fn := range opts {
+		if err := fn(&vmi); err != nil {
+			return nil, err
 		}
-		return nil
-	})
-	if err != nil {
+	}
+	if err := c.Create(ctx, &vmi); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			if err := c.Get(ctx, client.ObjectKeyFromObject(&vmi), &vmi); err != nil {
+				return nil, err
+			}
+			return &vmi, nil
+		}
 		return nil, fmt.Errorf(
 			"unable to create VirtualMachineInstance %s: %w",
 			k8s_object.ObjectName(&vmi.ObjectMeta),
@@ -139,12 +138,7 @@ func ReconcileVirtualMachineInstance(
 		"namespace", vmi.Namespace,
 		"name", vmi.Name,
 	)
-	switch opRes {
-	case controllerutil.OperationResultCreated:
-		logger.Info("VirtualMachineInstance was created")
-	case controllerutil.OperationResultUpdated:
-		logger.Info("VirtualMachineInstance was updated")
-	}
+	logger.Info("VirtualMachineInstance was created")
 
 	return &vmi, nil
 }
