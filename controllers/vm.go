@@ -219,12 +219,12 @@ func reconcileVirtualMachineInstance(
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "reconcileVirtualMachineInstance")
 	defer span.End()
 
-	if vmi, err := k8s_vmi.ReconcileVirtualMachineInstance(
+	if vmi, err := k8s_vmi.CreateIfNotExist(
 		ctx,
 		en,
 		c,
-		newVirtualMachineInstanceName(en),
-		en.Namespace,
+		k8s_object.WithName(newVirtualMachineInstanceName(en)),
+		k8s_object.WithNamespace(en.Namespace),
 		k8s_object.WithLabel("app.kubernetes.io/name", "virtualmachineimage"),
 		k8s_object.WithLabel("app.kubernetes.io/instance", newVirtualMachineInstanceName(en)),
 		k8s_object.WithLabel("app.kubernetes.io/part-of", "etcd"),
