@@ -114,7 +114,7 @@ func reconcileUserData(
 		return nil, fmt.Errorf("unable to get a service %s/%s: %w", en.Namespace, spec.ServiceRef.Name, err)
 	}
 	if service.Spec.ClusterIP == "" {
-		return nil, NewRequeueError("waiting for a cluster IP of the etcd Service prepared").Wrap(err)
+		return nil, NewRequeueError("waiting for a cluster IP of the etcd Service prepared")
 	}
 
 	var peerService corev1.Service
@@ -132,7 +132,7 @@ func reconcileUserData(
 		return nil, fmt.Errorf("unable to get a peer service %s/%s: %w", en.Namespace, status.PeerServiceRef.Name, err)
 	}
 	if peerService.Spec.ClusterIP == "" {
-		return nil, NewRequeueError("waiting for a cluster IP of the etcd peer Service prepared").Wrap(err)
+		return nil, NewRequeueError("waiting for a cluster IP of the etcd peer Service prepared")
 	}
 
 	startEtcdScriptBuf := bytes.Buffer{}
