@@ -14,6 +14,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -230,6 +231,9 @@ func reconcileVirtualMachineInstance(
 		k8s_object.WithLabel("app.kubernetes.io/part-of", "etcd"),
 		k8s_object.WithOwner(en, scheme),
 		k8s_vmi.WithUserData(status.UserDataRef),
+		k8s_vmi.WithReadinessTCPProbe(&corev1.TCPSocketAction{
+			Port: intstr.FromInt(serviceContainerPortSSH),
+		}),
 	); err != nil {
 		return nil, fmt.Errorf("unable to create VirtualMachineInstance: %w", err)
 	} else {
