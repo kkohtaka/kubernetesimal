@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -23,6 +24,20 @@ import (
 	"github.com/kkohtaka/kubernetesimal/net/http"
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
 	"github.com/kkohtaka/kubernetesimal/ssh"
+)
+
+const (
+	serviceNameEtcd = "etcd"
+	serviceNamePeer = "peer"
+	serviceNameSSH  = "ssh"
+
+	servicePortEtcd = 2379
+	servicePortPeer = 2380
+	servicePortSSH  = 22
+
+	serviceContainerPortEtcd = 2379
+	serviceContainerPortPeer = 2380
+	serviceContainerPortSSH  = 22
 )
 
 func newServiceName(e metav1.Object) string {
@@ -53,7 +68,7 @@ func reconcileService(
 		e.GetNamespace(),
 		k8s_object.WithOwner(e, scheme),
 		k8s_service.WithType(corev1.ServiceTypeNodePort),
-		k8s_service.WithPort("etcd", 2379, 2379),
+		k8s_service.WithPort(serviceNameEtcd, servicePortEtcd, serviceContainerPortEtcd),
 		k8s_service.WithSelector("app.kubernetes.io/name", "virtualmachineimage"),
 		k8s_service.WithSelector("app.kubernetes.io/part-of", "etcd"),
 	); err != nil {
@@ -85,9 +100,9 @@ func reconcilePeerService(
 		en.Namespace,
 		k8s_object.WithOwner(en, scheme),
 		k8s_service.WithType(corev1.ServiceTypeNodePort),
-		k8s_service.WithPort("ssh", 22, 22),
-		k8s_service.WithPort("etcd", 2379, 2379),
-		k8s_service.WithPort("peer", 2380, 2380),
+		k8s_service.WithPort(serviceNameEtcd, servicePortEtcd, serviceContainerPortEtcd),
+		k8s_service.WithPort(serviceNamePeer, servicePortPeer, serviceContainerPortPeer),
+		k8s_service.WithPort(serviceNameSSH, servicePortSSH, serviceContainerPortSSH),
 		k8s_service.WithSelector("app.kubernetes.io/name", "virtualmachineimage"),
 		k8s_service.WithSelector("app.kubernetes.io/instance", newVirtualMachineInstanceName(en)),
 		k8s_service.WithSelector("app.kubernetes.io/part-of", "etcd"),
@@ -110,6 +125,25 @@ func provisionEtcdMember(
 	var span trace.Span
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "provisionEtcdMember")
 	defer span.End()
+
+	var vmi kubevirtv1.VirtualMachineInstance
+	if err := c.Get(
+		ctx,
+		types.NamespacedName{
+			Namespace: en.Namespace,
+			Name:      status.VirtualMachineRef.Name,
+		},
+		&vmi,
+	); err != nil {
+		if apierrors.IsNotFound(err) {
+			return NewRequeueError("waiting for a VirtualMachineInstance prepared").Wrap(err)
+		}
+		return fmt.Errorf(
+			"unable to get a VirtualMachineInstance %s/%s: %w", en.Namespace, status.VirtualMachineRef.Name, err)
+	}
+	if vmi.Status.Phase != kubevirtv1.Running {
+		return NewRequeueError("waiting for a VirtualMachineInstance become running")
+	}
 
 	privateKey, err := k8s_secret.GetValueFromSecretKeySelector(
 		ctx,
@@ -145,7 +179,7 @@ func provisionEtcdMember(
 	}
 	var port int32
 	for i := range peerService.Spec.Ports {
-		if peerService.Spec.Ports[i].Name == "ssh" {
+		if peerService.Spec.Ports[i].Name == serviceNameSSH {
 			port = peerService.Spec.Ports[i].TargetPort.IntVal
 			break
 		}

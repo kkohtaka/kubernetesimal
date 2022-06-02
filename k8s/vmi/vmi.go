@@ -108,6 +108,21 @@ func WithUserData(userDataRef *corev1.LocalObjectReference) k8s_object.ObjectOpt
 	}
 }
 
+func WithReadinessTCPProbe(tcpAction *corev1.TCPSocketAction) k8s_object.ObjectOption {
+	return func(o runtime.Object) error {
+		vmi, ok := o.(*kubevirtv1.VirtualMachineInstance)
+		if !ok {
+			return errors.New("not a instance of VirtualMachineInstance")
+		}
+		vmi.Spec.ReadinessProbe = &kubevirtv1.Probe{
+			Handler: kubevirtv1.Handler{
+				TCPSocket: tcpAction,
+			},
+		}
+		return nil
+	}
+}
+
 func CreateIfNotExist(
 	ctx context.Context,
 	owner metav1.Object,

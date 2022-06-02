@@ -38,6 +38,7 @@ go_library(
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_apimachinery//pkg/runtime",
         "@io_k8s_apimachinery//pkg/types",
+        "@io_k8s_apimachinery//pkg/util/intstr",
         "@io_k8s_apimachinery//pkg/util/sets",
         "@io_k8s_client_go//tools/cache",
         "@io_k8s_client_go//util/workqueue",
