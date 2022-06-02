@@ -177,7 +177,7 @@ func probeEtcdMember(
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (bool, error) {
 	var span trace.Span
-	ctx, span = tracing.FromContext(ctx).Start(ctx, "reconcileVirtualMachineInstance")
+	ctx, span = tracing.FromContext(ctx).Start(ctx, "probeEtcdMember")
 	defer span.End()
 	logger := log.FromContext(ctx)
 
