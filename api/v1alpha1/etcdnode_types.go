@@ -58,25 +58,52 @@ type EtcdNodeStatus struct {
 	// PeerServiceRef is a reference to a Service of an etcd node.
 	PeerServiceRef *corev1.LocalObjectReference `json:"peerServiceRef,omitempty"`
 
-	// LastProvisionedTime is the timestamp when the controller probed an etcd node at the first time.
-	LastProvisionedTime *metav1.Time `json:"lastProvisionedTime,omitempty"`
-	// ProbedSinceTime is the timestamp when the controller probed an etcd node at the first time.
-	ProbedSinceTime *metav1.Time `json:"probedSinceTime,omitempty"`
+	// Conditions is a list of statuses respected to certain conditions.
+	Conditions []EtcdNodeCondition `json:"conditions,omitempty"`
 }
 
 // EtcdNodePhase is a label for the phase of the etcd cluster at the current time.
-//+kubebuilder:validation:Enum=Creating;Provisioned;Running;Deleting
+//+kubebuilder:validation:Enum=Creating;Provisioned;Running;Deleting;Error
 type EtcdNodePhase string
 
 const (
-	// EtcdNodePhaseCreating means the etcd cluster is being created.
+	// EtcdNodePhaseCreating means the etcd node is being created.
 	EtcdNodePhaseCreating EtcdNodePhase = "Creating"
-	// EtcdNodePhaseProvisioned means the etcd cluster was provisioned and wating to become running.
+	// EtcdNodePhaseProvisioned means the etcd node was provisioned and waiting to become running.
 	EtcdNodePhaseProvisioned EtcdNodePhase = "Provisioned"
-	// EtcdNodePhaseRunning means the etcd cluster is running.
+	// EtcdNodePhaseRunning means the etcd node is running.
 	EtcdNodePhaseRunning EtcdNodePhase = "Running"
-	// EtcdNodePhaseDeleting means the etcd cluster is running.
+	// EtcdNodePhaseDeleting means the etcd node is being deleted.
 	EtcdNodePhaseDeleting EtcdNodePhase = "Deleting"
+	// EtcdNodePhaseError means the etcd node is in error state.
+	EtcdNodePhaseError EtcdNodePhase = "Error"
+)
+
+// EtcdNodeCondition defines a status respected to a certain condition.
+type EtcdNodeCondition struct {
+	// Type is the type of the condition.
+	Type EtcdNodeConditionType `json:"type"`
+	// Status is the status of the condition.
+	Status corev1.ConditionStatus `json:"status"`
+	// Last time we probed the condition.
+	LastProbeTime *metav1.Time `json:"lastProbeTime,omitempty"`
+	// Last time the condition transitioned from one status to another.
+	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty"`
+	// Unique, one-word, CamelCase reason for the condition's last transition.
+	Reason string `json:"reason,omitempty"`
+	// Human-readable message indicating details about last transition.
+	Message string `json:"message,omitempty"`
+}
+
+// EtcdNodeConditionType represents a type of condition.
+//+kubebuilder:validation:Enum=Ready;Provisioned
+type EtcdNodeConditionType string
+
+const (
+	// EtcdNodeConditionTypeReady is a status respective to a node readiness.
+	EtcdNodeConditionTypeReady EtcdNodeConditionType = "Ready"
+	// EtcdNodeConditionTypeProvisioned is a status respective to a node provisioning.
+	EtcdNodeConditionTypeProvisioned EtcdNodeConditionType = "Provisioned"
 )
 
 //+kubebuilder:object:root=true

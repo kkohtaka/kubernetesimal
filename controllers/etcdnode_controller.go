@@ -25,7 +25,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -183,24 +182,13 @@ func (r *EtcdNodeReconciler) reconcileExternalResources(
 		status.VirtualMachineRef = vmiRef
 	}
 
-	if status.LastProvisionedTime.IsZero() {
+	if !isEtcdNodeProvisioned(ctx, status) {
 		if err := provisionEtcdMember(ctx, r.Client, en, spec, status); err != nil {
+			status = setEtcdNodeProvisionedWithMessage(ctx, status, false, err.Error())
 			return status, fmt.Errorf("unable to provision an etcd member: %w", err)
 		}
-		status.LastProvisionedTime = &metav1.Time{Time: time.Now()}
+		status = setEtcdNodeProvisionedWithMessage(ctx, status, true, "")
 		logger.Info("Provisioning an etcd member was completed.")
-	}
-
-	if probed, err := probeEtcdMember(ctx, r.Client, en, spec, status); err != nil {
-		return status, fmt.Errorf("unable to probe an etcd member: %w", err)
-	} else if !probed {
-		status.ProbedSinceTime = nil
-		return status, NewRequeueError("waiting for an etcd member ready").WithDelay(probeInterval)
-	} else {
-		logger.Info("Probing an etcd member was succeeded.")
-		if status.ProbedSinceTime.IsZero() {
-			status.ProbedSinceTime = &metav1.Time{Time: time.Now()}
-		}
 	}
 
 	return status, nil
@@ -216,12 +204,14 @@ func (r *EtcdNodeReconciler) updateStatus(
 	switch {
 	case !en.ObjectMeta.DeletionTimestamp.IsZero():
 		status.Phase = kubernetesimalv1alpha1.EtcdNodePhaseDeleting
-	case status.LastProvisionedTime.IsZero():
-		status.Phase = kubernetesimalv1alpha1.EtcdNodePhaseCreating
-	case status.ProbedSinceTime.IsZero():
+	case isEtcdNodeReady(ctx, status):
+		status.Phase = kubernetesimalv1alpha1.EtcdNodePhaseRunning
+	case isEtcdNodeReadyOnce(ctx, status):
+		status.Phase = kubernetesimalv1alpha1.EtcdNodePhaseError
+	case isEtcdNodeProvisioned(ctx, status):
 		status.Phase = kubernetesimalv1alpha1.EtcdNodePhaseProvisioned
 	default:
-		status.Phase = kubernetesimalv1alpha1.EtcdNodePhaseRunning
+		status.Phase = kubernetesimalv1alpha1.EtcdNodePhaseCreating
 	}
 
 	if !apiequality.Semantic.DeepEqual(status, en.Status) {

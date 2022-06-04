@@ -190,10 +190,6 @@ func (r *EtcdReconciler) finalizeExternalResources(
 	return status, nil
 }
 
-const (
-	probeInterval = 5 * time.Second
-)
-
 func (r *EtcdReconciler) reconcileExternalResources(
 	ctx context.Context,
 	e metav1.Object,
