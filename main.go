@@ -143,6 +143,14 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "EtcdNode")
 		os.Exit(1)
 	}
+	if err = (&controllers.EtcdNodeProber{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		Tracer: provider.Tracer("etcdnode-prober"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create prober", "prober", "EtcdNode")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
