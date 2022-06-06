@@ -133,6 +133,13 @@ go_repository(
     version = "v4.0.0",
 )
 
+go_repository(
+    name = "com_github_go_task_slim_sprig",
+    importpath = "github.com/go-task/slim-sprig",
+    sum = "h1:p104kn46Q8WdvHunIJ9dAyjPVtrBPhSr3KT2yUst43I=",
+    version = "v0.0.0-20210107165309-348f09dbbbc0",
+)
+
 protobuf_deps()
 
 ############################################################
@@ -1687,8 +1694,8 @@ go_repository(
 go_repository(
     name = "com_github_nxadm_tail",
     importpath = "github.com/nxadm/tail",
-    sum = "h1:DQuhQpB1tVlglWS2hLQ5OV6B5r8aGxSrPc5Qo6uTN78=",
-    version = "v1.4.4",
+    sum = "h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=",
+    version = "v1.4.8",
 )
 
 go_repository(
@@ -1729,8 +1736,8 @@ go_repository(
 go_repository(
     name = "com_github_onsi_ginkgo",
     importpath = "github.com/onsi/ginkgo",
-    sum = "h1:jMU0WaQrP0a/YAEq8eJmJKjBoMs+pClEr1vDMlM/Do4=",
-    version = "v1.14.1",
+    sum = "h1:8xi0RTUf59SOSfEtZMvwTvXYMzG4gV23XVHOZiXNtnE=",
+    version = "v1.16.5",
 )
 
 go_repository(
@@ -2159,8 +2166,8 @@ go_repository(
 go_repository(
     name = "com_github_stretchr_testify",
     importpath = "github.com/stretchr/testify",
-    sum = "h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5CcY=",
-    version = "v1.7.0",
+    sum = "h1:5TQK59W5E3v0r2duFAb7P95B6hEeOyEnHRa8MjYSMTY=",
+    version = "v1.7.1",
 )
 
 go_repository(
@@ -2653,8 +2660,8 @@ go_repository(
 go_repository(
     name = "io_k8s_utils",
     importpath = "k8s.io/utils",
-    sum = "h1:0T5IaWHO3sJTEmCP6mUlBvMukxPKUQWqiI/YuiBNMiQ=",
-    version = "v0.0.0-20210111153108-fddb29f9d009",
+    sum = "h1:HNSDgDCrr/6Ly3WEGKZftiE7IY19Vz2GdbOCyI4qqhc=",
+    version = "v0.0.0-20220210201930-3a6ce19ff2f9",
 )
 
 go_repository(

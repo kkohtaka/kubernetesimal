@@ -314,6 +314,11 @@ func (in *EtcdStatus) DeepCopyInto(out *EtcdStatus) {
 		*out = new(v1.LocalObjectReference)
 		**out = **in
 	}
+	if in.EndpointSliceRef != nil {
+		in, out := &in.EndpointSliceRef, &out.EndpointSliceRef
+		*out = new(v1.LocalObjectReference)
+		**out = **in
+	}
 	if in.ProbedSinceTime != nil {
 		in, out := &in.ProbedSinceTime, &out.ProbedSinceTime
 		*out = (*in).DeepCopy()

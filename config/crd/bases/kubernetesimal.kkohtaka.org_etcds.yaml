@@ -129,6 +129,15 @@ spec:
                 required:
                 - key
                 type: object
+              endpointSliceRef:
+                description: EndpointSliceRef is a reference to an EndpointSlice of
+                  an etcd cluster.
+                properties:
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      TODO: Add other useful fields. apiVersion, kind, uid?'
+                    type: string
+                type: object
               nodeRefs:
                 description: Nodes is a list of references of EtcdNodes that composes
                   the etcd cluster.
@@ -197,7 +206,7 @@ spec:
                 format: int32
                 type: integer
               serviceRef:
-                description: ServiceRef is a reference to a Service of an etcd node.
+                description: ServiceRef is a reference to a Service of an etcd cluster.
                 properties:
                   name:
                     description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names

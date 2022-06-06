@@ -25,6 +25,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//api/v1alpha1",
+        "//k8s/endpointslice",
         "//k8s/etcdnode",
         "//k8s/object",
         "//k8s/secret",
@@ -35,6 +36,7 @@ go_library(
         "//pki",
         "//ssh",
         "@io_k8s_api//core/v1:core",
+        "@io_k8s_api//discovery/v1beta1",
         "@io_k8s_apimachinery//pkg/api/equality",
         "@io_k8s_apimachinery//pkg/api/errors",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
@@ -53,6 +55,7 @@ go_library(
         "@io_k8s_sigs_controller_runtime//pkg/log",
         "@io_k8s_sigs_controller_runtime//pkg/source",
         "@io_k8s_utils//clock",
+        "@io_k8s_utils//pointer",
         "@io_kubevirt_api//core/v1:core",
         "@io_opentelemetry_go_otel_trace//:trace",
     ],
