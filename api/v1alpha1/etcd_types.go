@@ -52,8 +52,10 @@ type EtcdStatus struct {
 	SSHPrivateKeyRef *corev1.SecretKeySelector `json:"sshPrivateKeyRef,omitempty"`
 	// SSHPublicKeyRef is a reference to a Secret key that composes an SSH public key.
 	SSHPublicKeyRef *corev1.SecretKeySelector `json:"sshPublicKeyRef,omitempty"`
-	// ServiceRef is a reference to a Service of an etcd node.
+	// ServiceRef is a reference to a Service of an etcd cluster.
 	ServiceRef *corev1.LocalObjectReference `json:"serviceRef,omitempty"`
+	// EndpointSliceRef is a reference to an EndpointSlice of an etcd cluster.
+	EndpointSliceRef *corev1.LocalObjectReference `json:"endpointSliceRef,omitempty"`
 	// ProbedSinceTime is the timestamp when the controller probed an etcd node at the first time.
 	ProbedSinceTime *metav1.Time `json:"probedSinceTime,omitempty"`
 

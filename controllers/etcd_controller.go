@@ -58,6 +58,7 @@ type EtcdReconciler struct {
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds/finalizers,verbs=update
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcdnodes,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -261,6 +262,12 @@ func (r *EtcdReconciler) reconcileExternalResources(
 		return status, fmt.Errorf("unable to prepare a service: %w", err)
 	} else {
 		status.ServiceRef = serviceRef
+	}
+
+	if endpointSliceRef, err := reconcileEndpointSlice(ctx, r.Client, r.Scheme, e, spec, status); err != nil {
+		return status, fmt.Errorf("unable to prepare an endpoint slice: %w", err)
+	} else {
+		status.EndpointSliceRef = endpointSliceRef
 	}
 
 	if needSync := !r.Expectations.SatisfiedExpectations(keyFromObject(e)); needSync {
