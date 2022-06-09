@@ -6,6 +6,7 @@ go_library(
         "errors.go",
         "etcd.go",
         "etcd_controller.go",
+        "etcd_prober.go",
         "etcdnode.go",
         "etcdnode_controller.go",
         "etcdnode_prober.go",
