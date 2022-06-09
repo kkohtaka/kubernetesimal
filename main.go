@@ -131,6 +131,14 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Etcd")
 		os.Exit(1)
 	}
+	if err = (&controllers.EtcdProber{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		Tracer: provider.Tracer("etcd-prober"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create prober", "prober", "Etcd")
+		os.Exit(1)
+	}
 	if err = (&kubernetesimalv1alpha1.Etcd{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Etcd")
 		os.Exit(1)

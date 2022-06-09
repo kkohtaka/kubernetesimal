@@ -129,6 +129,44 @@ spec:
                 required:
                 - key
                 type: object
+              conditions:
+                description: Conditions is a list of statuses respected to certain
+                  conditions.
+                items:
+                  description: EtcdCondition defines a status respected to a certain
+                    condition.
+                  properties:
+                    lastProbeTime:
+                      description: Last time we probed the condition.
+                      format: date-time
+                      type: string
+                    lastTransitionTime:
+                      description: Last time the condition transitioned from one status
+                        to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: Human-readable message indicating details about
+                        last transition.
+                      type: string
+                    reason:
+                      description: Unique, one-word, CamelCase reason for the condition's
+                        last transition.
+                      type: string
+                    status:
+                      description: Status is the status of the condition.
+                      type: string
+                    type:
+                      description: Type is the type of the condition.
+                      enum:
+                      - Ready
+                      - Provisioned
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
               endpointSliceRef:
                 description: EndpointSliceRef is a reference to an EndpointSlice of
                   an etcd cluster.
@@ -194,11 +232,7 @@ spec:
                 - Creating
                 - Running
                 - Deleting
-                type: string
-              probedSinceTime:
-                description: ProbedSinceTime is the timestamp when the controller
-                  probed an etcd node at the first time.
-                format: date-time
+                - Error
                 type: string
               replicas:
                 default: 0

@@ -56,19 +56,19 @@ type EtcdStatus struct {
 	ServiceRef *corev1.LocalObjectReference `json:"serviceRef,omitempty"`
 	// EndpointSliceRef is a reference to an EndpointSlice of an etcd cluster.
 	EndpointSliceRef *corev1.LocalObjectReference `json:"endpointSliceRef,omitempty"`
-	// ProbedSinceTime is the timestamp when the controller probed an etcd node at the first time.
-	ProbedSinceTime *metav1.Time `json:"probedSinceTime,omitempty"`
-
 	// Nodes is a list of references of EtcdNodes that composes the etcd cluster.
 	NodeRefs []*corev1.LocalObjectReference `json:"nodeRefs,omitempty"`
 
 	// Replicas is the current number of etcd replicas.
 	//+kubebuilder:default=0
 	Replicas int32 `json:"replicas,omitempty"`
+
+	// Conditions is a list of statuses respected to certain conditions.
+	Conditions []EtcdCondition `json:"conditions,omitempty"`
 }
 
 // EtcdPhase is a label for the phase of the etcd cluster at the current time.
-//+kubebuilder:validation:Enum=Creating;Running;Deleting
+//+kubebuilder:validation:Enum=Creating;Running;Deleting;Error
 type EtcdPhase string
 
 const (
@@ -76,8 +76,35 @@ const (
 	EtcdPhaseCreating EtcdPhase = "Creating"
 	// EtcdPhaseRunning means the etcd cluster is running.
 	EtcdPhaseRunning EtcdPhase = "Running"
-	// EtcdPhaseDeleting means the etcd cluster is running.
+	// EtcdPhaseDeleting means the etcd cluster is being deleted.
 	EtcdPhaseDeleting EtcdPhase = "Deleting"
+	// EtcdPhaseError means the etcd cluster is in error state.
+	EtcdPhaseError EtcdPhase = "Error"
+)
+
+// EtcdCondition defines a status respected to a certain condition.
+type EtcdCondition struct {
+	// Type is the type of the condition.
+	Type EtcdConditionType `json:"type"`
+	// Status is the status of the condition.
+	Status corev1.ConditionStatus `json:"status"`
+	// Last time we probed the condition.
+	LastProbeTime *metav1.Time `json:"lastProbeTime,omitempty"`
+	// Last time the condition transitioned from one status to another.
+	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty"`
+	// Unique, one-word, CamelCase reason for the condition's last transition.
+	Reason string `json:"reason,omitempty"`
+	// Human-readable message indicating details about last transition.
+	Message string `json:"message,omitempty"`
+}
+
+// EtcdConditionType represents a type of condition.
+//+kubebuilder:validation:Enum=Ready;Provisioned
+type EtcdConditionType string
+
+const (
+	// EtcdConditionTypeReady is a status respective to a cluster readiness.
+	EtcdConditionTypeReady EtcdConditionType = "Ready"
 )
 
 //+kubebuilder:object:root=true

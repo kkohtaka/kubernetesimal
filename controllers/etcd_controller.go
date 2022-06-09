@@ -23,6 +23,7 @@ import (
 
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -339,13 +340,20 @@ func (r *EtcdReconciler) updateStatus(
 ) error {
 	logger := log.FromContext(ctx)
 
-	switch {
-	case !e.ObjectMeta.DeletionTimestamp.IsZero():
+	if !e.ObjectMeta.DeletionTimestamp.IsZero() {
 		status.Phase = kubernetesimalv1alpha1.EtcdPhaseDeleting
-	case status.Replicas != *e.Spec.Replicas:
-		status.Phase = kubernetesimalv1alpha1.EtcdPhaseCreating
-	default:
-		status.Phase = kubernetesimalv1alpha1.EtcdPhaseRunning
+	} else if status.Replicas != *e.Spec.Replicas {
+		if isEtcdReadyOnce(ctx, status) && !isEtcdReady(ctx, status) {
+			status.Phase = kubernetesimalv1alpha1.EtcdPhaseError
+		} else {
+			status.Phase = kubernetesimalv1alpha1.EtcdPhaseCreating
+		}
+	} else {
+		if isEtcdReady(ctx, status) {
+			status.Phase = kubernetesimalv1alpha1.EtcdPhaseRunning
+		} else {
+			status.Phase = kubernetesimalv1alpha1.EtcdPhaseError
+		}
 	}
 
 	if !apiequality.Semantic.DeepEqual(status, e.Status) {
@@ -368,6 +376,7 @@ func (r *EtcdReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&kubernetesimalv1alpha1.Etcd{}).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.Service{}).
+		Owns(&discoveryv1beta1.EndpointSlice{}).
 		Owns(&kubernetesimalv1alpha1.EtcdNode{}).
 		Watches(&source.Kind{Type: &kubernetesimalv1alpha1.EtcdNode{}}, &handler.Funcs{
 			CreateFunc: func(ce event.CreateEvent, rli workqueue.RateLimitingInterface) {
