@@ -18,7 +18,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: helm/kind-action@v1.2.0
+      - uses: helm/kind-action@v1.3.0
       - uses: actions/setup-go@v3
         with:
           go-version-file: go.mod
