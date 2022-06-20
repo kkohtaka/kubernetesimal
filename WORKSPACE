@@ -312,8 +312,8 @@ go_repository(
 go_repository(
     name = "com_github_onsi_ginkgo_v2",
     importpath = "github.com/onsi/ginkgo/v2",
-    sum = "h1:CcuG/HvWNkkaqCUpJifQY8z7qEMBJya6aLPx6ftGyjQ=",
-    version = "v2.0.0",
+    sum = "h1:e/3Cwtogj0HA+25nMP1jCMDIf8RtRYbGwGGuBIFztkc=",
+    version = "v2.1.3",
 )
 
 go_repository(
@@ -2059,8 +2059,8 @@ go_repository(
 go_repository(
     name = "com_github_onsi_gomega",
     importpath = "github.com/onsi/gomega",
-    sum = "h1:M1GfJqGRrBrrGGsbxzV5dqM2U2ApXefZCQpkukxYRLE=",
-    version = "v1.18.1",
+    sum = "h1:4ieX6qQjPP/BfC3mpsAtIGGlxTWPeA3Inl/7DtXw1tw=",
+    version = "v1.19.0",
 )
 
 go_repository(
