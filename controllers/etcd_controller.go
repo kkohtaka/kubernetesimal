@@ -373,6 +373,7 @@ func (r *EtcdReconciler) updateStatus(
 // SetupWithManager sets up the controller with the Manager.
 func (r *EtcdReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		Named("etcd-reconciler").
 		For(&kubernetesimalv1alpha1.Etcd{}).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.Service{}).
