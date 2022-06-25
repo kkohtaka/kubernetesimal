@@ -134,6 +134,7 @@ func (r *EtcdNodeProber) updateStatus(
 // SetupWithManager sets up the controller with the Manager.
 func (r *EtcdNodeProber) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		Named("etcdnode-prober").
 		For(&kubernetesimalv1alpha1.EtcdNode{}).
 		Complete(r)
 }
