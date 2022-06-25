@@ -2819,38 +2819,38 @@ go_repository(
     name = "io_k8s_api",
     build_file_proto_mode = "disable",
     importpath = "k8s.io/api",
-    sum = "h1:BjCMRDcyEYz03joa3K1+rbshwh1Ay6oB53+iUx2H8UY=",
-    version = "v0.24.1",
+    sum = "h1:g518dPU/L7VRLxWfcadQn2OnsiGWVOadTLpdnqgY2OI=",
+    version = "v0.24.2",
 )
 
 go_repository(
     name = "io_k8s_apiextensions_apiserver",
     build_file_proto_mode = "disable",
     importpath = "k8s.io/apiextensions-apiserver",
-    sum = "h1:5yBh9+ueTq/kfnHQZa0MAo6uNcPrtxPMpNQgorBaKS0=",
-    version = "v0.24.1",
+    sum = "h1:/4NEQHKlEz1MlaK/wHT5KMKC9UKYz6NZz6JE6ov4G6k=",
+    version = "v0.24.2",
 )
 
 go_repository(
     name = "io_k8s_apimachinery",
     build_file_proto_mode = "disable",
     importpath = "k8s.io/apimachinery",
-    sum = "h1:ShD4aDxTQKN5zNf8K1RQ2u98ELLdIW7jEnlO9uAMX/I=",
-    version = "v0.24.1",
+    sum = "h1:5QlH9SL2C8KMcrNJPor+LbXVTaZRReml7svPEh4OKDM=",
+    version = "v0.24.2",
 )
 
 go_repository(
     name = "io_k8s_apiserver",
     importpath = "k8s.io/apiserver",
-    sum = "h1:LAA5UpPOeaREEtFAQRUQOI3eE5So/j5J3zeQJjeLdz4=",
-    version = "v0.24.1",
+    sum = "h1:orxipm5elPJSkkFNlwH9ClqaKEDJJA3yR2cAAlCnyj4=",
+    version = "v0.24.2",
 )
 
 go_repository(
     name = "io_k8s_client_go",
     importpath = "k8s.io/client-go",
-    sum = "h1:w1hNdI9PFrzu3OlovVeTnf4oHDt+FJLd9Ndluvnb42E=",
-    version = "v0.24.1",
+    sum = "h1:CoXFSf8if+bLEbinDqN9ePIDGzcLtqhfd6jpfnwGOFA=",
+    version = "v0.24.2",
 )
 
 go_repository(
@@ -2864,15 +2864,15 @@ go_repository(
 go_repository(
     name = "io_k8s_code_generator",
     importpath = "k8s.io/code-generator",
-    sum = "h1:zS+dvmUNaOcvsQ4faV9hXNjsKG9/pQaLnts1Wma4RM8=",
-    version = "v0.24.1",
+    sum = "h1:EGeRWzJrpwi6T6CvoNl0spM6fnAnOdCr0rz7H4NU1rk=",
+    version = "v0.24.2",
 )
 
 go_repository(
     name = "io_k8s_component_base",
     importpath = "k8s.io/component-base",
-    sum = "h1:APv6W/YmfOWZfo+XJ1mZwep/f7g7Tpwvdbo9CQLDuts=",
-    version = "v0.24.1",
+    sum = "h1:kwpQdoSfbcH+8MPN4tALtajLDfSfYxBDYlXobNWI6OU=",
+    version = "v0.24.2",
 )
 
 go_repository(
@@ -2927,8 +2927,8 @@ go_repository(
 go_repository(
     name = "io_k8s_sigs_controller_runtime",
     importpath = "sigs.k8s.io/controller-runtime",
-    sum = "h1:4BJY01xe9zKQti8oRjj/NeHKRXthf1YkYJAgLONFFoI=",
-    version = "v0.12.1",
+    sum = "h1:nqV02cvhbAj7tbt21bpPpTByrXGn2INHRsi39lXy9sE=",
+    version = "v0.12.2",
 )
 
 go_repository(
