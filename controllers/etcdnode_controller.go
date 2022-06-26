@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
+	"github.com/kkohtaka/kubernetesimal/controller/errors"
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
 )
 
@@ -73,8 +74,8 @@ func (r *EtcdNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		logger.Error(statusUpdateErr, "unable to update a status of an object")
 	}
 	if err != nil {
-		if ShouldRequeue(err) {
-			delay := GetDelay(err)
+		if errors.ShouldRequeue(err) {
+			delay := errors.GetDelay(err)
 			logger.Info(
 				"Reconciliation will be requeued.",
 				"reason", err,
@@ -106,7 +107,7 @@ func (r *EtcdNodeReconciler) doReconcile(
 				}
 				return status, fmt.Errorf("unable to set finalizer: %w", err)
 			}
-			return status, NewRequeueError("finalizer was set").WithDelay(time.Second)
+			return status, errors.NewRequeueError("finalizer was set").WithDelay(time.Second)
 		}
 	} else {
 		if controllerutil.ContainsFinalizer(en, finalizerName) {
@@ -122,7 +123,7 @@ func (r *EtcdNodeReconciler) doReconcile(
 				}
 				return status, fmt.Errorf("unable to unset finalizer: %w", err)
 			}
-			return status, NewRequeueError("finalizer was unset").WithDelay(time.Second)
+			return status, errors.NewRequeueError("finalizer was unset").WithDelay(time.Second)
 		}
 		return status, nil
 	}

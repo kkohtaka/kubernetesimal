@@ -20,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
+	"github.com/kkohtaka/kubernetesimal/controller/errors"
 	k8s_object "github.com/kkohtaka/kubernetesimal/k8s/object"
 	k8s_secret "github.com/kkohtaka/kubernetesimal/k8s/secret"
 	k8s_vmi "github.com/kkohtaka/kubernetesimal/k8s/vmi"
@@ -69,7 +70,7 @@ func reconcileUserData(
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, NewRequeueError("waiting for an SSH public key prepared").Wrap(err)
+			return nil, errors.NewRequeueError("waiting for an SSH public key prepared").Wrap(err)
 		}
 		return nil, fmt.Errorf("unable to get an SSH public key: %w", err)
 	}
@@ -82,7 +83,7 @@ func reconcileUserData(
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, NewRequeueError("waiting for a CA certificate prepared").Wrap(err)
+			return nil, errors.NewRequeueError("waiting for a CA certificate prepared").Wrap(err)
 		}
 		return nil, fmt.Errorf("unable to get a CA certificate: %w", err)
 	}
@@ -95,7 +96,7 @@ func reconcileUserData(
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, NewRequeueError("waiting for a CA private key prepared").Wrap(err)
+			return nil, errors.NewRequeueError("waiting for a CA private key prepared").Wrap(err)
 		}
 		return nil, fmt.Errorf("unable to get a CA private key: %w", err)
 	}
@@ -110,12 +111,12 @@ func reconcileUserData(
 		&service,
 	); err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, NewRequeueError("waiting for the etcd Service prepared").Wrap(err)
+			return nil, errors.NewRequeueError("waiting for the etcd Service prepared").Wrap(err)
 		}
 		return nil, fmt.Errorf("unable to get a service %s/%s: %w", en.Namespace, spec.ServiceRef.Name, err)
 	}
 	if service.Spec.ClusterIP == "" {
-		return nil, NewRequeueError("waiting for a cluster IP of the etcd Service prepared")
+		return nil, errors.NewRequeueError("waiting for a cluster IP of the etcd Service prepared")
 	}
 
 	var peerService corev1.Service
@@ -128,12 +129,12 @@ func reconcileUserData(
 		&peerService,
 	); err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, NewRequeueError("waiting for the etcd peer Service prepared").Wrap(err)
+			return nil, errors.NewRequeueError("waiting for the etcd peer Service prepared").Wrap(err)
 		}
 		return nil, fmt.Errorf("unable to get a peer service %s/%s: %w", en.Namespace, status.PeerServiceRef.Name, err)
 	}
 	if peerService.Spec.ClusterIP == "" {
-		return nil, NewRequeueError("waiting for a cluster IP of the etcd peer Service prepared")
+		return nil, errors.NewRequeueError("waiting for a cluster IP of the etcd peer Service prepared")
 	}
 
 	startEtcdScriptBuf := bytes.Buffer{}
