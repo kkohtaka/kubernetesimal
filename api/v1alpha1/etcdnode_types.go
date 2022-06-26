@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -130,4 +132,94 @@ type EtcdNodeList struct {
 
 func init() {
 	SchemeBuilder.Register(&EtcdNode{}, &EtcdNodeList{})
+}
+
+func (status *EtcdNodeStatus) IsProvisioned() bool {
+	for i := range status.Conditions {
+		if status.Conditions[i].Type == EtcdNodeConditionTypeProvisioned {
+			return !status.Conditions[i].LastProbeTime.IsZero()
+		}
+	}
+	return false
+}
+
+func (status *EtcdNodeStatus) IsReady() bool {
+	for i := range status.Conditions {
+		if status.Conditions[i].Type == EtcdNodeConditionTypeReady {
+			return status.Conditions[i].Status == corev1.ConditionTrue
+		}
+	}
+	return false
+}
+
+func (status *EtcdNodeStatus) IsReadyOnce() bool {
+	for i := range status.Conditions {
+		if status.Conditions[i].Type == EtcdNodeConditionTypeReady {
+			return !status.Conditions[i].LastProbeTime.IsZero()
+		}
+	}
+	return false
+}
+
+func (status *EtcdNodeStatus) WithReady(
+	ready bool,
+	message string,
+) *EtcdNodeStatus {
+	return status.WithStatusCondition(
+		EtcdNodeConditionTypeReady,
+		ready,
+		message,
+	)
+}
+
+func (status *EtcdNodeStatus) WithProvisioned(
+	provisioned bool,
+	message string,
+) *EtcdNodeStatus {
+	return status.WithStatusCondition(
+		EtcdNodeConditionTypeProvisioned,
+		provisioned,
+		message,
+	)
+}
+
+func (status *EtcdNodeStatus) WithStatusCondition(
+	conditionType EtcdNodeConditionType,
+	ready bool,
+	message string,
+) *EtcdNodeStatus {
+	newStatus := status.DeepCopy()
+	now := metav1.NewTime(time.Now())
+	condStatus := corev1.ConditionFalse
+	if ready {
+		condStatus = corev1.ConditionTrue
+	}
+	for i := range newStatus.Conditions {
+		if newStatus.Conditions[i].Type == conditionType {
+			if newStatus.Conditions[i].Status != condStatus {
+				newStatus.Conditions[i].LastTransitionTime = &now
+			}
+			if ready {
+				newStatus.Conditions[i].LastProbeTime = &now
+			}
+			newStatus.Conditions[i].Status = condStatus
+			newStatus.Conditions[i].Message = message
+			return newStatus
+		}
+	}
+	var lastProbeTime *metav1.Time
+	if ready {
+		lastProbeTime = &now
+	}
+	newStatus.Conditions = append(
+		newStatus.Conditions,
+		EtcdNodeCondition{
+			Type:               conditionType,
+			Status:             condStatus,
+			LastProbeTime:      lastProbeTime,
+			LastTransitionTime: &now,
+			Message:            message,
+		},
+	)
+	return newStatus
 }

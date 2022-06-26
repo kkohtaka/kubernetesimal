@@ -92,12 +92,12 @@ func (r *EtcdNodeProber) doReconcile(
 		return status, nil
 	}
 
-	if !isEtcdNodeProvisioned(ctx, status) {
+	if !status.IsProvisioned() {
 		return status, nil
 	}
 
 	if probed, err := probeEtcdMember(ctx, r.Client, en, spec, status); err != nil {
-		status = setEtcdNodeReadyWithMessage(ctx, status, false, err.Error())
+		status.WithReady(false, err.Error()).DeepCopyInto(&status)
 		return status, fmt.Errorf("unable to probe an etcd member: %w", err)
 	} else {
 		if probed {
@@ -105,7 +105,7 @@ func (r *EtcdNodeProber) doReconcile(
 		} else {
 			logger.Info("Probing an etcd member was failed.")
 		}
-		status = setEtcdNodeReadyWithMessage(ctx, status, probed, "")
+		status.WithReady(probed, "").DeepCopyInto(&status)
 	}
 	return status, nil
 }

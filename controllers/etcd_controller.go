@@ -343,13 +343,13 @@ func (r *EtcdReconciler) updateStatus(
 	if !e.ObjectMeta.DeletionTimestamp.IsZero() {
 		status.Phase = kubernetesimalv1alpha1.EtcdPhaseDeleting
 	} else if status.Replicas != *e.Spec.Replicas {
-		if isEtcdReadyOnce(ctx, status) && !isEtcdReady(ctx, status) {
+		if status.IsReadyOnce() && !status.IsReady() {
 			status.Phase = kubernetesimalv1alpha1.EtcdPhaseError
 		} else {
 			status.Phase = kubernetesimalv1alpha1.EtcdPhaseCreating
 		}
 	} else {
-		if isEtcdReady(ctx, status) {
+		if status.IsReady() {
 			status.Phase = kubernetesimalv1alpha1.EtcdPhaseRunning
 		} else {
 			status.Phase = kubernetesimalv1alpha1.EtcdPhaseError

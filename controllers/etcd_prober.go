@@ -88,7 +88,7 @@ func (r *EtcdProber) doReconcile(
 	}
 
 	if probed, err := probeEtcd(ctx, r.Client, e, spec, status); err != nil {
-		status = setEtcdReadyWithMessage(ctx, status, false, err.Error())
+		status.WithReady(false, err.Error()).DeepCopyInto(&status)
 		return status, fmt.Errorf("unable to probe an etcd: %w", err)
 	} else {
 		if probed {
@@ -96,7 +96,7 @@ func (r *EtcdProber) doReconcile(
 		} else {
 			logger.V(4).Info("Probing an etcd was failed.")
 		}
-		status = setEtcdReadyWithMessage(ctx, status, probed, "")
+		status.WithReady(probed, "").DeepCopyInto(&status)
 	}
 	return status, nil
 }
