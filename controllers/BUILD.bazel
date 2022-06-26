@@ -14,7 +14,6 @@ go_library(
         "finalizer.go",
         "pki.go",
         "ssh.go",
-        "status.go",
         "util.go",
         "vm.go",
     ],

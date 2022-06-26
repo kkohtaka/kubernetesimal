@@ -172,7 +172,7 @@ func reconcileEndpointSlice(
 		}
 
 		var (
-			serving     = isEtcdNodeReady(ctx, node.Status)
+			serving     = node.Status.IsReady()
 			terminating = !node.DeletionTimestamp.IsZero() || !peerService.DeletionTimestamp.IsZero()
 			ready       = serving && !terminating
 		)

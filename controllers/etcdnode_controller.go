@@ -182,12 +182,12 @@ func (r *EtcdNodeReconciler) reconcileExternalResources(
 		status.VirtualMachineRef = vmiRef
 	}
 
-	if !isEtcdNodeProvisioned(ctx, status) {
+	if !status.IsProvisioned() {
 		if err := provisionEtcdMember(ctx, r.Client, en, spec, status); err != nil {
-			status = setEtcdNodeProvisionedWithMessage(ctx, status, false, err.Error())
+			status.WithProvisioned(false, err.Error()).DeepCopyInto(&status)
 			return status, fmt.Errorf("unable to provision an etcd member: %w", err)
 		}
-		status = setEtcdNodeProvisionedWithMessage(ctx, status, true, "")
+		status.WithProvisioned(true, "").DeepCopyInto(&status)
 		logger.Info("Provisioning an etcd member was completed.")
 	}
 
@@ -204,11 +204,11 @@ func (r *EtcdNodeReconciler) updateStatus(
 	switch {
 	case !en.ObjectMeta.DeletionTimestamp.IsZero():
 		status.Phase = kubernetesimalv1alpha1.EtcdNodePhaseDeleting
-	case isEtcdNodeReady(ctx, status):
+	case status.IsReady():
 		status.Phase = kubernetesimalv1alpha1.EtcdNodePhaseRunning
-	case isEtcdNodeReadyOnce(ctx, status):
+	case status.IsReadyOnce():
 		status.Phase = kubernetesimalv1alpha1.EtcdNodePhaseError
-	case isEtcdNodeProvisioned(ctx, status):
+	case status.IsProvisioned():
 		status.Phase = kubernetesimalv1alpha1.EtcdNodePhaseProvisioned
 	default:
 		status.Phase = kubernetesimalv1alpha1.EtcdNodePhaseCreating

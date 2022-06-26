@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -134,4 +136,74 @@ type EtcdList struct {
 
 func init() {
 	SchemeBuilder.Register(&Etcd{}, &EtcdList{})
+}
+
+func (status *EtcdStatus) IsReady() bool {
+	for i := range status.Conditions {
+		if status.Conditions[i].Type == EtcdConditionTypeReady {
+			return status.Conditions[i].Status == corev1.ConditionTrue
+		}
+	}
+	return false
+}
+
+func (status *EtcdStatus) IsReadyOnce() bool {
+	for i := range status.Conditions {
+		if status.Conditions[i].Type == EtcdConditionTypeReady {
+			return !status.Conditions[i].LastProbeTime.IsZero()
+		}
+	}
+	return false
+}
+
+func (status *EtcdStatus) WithReady(
+	ready bool,
+	message string,
+) *EtcdStatus {
+	return status.WithStatusCondition(
+		EtcdConditionTypeReady,
+		ready,
+		message,
+	)
+}
+
+func (status *EtcdStatus) WithStatusCondition(
+	conditionType EtcdConditionType,
+	ready bool,
+	message string,
+) *EtcdStatus {
+	newStatus := status.DeepCopy()
+	now := metav1.NewTime(time.Now())
+	condStatus := corev1.ConditionFalse
+	if ready {
+		condStatus = corev1.ConditionTrue
+	}
+	for i := range newStatus.Conditions {
+		if newStatus.Conditions[i].Type == conditionType {
+			if newStatus.Conditions[i].Status != condStatus {
+				newStatus.Conditions[i].LastTransitionTime = &now
+			}
+			if ready {
+				newStatus.Conditions[i].LastProbeTime = &now
+			}
+			newStatus.Conditions[i].Status = condStatus
+			newStatus.Conditions[i].Message = message
+			return newStatus
+		}
+	}
+	var lastProbeTime *metav1.Time
+	if ready {
+		lastProbeTime = &now
+	}
+	newStatus.Conditions = append(
+		newStatus.Conditions,
+		EtcdCondition{
+			Type:               conditionType,
+			Status:             condStatus,
+			LastProbeTime:      lastProbeTime,
+			LastTransitionTime: &now,
+			Message:            message,
+		},
+	)
+	return newStatus
 }
