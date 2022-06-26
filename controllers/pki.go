@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
+	"github.com/kkohtaka/kubernetesimal/controller/errors"
 	k8s_object "github.com/kkohtaka/kubernetesimal/k8s/object"
 	k8s_secret "github.com/kkohtaka/kubernetesimal/k8s/secret"
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
@@ -182,7 +183,7 @@ func reconcileClientCertificate(
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, nil, NewRequeueError("waiting for a CA certificate prepared")
+			return nil, nil, errors.NewRequeueError("waiting for a CA certificate prepared")
 		}
 		return nil, nil, fmt.Errorf("unable to load a CA certificate from a Secret: %w", err)
 	}
@@ -195,7 +196,7 @@ func reconcileClientCertificate(
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, nil, NewRequeueError("waiting for a CA private key prepared")
+			return nil, nil, errors.NewRequeueError("waiting for a CA private key prepared")
 		}
 		return nil, nil, fmt.Errorf("unable to load a CA private key from a Secret: %w", err)
 	}
@@ -287,7 +288,7 @@ func reconcilePeerCertificate(
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, nil, NewRequeueError("waiting for a CA certificate prepared")
+			return nil, nil, errors.NewRequeueError("waiting for a CA certificate prepared")
 		}
 		return nil, nil, fmt.Errorf("unable to load a CA certificate from a Secret: %w", err)
 	}
@@ -300,7 +301,7 @@ func reconcilePeerCertificate(
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, nil, NewRequeueError("waiting for a CA private key prepared")
+			return nil, nil, errors.NewRequeueError("waiting for a CA private key prepared")
 		}
 		return nil, nil, fmt.Errorf("unable to load a CA private key from a Secret: %w", err)
 	}

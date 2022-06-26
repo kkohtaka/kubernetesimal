@@ -1,11 +1,11 @@
-package controllers_test
+package errors_test
 
 import (
 	"fmt"
 	"testing"
 	"time"
 
-	"github.com/kkohtaka/kubernetesimal/controllers"
+	"github.com/kkohtaka/kubernetesimal/controller/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,7 +17,7 @@ func TestShouldRequeue(t *testing.T) {
 	}{
 		{
 			name:   "a RequeueError",
-			target: controllers.NewRequeueError("a RequeueError"),
+			target: errors.NewRequeueError("a RequeueError"),
 			want:   true,
 		},
 		{
@@ -27,18 +27,18 @@ func TestShouldRequeue(t *testing.T) {
 		},
 		{
 			name:   "an error wrapping a RequeueError",
-			target: fmt.Errorf("not a RequeueError: %w", controllers.NewRequeueError("a RequeueError")),
+			target: fmt.Errorf("not a RequeueError: %w", errors.NewRequeueError("a RequeueError")),
 			want:   true,
 		},
 		{
 			name:   "a RequeueError wrapping an error",
-			target: controllers.NewRequeueError("a RequeueError").Wrap(fmt.Errorf("not a RequeueError")),
+			target: errors.NewRequeueError("a RequeueError").Wrap(fmt.Errorf("not a RequeueError")),
 			want:   true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, controllers.ShouldRequeue(tt.target))
+			assert.Equal(t, tt.want, errors.ShouldRequeue(tt.target))
 		})
 	}
 }
@@ -51,12 +51,12 @@ func TestGetDelay(t *testing.T) {
 	}{
 		{
 			name:   "a RequeueError",
-			target: controllers.NewRequeueError("a RequeueError"),
+			target: errors.NewRequeueError("a RequeueError"),
 			want:   0,
 		},
 		{
 			name:   "a RequeueError with a delay",
-			target: controllers.NewRequeueError("a RequeueError").WithDelay(5 * time.Second),
+			target: errors.NewRequeueError("a RequeueError").WithDelay(5 * time.Second),
 			want:   5 * time.Second,
 		},
 		{
@@ -67,13 +67,13 @@ func TestGetDelay(t *testing.T) {
 		{
 			name: "an error wrapping a RequeueError",
 			target: fmt.Errorf("not a RequeueError: %w",
-				controllers.NewRequeueError("a RequeueError").WithDelay(5*time.Second),
+				errors.NewRequeueError("a RequeueError").WithDelay(5*time.Second),
 			),
 			want: 5 * time.Second,
 		},
 		{
 			name: "a RequeueError wrapping an error",
-			target: controllers.NewRequeueError("a RequeueError").
+			target: errors.NewRequeueError("a RequeueError").
 				Wrap(fmt.Errorf("not a RequeueError")).
 				WithDelay(5 * time.Second),
 			want: 5 * time.Second,
@@ -81,7 +81,7 @@ func TestGetDelay(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, controllers.GetDelay(tt.target))
+			assert.Equal(t, tt.want, errors.GetDelay(tt.target))
 		})
 	}
 }

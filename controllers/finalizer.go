@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/kkohtaka/kubernetesimal/controller/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -67,5 +68,5 @@ func finalizeObject(
 		}
 		logger.Info("The object has started to be deleted.")
 	}
-	return NewRequeueError("waiting for an object deleted").WithDelay(5 * time.Second)
+	return errors.NewRequeueError("waiting for an object deleted").WithDelay(5 * time.Second)
 }

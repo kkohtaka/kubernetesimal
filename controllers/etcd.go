@@ -20,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
+	"github.com/kkohtaka/kubernetesimal/controller/errors"
 	k8s_endpointslice "github.com/kkohtaka/kubernetesimal/k8s/endpointslice"
 	k8s_object "github.com/kkohtaka/kubernetesimal/k8s/object"
 	k8s_secret "github.com/kkohtaka/kubernetesimal/k8s/secret"
@@ -108,7 +109,7 @@ func reconcileEndpointSlice(
 		&service,
 	); err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, NewRequeueError("waiting for the etcd Service prepared").Wrap(err)
+			return nil, errors.NewRequeueError("waiting for the etcd Service prepared").Wrap(err)
 		}
 		return nil, err
 	}
@@ -272,13 +273,13 @@ func provisionEtcdMember(
 		&vmi,
 	); err != nil {
 		if apierrors.IsNotFound(err) {
-			return NewRequeueError("waiting for a VirtualMachineInstance prepared").Wrap(err)
+			return errors.NewRequeueError("waiting for a VirtualMachineInstance prepared").Wrap(err)
 		}
 		return fmt.Errorf(
 			"unable to get a VirtualMachineInstance %s/%s: %w", en.Namespace, status.VirtualMachineRef.Name, err)
 	}
 	if vmi.Status.Phase != kubevirtv1.Running {
-		return NewRequeueError("waiting for a VirtualMachineInstance become running")
+		return errors.NewRequeueError("waiting for a VirtualMachineInstance become running")
 	}
 
 	privateKey, err := k8s_secret.GetValueFromSecretKeySelector(
@@ -289,7 +290,7 @@ func provisionEtcdMember(
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return NewRequeueError("waiting for an SSH private key prepared").Wrap(err)
+			return errors.NewRequeueError("waiting for an SSH private key prepared").Wrap(err)
 		}
 		return err
 	}
@@ -304,12 +305,12 @@ func provisionEtcdMember(
 		&peerService,
 	); err != nil {
 		if apierrors.IsNotFound(err) {
-			return NewRequeueError("waiting for the etcd Service prepared").Wrap(err)
+			return errors.NewRequeueError("waiting for the etcd Service prepared").Wrap(err)
 		}
 		return err
 	}
 	if peerService.Spec.ClusterIP == "" {
-		return NewRequeueError("waiting for a cluster IP of the etcd Service prepared").
+		return errors.NewRequeueError("waiting for a cluster IP of the etcd Service prepared").
 			Wrap(err).
 			WithDelay(5 * time.Second)
 	}
@@ -321,12 +322,12 @@ func provisionEtcdMember(
 		}
 	}
 	if port == 0 {
-		return NewRequeueError("waiting for an SSH port of the etcd peer Service prepared").Wrap(err)
+		return errors.NewRequeueError("waiting for an SSH port of the etcd peer Service prepared").Wrap(err)
 	}
 
 	client, closer, err := ssh.StartSSHConnection(ctx, privateKey, peerService.Spec.ClusterIP, int(port))
 	if err != nil {
-		return NewRequeueError("waiting for an SSH port of an etcd member prepared").
+		return errors.NewRequeueError("waiting for an SSH port of an etcd member prepared").
 			Wrap(err).
 			WithDelay(5 * time.Second)
 	}
@@ -365,7 +366,7 @@ func probeEtcdMember(
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Info("Skip probing an etcd since CA certificate isn't prepared yet.")
-			return false, NewRequeueError("waiting for a CA certificate prepared").Wrap(err)
+			return false, errors.NewRequeueError("waiting for a CA certificate prepared").Wrap(err)
 		}
 		return false, fmt.Errorf("unable to get a CA certificate: %w", err)
 	}
@@ -387,7 +388,7 @@ func probeEtcdMember(
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Info("Skip probing an etcd since a client certificate isn't prepared yet.")
-			return false, NewRequeueError("waiting for a client certificate prepared").Wrap(err)
+			return false, errors.NewRequeueError("waiting for a client certificate prepared").Wrap(err)
 		}
 		return false, fmt.Errorf("unable to get a client certificate: %w", err)
 	}
@@ -401,7 +402,7 @@ func probeEtcdMember(
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Info("Skip probing an etcd since a client private key isn't prepared yet.")
-			return false, NewRequeueError("waiting for a client private key prepared").Wrap(err)
+			return false, errors.NewRequeueError("waiting for a client private key prepared").Wrap(err)
 		}
 		return false, fmt.Errorf("unable to get a client private key: %w", err)
 	}
