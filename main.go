@@ -35,7 +35,8 @@ import (
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 	"github.com/kkohtaka/kubernetesimal/controller/expectations"
-	"github.com/kkohtaka/kubernetesimal/controllers"
+	"github.com/kkohtaka/kubernetesimal/controllers/etcd"
+	"github.com/kkohtaka/kubernetesimal/controllers/etcdnode"
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
 	//+kubebuilder:scaffold:imports
 )
@@ -121,7 +122,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.EtcdReconciler{
+	if err = (&etcd.Reconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Tracer: provider.Tracer("etcd-controller"),
@@ -132,7 +133,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Etcd")
 		os.Exit(1)
 	}
-	if err = (&controllers.EtcdProber{
+	if err = (&etcd.Prober{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Tracer: provider.Tracer("etcd-prober"),
@@ -144,7 +145,7 @@ func main() {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Etcd")
 		os.Exit(1)
 	}
-	if err = (&controllers.EtcdNodeReconciler{
+	if err = (&etcdnode.Reconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Tracer: provider.Tracer("etcdnode-controller"),
@@ -152,7 +153,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "EtcdNode")
 		os.Exit(1)
 	}
-	if err = (&controllers.EtcdNodeProber{
+	if err = (&etcdnode.Prober{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Tracer: provider.Tracer("etcdnode-prober"),

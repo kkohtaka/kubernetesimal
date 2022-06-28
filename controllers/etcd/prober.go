@@ -14,11 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package etcd
 
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"go.opentelemetry.io/otel/trace"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -32,8 +33,12 @@ import (
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
 )
 
-// EtcdProber reconciles a EtcdNode object
-type EtcdProber struct {
+const (
+	probeInterval = 5 * time.Second
+)
+
+// Prober reconciles a EtcdNode object
+type Prober struct {
 	client.Client
 	Scheme *runtime.Scheme
 
@@ -47,7 +52,7 @@ type EtcdProber struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-func (r *EtcdProber) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *Prober) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx).WithValues("etcdnode", req.NamespacedName)
 	ctx = log.IntoContext(ctx, logger)
 	var span trace.Span
@@ -73,7 +78,7 @@ func (r *EtcdProber) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return ctrl.Result{RequeueAfter: probeInterval}, nil
 }
 
-func (r *EtcdProber) doReconcile(
+func (r *Prober) doReconcile(
 	ctx context.Context,
 	e *kubernetesimalv1alpha1.Etcd,
 	spec kubernetesimalv1alpha1.EtcdSpec,
@@ -101,7 +106,7 @@ func (r *EtcdProber) doReconcile(
 	return status, nil
 }
 
-func (r *EtcdProber) updateStatus(
+func (r *Prober) updateStatus(
 	ctx context.Context,
 	e *kubernetesimalv1alpha1.Etcd,
 	status kubernetesimalv1alpha1.EtcdStatus,
@@ -123,7 +128,7 @@ func (r *EtcdProber) updateStatus(
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *EtcdProber) SetupWithManager(mgr ctrl.Manager) error {
+func (r *Prober) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("etcd-prober").
 		For(&kubernetesimalv1alpha1.Etcd{}).

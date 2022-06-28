@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package etcd
 
 import (
 	"context"
@@ -46,8 +46,8 @@ import (
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
 )
 
-// EtcdReconciler reconciles a Etcd object
-type EtcdReconciler struct {
+// Reconciler reconciles a Etcd object
+type Reconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
@@ -66,7 +66,7 @@ type EtcdReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx).WithValues("etcd", req.NamespacedName)
 	ctx = log.IntoContext(ctx, logger)
 
@@ -106,7 +106,7 @@ func (r *EtcdReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	return ctrl.Result{}, nil
 }
 
-func (r *EtcdReconciler) doReconcile(
+func (r *Reconciler) doReconcile(
 	ctx context.Context,
 	e *kubernetesimalv1alpha1.Etcd,
 	spec kubernetesimalv1alpha1.EtcdSpec,
@@ -152,7 +152,7 @@ func (r *EtcdReconciler) doReconcile(
 	return status, nil
 }
 
-func (r *EtcdReconciler) finalizeExternalResources(
+func (r *Reconciler) finalizeExternalResources(
 	ctx context.Context,
 	e metav1.Object,
 	status kubernetesimalv1alpha1.EtcdStatus,
@@ -194,7 +194,7 @@ func (r *EtcdReconciler) finalizeExternalResources(
 	return status, nil
 }
 
-func (r *EtcdReconciler) reconcileExternalResources(
+func (r *Reconciler) reconcileExternalResources(
 	ctx context.Context,
 	e metav1.Object,
 	spec kubernetesimalv1alpha1.EtcdSpec,
@@ -273,7 +273,7 @@ func (r *EtcdReconciler) reconcileExternalResources(
 		status.EndpointSliceRef = endpointSliceRef
 	}
 
-	if needSync := !r.Expectations.SatisfiedExpectations(keyFromObject(e)); needSync {
+	if needSync := !r.Expectations.SatisfiedExpectations(expectations.KeyFromObject(e)); needSync {
 		return status, errors.NewRequeueError("expected creations or deletions are left")
 	}
 
@@ -304,7 +304,7 @@ func (r *EtcdReconciler) reconcileExternalResources(
 	}
 
 	if len(status.NodeRefs) < int(*spec.Replicas) {
-		if err := r.Expectations.ExpectCreations(keyFromObject(e), 1); err != nil {
+		if err := r.Expectations.ExpectCreations(expectations.KeyFromObject(e), 1); err != nil {
 			return status, fmt.Errorf("unable to update expectations: %w", err)
 		}
 		if node, err := k8s_etcdnode.CreateOnlyIfNotExist(
@@ -322,7 +322,7 @@ func (r *EtcdReconciler) reconcileExternalResources(
 			k8s_etcdnode.WithSSHPublicKeyRef(*status.SSHPublicKeyRef),
 			k8s_etcdnode.WithServiceRef(*status.ServiceRef),
 		); err != nil {
-			r.Expectations.CreationObserved(keyFromObject(e))
+			r.Expectations.CreationObserved(expectations.KeyFromObject(e))
 			return status, fmt.Errorf("unable to create EtcdNode: %w", err)
 		} else {
 			status.NodeRefs = append(status.NodeRefs, &corev1.LocalObjectReference{
@@ -335,7 +335,7 @@ func (r *EtcdReconciler) reconcileExternalResources(
 	return status, nil
 }
 
-func (r *EtcdReconciler) updateStatus(
+func (r *Reconciler) updateStatus(
 	ctx context.Context,
 	e *kubernetesimalv1alpha1.Etcd,
 	status kubernetesimalv1alpha1.EtcdStatus,
@@ -373,7 +373,7 @@ func (r *EtcdReconciler) updateStatus(
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *EtcdReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("etcd-reconciler").
 		For(&kubernetesimalv1alpha1.Etcd{}).
