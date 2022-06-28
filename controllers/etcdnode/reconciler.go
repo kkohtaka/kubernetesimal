@@ -69,7 +69,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, err
 	}
 
-	status, err := r.doReconcile(ctx, &en, en.Spec, en.Status)
+	status, err := r.doReconcile(ctx, &en, en.Spec.DeepCopy(), en.Status)
 	if statusUpdateErr := r.updateStatus(ctx, &en, status); statusUpdateErr != nil {
 		logger.Error(statusUpdateErr, "unable to update a status of an object")
 	}
@@ -93,7 +93,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (r *Reconciler) doReconcile(
 	ctx context.Context,
 	obj client.Object,
-	spec kubernetesimalv1alpha1.EtcdNodeSpec,
+	spec *kubernetesimalv1alpha1.EtcdNodeSpec,
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (kubernetesimalv1alpha1.EtcdNodeStatus, error) {
 	ctx, span := tracing.FromContext(ctx).Start(ctx, "doReconcile")
@@ -157,7 +157,7 @@ func (r *Reconciler) finalizeExternalResources(
 func (r *Reconciler) reconcileExternalResources(
 	ctx context.Context,
 	obj client.Object,
-	spec kubernetesimalv1alpha1.EtcdNodeSpec,
+	spec *kubernetesimalv1alpha1.EtcdNodeSpec,
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (kubernetesimalv1alpha1.EtcdNodeStatus, error) {
 	var span trace.Span

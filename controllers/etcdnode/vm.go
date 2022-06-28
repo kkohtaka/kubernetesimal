@@ -56,7 +56,7 @@ func reconcileUserData(
 	c client.Client,
 	scheme *runtime.Scheme,
 	obj client.Object,
-	spec kubernetesimalv1alpha1.EtcdNodeSpec,
+	spec *kubernetesimalv1alpha1.EtcdNodeSpec,
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (*corev1.LocalObjectReference, error) {
 	var span trace.Span
@@ -223,7 +223,7 @@ func reconcileVirtualMachineInstance(
 	c client.Client,
 	scheme *runtime.Scheme,
 	obj client.Object,
-	_ kubernetesimalv1alpha1.EtcdNodeSpec,
+	_ *kubernetesimalv1alpha1.EtcdNodeSpec,
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (*corev1.LocalObjectReference, error) {
 	var span trace.Span
