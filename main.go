@@ -34,6 +34,7 @@ import (
 	kubevirtv1 "kubevirt.io/api/core/v1"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
+	"github.com/kkohtaka/kubernetesimal/controller/expectations"
 	"github.com/kkohtaka/kubernetesimal/controllers"
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
 	//+kubebuilder:scaffold:imports
@@ -124,8 +125,8 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Tracer: provider.Tracer("etcd-controller"),
-		Expectations: controllers.NewUIDTrackingControllerExpectations(
-			controllers.NewControllerExpectations(),
+		Expectations: expectations.NewUIDTrackingControllerExpectations(
+			expectations.NewControllerExpectations(),
 		),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Etcd")

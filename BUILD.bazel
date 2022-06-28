@@ -12,6 +12,7 @@ go_library(
     visibility = ["//visibility:private"],
     deps = [
         "//api/v1alpha1",
+        "//controller/expectations",
         "//controllers",
         "//observability/tracing",
         "@io_k8s_apimachinery//pkg/runtime",
