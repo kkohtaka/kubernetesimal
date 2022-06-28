@@ -2,10 +2,15 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "expectations",
-    srcs = ["expectations.go"],
+    srcs = [
+        "expectations.go",
+        "util.go",
+    ],
     importpath = "github.com/kkohtaka/kubernetesimal/controller/expectations",
     visibility = ["//visibility:public"],
     deps = [
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_apimachinery//pkg/types",
         "@io_k8s_apimachinery//pkg/util/sets",
         "@io_k8s_client_go//tools/cache",
         "@io_k8s_klog_v2//:klog",

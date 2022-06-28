@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package etcdnode
 
 import (
 	"context"
@@ -37,8 +37,8 @@ import (
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
 )
 
-// EtcdNodeReconciler reconciles a EtcdNode object
-type EtcdNodeReconciler struct {
+// Reconciler reconciles a EtcdNode object
+type Reconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
@@ -54,7 +54,7 @@ type EtcdNodeReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-func (r *EtcdNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx).WithValues("etcdnode", req.NamespacedName)
 	ctx = log.IntoContext(ctx, logger)
 	var span trace.Span
@@ -90,7 +90,7 @@ func (r *EtcdNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	return ctrl.Result{}, nil
 }
 
-func (r *EtcdNodeReconciler) doReconcile(
+func (r *Reconciler) doReconcile(
 	ctx context.Context,
 	en *kubernetesimalv1alpha1.EtcdNode,
 	spec kubernetesimalv1alpha1.EtcdNodeSpec,
@@ -136,7 +136,7 @@ func (r *EtcdNodeReconciler) doReconcile(
 	return status, nil
 }
 
-func (r *EtcdNodeReconciler) finalizeExternalResources(
+func (r *Reconciler) finalizeExternalResources(
 	ctx context.Context,
 	en *kubernetesimalv1alpha1.EtcdNode,
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
@@ -154,7 +154,7 @@ func (r *EtcdNodeReconciler) finalizeExternalResources(
 	return status, nil
 }
 
-func (r *EtcdNodeReconciler) reconcileExternalResources(
+func (r *Reconciler) reconcileExternalResources(
 	ctx context.Context,
 	en *kubernetesimalv1alpha1.EtcdNode,
 	spec kubernetesimalv1alpha1.EtcdNodeSpec,
@@ -195,7 +195,7 @@ func (r *EtcdNodeReconciler) reconcileExternalResources(
 	return status, nil
 }
 
-func (r *EtcdNodeReconciler) updateStatus(
+func (r *Reconciler) updateStatus(
 	ctx context.Context,
 	en *kubernetesimalv1alpha1.EtcdNode,
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
@@ -230,7 +230,7 @@ func (r *EtcdNodeReconciler) updateStatus(
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *EtcdNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("etcdnode-reconciler").
 		For(&kubernetesimalv1alpha1.EtcdNode{}).

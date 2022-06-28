@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package etcdnode
 
 import (
 	"context"
@@ -37,8 +37,8 @@ const (
 	probeInterval = 5 * time.Second
 )
 
-// EtcdNodeProber reconciles a EtcdNode object
-type EtcdNodeProber struct {
+// Prober reconciles a EtcdNode object
+type Prober struct {
 	client.Client
 	Scheme *runtime.Scheme
 
@@ -52,7 +52,7 @@ type EtcdNodeProber struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-func (r *EtcdNodeProber) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *Prober) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx).WithValues("etcdnode", req.NamespacedName)
 	ctx = log.IntoContext(ctx, logger)
 	var span trace.Span
@@ -78,7 +78,7 @@ func (r *EtcdNodeProber) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	return ctrl.Result{RequeueAfter: probeInterval}, nil
 }
 
-func (r *EtcdNodeProber) doReconcile(
+func (r *Prober) doReconcile(
 	ctx context.Context,
 	en *kubernetesimalv1alpha1.EtcdNode,
 	spec kubernetesimalv1alpha1.EtcdNodeSpec,
@@ -110,7 +110,7 @@ func (r *EtcdNodeProber) doReconcile(
 	return status, nil
 }
 
-func (r *EtcdNodeProber) updateStatus(
+func (r *Prober) updateStatus(
 	ctx context.Context,
 	en *kubernetesimalv1alpha1.EtcdNode,
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
@@ -132,7 +132,7 @@ func (r *EtcdNodeProber) updateStatus(
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *EtcdNodeProber) SetupWithManager(mgr ctrl.Manager) error {
+func (r *Prober) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("etcdnode-prober").
 		For(&kubernetesimalv1alpha1.EtcdNode{}).
