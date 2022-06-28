@@ -33,7 +33,7 @@ func reconcileSSHKeyPair(
 	c client.Client,
 	scheme *runtime.Scheme,
 	obj client.Object,
-	_ kubernetesimalv1alpha1.EtcdSpec,
+	_ *kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
 	var span trace.Span

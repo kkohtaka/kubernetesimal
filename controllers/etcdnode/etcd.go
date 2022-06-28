@@ -28,7 +28,7 @@ func provisionEtcdMember(
 	ctx context.Context,
 	c client.Client,
 	obj client.Object,
-	spec kubernetesimalv1alpha1.EtcdNodeSpec,
+	spec *kubernetesimalv1alpha1.EtcdNodeSpec,
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) error {
 	var span trace.Span
@@ -116,7 +116,7 @@ func probeEtcdMember(
 	ctx context.Context,
 	c client.Client,
 	obj client.Object,
-	spec kubernetesimalv1alpha1.EtcdNodeSpec,
+	spec *kubernetesimalv1alpha1.EtcdNodeSpec,
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (bool, error) {
 	var span trace.Span

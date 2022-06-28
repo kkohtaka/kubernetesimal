@@ -22,7 +22,7 @@ func probeEtcd(
 	ctx context.Context,
 	c client.Client,
 	obj client.Object,
-	spec kubernetesimalv1alpha1.EtcdSpec,
+	_ *kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (bool, error) {
 	var span trace.Span

@@ -67,7 +67,7 @@ func (r *Prober) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, 
 		return ctrl.Result{}, err
 	}
 
-	status, err := r.doReconcile(ctx, &e, e.Spec, e.Status)
+	status, err := r.doReconcile(ctx, &e, e.Spec.DeepCopy(), e.Status)
 	if statusUpdateErr := r.updateStatus(ctx, &e, status); statusUpdateErr != nil {
 		logger.Error(statusUpdateErr, "unable to update a status of an object")
 		return ctrl.Result{}, statusUpdateErr
@@ -81,7 +81,7 @@ func (r *Prober) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, 
 func (r *Prober) doReconcile(
 	ctx context.Context,
 	obj client.Object,
-	spec kubernetesimalv1alpha1.EtcdSpec,
+	spec *kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
 	ctx, span := tracing.FromContext(ctx).Start(ctx, "doReconcile")
