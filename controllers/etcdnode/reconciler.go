@@ -92,16 +92,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 func (r *Reconciler) doReconcile(
 	ctx context.Context,
-	en *kubernetesimalv1alpha1.EtcdNode,
+	obj client.Object,
 	spec kubernetesimalv1alpha1.EtcdNodeSpec,
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (kubernetesimalv1alpha1.EtcdNodeStatus, error) {
 	ctx, span := tracing.FromContext(ctx).Start(ctx, "doReconcile")
 	defer span.End()
 
-	if en.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !finalizer.HasFinalizer(en) {
-			if err := finalizer.SetFinalizer(ctx, r.Client, en); err != nil {
+	if obj.GetDeletionTimestamp().IsZero() {
+		if !finalizer.HasFinalizer(obj) {
+			if err := finalizer.SetFinalizer(ctx, r.Client, obj); err != nil {
 				if apierrors.IsNotFound(err) {
 					return status, nil
 				}
@@ -110,14 +110,14 @@ func (r *Reconciler) doReconcile(
 			return status, errors.NewRequeueError("finalizer was set").WithDelay(time.Second)
 		}
 	} else {
-		if finalizer.HasFinalizer(en) {
-			if newStatus, err := r.finalizeExternalResources(ctx, en, status); err != nil {
+		if finalizer.HasFinalizer(obj) {
+			if newStatus, err := r.finalizeExternalResources(ctx, obj, status); err != nil {
 				return newStatus, err
 			} else {
 				status = newStatus
 			}
 
-			if err := finalizer.UnsetFinalizer(ctx, r.Client, en); err != nil {
+			if err := finalizer.UnsetFinalizer(ctx, r.Client, obj); err != nil {
 				if apierrors.IsNotFound(err) {
 					return status, nil
 				}
@@ -128,7 +128,7 @@ func (r *Reconciler) doReconcile(
 		return status, nil
 	}
 
-	if newStatus, err := r.reconcileExternalResources(ctx, en, en.Spec, status); err != nil {
+	if newStatus, err := r.reconcileExternalResources(ctx, obj, spec, status); err != nil {
 		return newStatus, err
 	} else {
 		status = newStatus
@@ -138,14 +138,14 @@ func (r *Reconciler) doReconcile(
 
 func (r *Reconciler) finalizeExternalResources(
 	ctx context.Context,
-	en *kubernetesimalv1alpha1.EtcdNode,
+	obj client.Object,
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (kubernetesimalv1alpha1.EtcdNodeStatus, error) {
 	var span trace.Span
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "finalizeExternalResources")
 	defer span.End()
 
-	if newStatus, err := finalizeVirtualMachineInstance(ctx, r.Client, en, status); err != nil {
+	if newStatus, err := finalizeVirtualMachineInstance(ctx, r.Client, obj, status); err != nil {
 		return newStatus, err
 	} else {
 		status = newStatus
@@ -156,7 +156,7 @@ func (r *Reconciler) finalizeExternalResources(
 
 func (r *Reconciler) reconcileExternalResources(
 	ctx context.Context,
-	en *kubernetesimalv1alpha1.EtcdNode,
+	obj client.Object,
 	spec kubernetesimalv1alpha1.EtcdNodeSpec,
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (kubernetesimalv1alpha1.EtcdNodeStatus, error) {
@@ -165,26 +165,26 @@ func (r *Reconciler) reconcileExternalResources(
 	defer span.End()
 	logger := log.FromContext(ctx)
 
-	if serviceRef, err := reconcilePeerService(ctx, r.Client, r.Scheme, en, spec, status); err != nil {
+	if serviceRef, err := reconcilePeerService(ctx, r.Client, r.Scheme, obj, spec, status); err != nil {
 		return status, fmt.Errorf("unable to prepare a peer service: %w", err)
 	} else {
 		status.PeerServiceRef = serviceRef
 	}
 
-	if userDataRef, err := reconcileUserData(ctx, r.Client, r.Scheme, en, spec, status); err != nil {
+	if userDataRef, err := reconcileUserData(ctx, r.Client, r.Scheme, obj, spec, status); err != nil {
 		return status, fmt.Errorf("unable to prepare a userdata: %w", err)
 	} else {
 		status.UserDataRef = userDataRef
 	}
 
-	if vmiRef, err := reconcileVirtualMachineInstance(ctx, r.Client, r.Scheme, en, spec, status); err != nil {
+	if vmiRef, err := reconcileVirtualMachineInstance(ctx, r.Client, r.Scheme, obj, spec, status); err != nil {
 		return status, fmt.Errorf("unable to prepare a virtual machine instance: %w", err)
 	} else {
 		status.VirtualMachineRef = vmiRef
 	}
 
 	if !status.IsProvisioned() {
-		if err := provisionEtcdMember(ctx, r.Client, en, spec, status); err != nil {
+		if err := provisionEtcdMember(ctx, r.Client, obj, spec, status); err != nil {
 			status.WithProvisioned(false, err.Error()).DeepCopyInto(&status)
 			return status, fmt.Errorf("unable to provision an etcd member: %w", err)
 		}

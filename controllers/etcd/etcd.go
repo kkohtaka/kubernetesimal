@@ -21,7 +21,7 @@ import (
 func probeEtcd(
 	ctx context.Context,
 	c client.Client,
-	e *kubernetesimalv1alpha1.Etcd,
+	obj client.Object,
 	spec kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (bool, error) {
@@ -34,7 +34,7 @@ func probeEtcd(
 		logger.Info("a Service for an etcd is not prepared yet")
 		return false, nil
 	}
-	address, err := k8s_service.GetAddressFromServiceRef(ctx, c, e.Namespace, "etcd", status.ServiceRef)
+	address, err := k8s_service.GetAddressFromServiceRef(ctx, c, obj.GetNamespace(), "etcd", status.ServiceRef)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Info("Skip probing an etcd since an etcd Service isn't prepared yet.")
@@ -50,7 +50,7 @@ func probeEtcd(
 	caCertificate, err := k8s_secret.GetValueFromSecretKeySelector(
 		ctx,
 		c,
-		e.Namespace,
+		obj.GetNamespace(),
 		*status.CACertificateRef,
 	)
 	if err != nil {
@@ -75,7 +75,7 @@ func probeEtcd(
 	clientCertificate, err := k8s_secret.GetValueFromSecretKeySelector(
 		ctx,
 		c,
-		e.Namespace,
+		obj.GetNamespace(),
 		*status.ClientCertificateRef,
 	)
 	if err != nil {
@@ -92,7 +92,7 @@ func probeEtcd(
 	clientPrivateKey, err := k8s_secret.GetValueFromSecretKeySelector(
 		ctx,
 		c,
-		e.Namespace,
+		obj.GetNamespace(),
 		*status.ClientPrivateKeyRef,
 	)
 	if err != nil {

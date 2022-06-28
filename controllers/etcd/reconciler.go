@@ -108,16 +108,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 func (r *Reconciler) doReconcile(
 	ctx context.Context,
-	e *kubernetesimalv1alpha1.Etcd,
+	obj client.Object,
 	spec kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
 	ctx, span := tracing.FromContext(ctx).Start(ctx, "doReconcile")
 	defer span.End()
 
-	if e.GetDeletionTimestamp().IsZero() {
-		if !finalizer.HasFinalizer(e) {
-			if err := finalizer.SetFinalizer(ctx, r.Client, e); err != nil {
+	if obj.GetDeletionTimestamp().IsZero() {
+		if !finalizer.HasFinalizer(obj) {
+			if err := finalizer.SetFinalizer(ctx, r.Client, obj); err != nil {
 				if apierrors.IsNotFound(err) {
 					return status, nil
 				}
@@ -126,14 +126,14 @@ func (r *Reconciler) doReconcile(
 			return status, errors.NewRequeueError("finalizer was set").WithDelay(time.Second)
 		}
 	} else {
-		if finalizer.HasFinalizer(e) {
-			if newStatus, err := r.finalizeExternalResources(ctx, e, status); err != nil {
+		if finalizer.HasFinalizer(obj) {
+			if newStatus, err := r.finalizeExternalResources(ctx, obj, status); err != nil {
 				return newStatus, err
 			} else {
 				status = newStatus
 			}
 
-			if err := finalizer.UnsetFinalizer(ctx, r.Client, e); err != nil {
+			if err := finalizer.UnsetFinalizer(ctx, r.Client, obj); err != nil {
 				if apierrors.IsNotFound(err) {
 					return status, nil
 				}
@@ -144,7 +144,7 @@ func (r *Reconciler) doReconcile(
 		return status, nil
 	}
 
-	if newStatus, err := r.reconcileExternalResources(ctx, e, spec, status); err != nil {
+	if newStatus, err := r.reconcileExternalResources(ctx, obj, spec, status); err != nil {
 		return newStatus, err
 	} else {
 		status = newStatus
@@ -154,38 +154,38 @@ func (r *Reconciler) doReconcile(
 
 func (r *Reconciler) finalizeExternalResources(
 	ctx context.Context,
-	e metav1.Object,
+	obj client.Object,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
 	var span trace.Span
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "finalizeExternalResources")
 	defer span.End()
 
-	if newStatus, err := finalizeEtcdNodes(ctx, r.Client, e, status); err != nil {
+	if newStatus, err := finalizeEtcdNodes(ctx, r.Client, obj, status); err != nil {
 		return newStatus, err
 	} else {
 		status = newStatus
 	}
 
-	if newStatus, err := finalizeCACertificateSecret(ctx, r.Client, e, status); err != nil {
+	if newStatus, err := finalizeCACertificateSecret(ctx, r.Client, obj, status); err != nil {
 		return newStatus, err
 	} else {
 		status = newStatus
 	}
 
-	if newStatus, err := finalizeClientCertificateSecret(ctx, r.Client, e, status); err != nil {
+	if newStatus, err := finalizeClientCertificateSecret(ctx, r.Client, obj, status); err != nil {
 		return newStatus, err
 	} else {
 		status = newStatus
 	}
 
-	if newStatus, err := finalizePeerCertificateSecret(ctx, r.Client, e, status); err != nil {
+	if newStatus, err := finalizePeerCertificateSecret(ctx, r.Client, obj, status); err != nil {
 		return newStatus, err
 	} else {
 		status = newStatus
 	}
 
-	if newStatus, err := finalizeSSHKeyPairSecret(ctx, r.Client, e, status); err != nil {
+	if newStatus, err := finalizeSSHKeyPairSecret(ctx, r.Client, obj, status); err != nil {
 		return newStatus, err
 	} else {
 		status = newStatus
@@ -196,7 +196,7 @@ func (r *Reconciler) finalizeExternalResources(
 
 func (r *Reconciler) reconcileExternalResources(
 	ctx context.Context,
-	e metav1.Object,
+	obj client.Object,
 	spec kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
@@ -209,7 +209,7 @@ func (r *Reconciler) reconcileExternalResources(
 		ctx,
 		r.Client,
 		r.Scheme,
-		e,
+		obj,
 		spec,
 		status,
 	); err != nil {
@@ -223,7 +223,7 @@ func (r *Reconciler) reconcileExternalResources(
 		ctx,
 		r.Client,
 		r.Scheme,
-		e,
+		obj,
 		spec,
 		status,
 	); err != nil {
@@ -237,7 +237,7 @@ func (r *Reconciler) reconcileExternalResources(
 		ctx,
 		r.Client,
 		r.Scheme,
-		e,
+		obj,
 		spec,
 		status,
 	); err != nil {
@@ -251,7 +251,7 @@ func (r *Reconciler) reconcileExternalResources(
 		ctx,
 		r.Client,
 		r.Scheme,
-		e,
+		obj,
 		spec,
 		status,
 	); err != nil {
@@ -261,19 +261,19 @@ func (r *Reconciler) reconcileExternalResources(
 		status.SSHPublicKeyRef = sshPublicKeyRef
 	}
 
-	if serviceRef, err := reconcileService(ctx, r.Client, r.Scheme, e, spec, status); err != nil {
+	if serviceRef, err := reconcileService(ctx, r.Client, r.Scheme, obj, spec, status); err != nil {
 		return status, fmt.Errorf("unable to prepare a service: %w", err)
 	} else {
 		status.ServiceRef = serviceRef
 	}
 
-	if endpointSliceRef, err := reconcileEndpointSlice(ctx, r.Client, r.Scheme, e, spec, status); err != nil {
+	if endpointSliceRef, err := reconcileEndpointSlice(ctx, r.Client, r.Scheme, obj, spec, status); err != nil {
 		return status, fmt.Errorf("unable to prepare an endpoint slice: %w", err)
 	} else {
 		status.EndpointSliceRef = endpointSliceRef
 	}
 
-	if needSync := !r.Expectations.SatisfiedExpectations(expectations.KeyFromObject(e)); needSync {
+	if needSync := !r.Expectations.SatisfiedExpectations(expectations.KeyFromObject(obj)); needSync {
 		return status, errors.NewRequeueError("expected creations or deletions are left")
 	}
 
@@ -282,7 +282,7 @@ func (r *Reconciler) reconcileExternalResources(
 	)
 	for _, nodeRef := range status.NodeRefs {
 		var node kubernetesimalv1alpha1.EtcdNode
-		if err := r.Get(ctx, types.NamespacedName{Namespace: e.GetNamespace(), Name: nodeRef.Name}, &node); err != nil {
+		if err := r.Get(ctx, types.NamespacedName{Namespace: obj.GetNamespace(), Name: nodeRef.Name}, &node); err != nil {
 			return status, fmt.Errorf("unable to get an etcd node from reference: %w", err)
 		}
 		switch node.Status.Phase {
@@ -304,15 +304,15 @@ func (r *Reconciler) reconcileExternalResources(
 	}
 
 	if len(status.NodeRefs) < int(*spec.Replicas) {
-		if err := r.Expectations.ExpectCreations(expectations.KeyFromObject(e), 1); err != nil {
+		if err := r.Expectations.ExpectCreations(expectations.KeyFromObject(obj), 1); err != nil {
 			return status, fmt.Errorf("unable to update expectations: %w", err)
 		}
 		if node, err := k8s_etcdnode.CreateOnlyIfNotExist(
 			ctx,
 			r.Client,
-			k8s_object.WithGeneratorName(e.GetName()+"-"),
-			k8s_object.WithNamespace(e.GetNamespace()),
-			k8s_object.WithOwner(e, r.Scheme),
+			k8s_object.WithGeneratorName(obj.GetName()+"-"),
+			k8s_object.WithNamespace(obj.GetNamespace()),
+			k8s_object.WithOwner(obj, r.Scheme),
 			k8s_etcdnode.WithVersion(*spec.Version),
 			k8s_etcdnode.WithCACertificateRef(*status.CACertificateRef),
 			k8s_etcdnode.WithCAPrivateKeyRef(*status.CAPrivateKeyRef),
@@ -322,7 +322,7 @@ func (r *Reconciler) reconcileExternalResources(
 			k8s_etcdnode.WithSSHPublicKeyRef(*status.SSHPublicKeyRef),
 			k8s_etcdnode.WithServiceRef(*status.ServiceRef),
 		); err != nil {
-			r.Expectations.CreationObserved(expectations.KeyFromObject(e))
+			r.Expectations.CreationObserved(expectations.KeyFromObject(obj))
 			return status, fmt.Errorf("unable to create EtcdNode: %w", err)
 		} else {
 			status.NodeRefs = append(status.NodeRefs, &corev1.LocalObjectReference{
