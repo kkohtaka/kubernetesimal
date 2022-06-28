@@ -4,6 +4,7 @@ import (
 	"context"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
+	"github.com/kkohtaka/kubernetesimal/controller/finalizer"
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
 	"go.opentelemetry.io/otel/trace"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,5 +44,5 @@ func finalizeEtcdNode(
 		"object", name,
 		"resource", "kubernetesimalv1alpha1.EtcdNode",
 	))
-	return finalizeObject(ctx, client, namespace, name, &kubernetesimalv1alpha1.EtcdNode{})
+	return finalizer.FinalizeObject(ctx, client, namespace, name, &kubernetesimalv1alpha1.EtcdNode{})
 }

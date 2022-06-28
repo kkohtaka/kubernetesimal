@@ -1,4 +1,4 @@
-package controllers
+package finalizer
 
 import (
 	"context"
@@ -17,19 +17,23 @@ const (
 	finalizerName = "kubernetesimal.kkohtaka.org/finalizer"
 )
 
-func addFinalizer(ctx context.Context, c client.Client, o client.Object, finalizer string) error {
+func HasFinalizer(o client.Object) bool {
+	return controllerutil.ContainsFinalizer(o, finalizerName)
+}
+
+func SetFinalizer(ctx context.Context, c client.Client, o client.Object) error {
 	newO := o.DeepCopyObject().(client.Object)
 	controllerutil.AddFinalizer(newO, finalizerName)
 	return c.Patch(ctx, newO, client.MergeFrom(o))
 }
 
-func removeFinalizer(ctx context.Context, c client.Client, o client.Object, finalizer string) error {
+func UnsetFinalizer(ctx context.Context, c client.Client, o client.Object) error {
 	newO := o.DeepCopyObject().(client.Object)
 	controllerutil.RemoveFinalizer(newO, finalizerName)
 	return c.Patch(ctx, newO, client.MergeFrom(o))
 }
 
-func finalizeSecret(
+func FinalizeSecret(
 	ctx context.Context,
 	client client.Client,
 	namespace, name string,
@@ -38,10 +42,10 @@ func finalizeSecret(
 		"object", name,
 		"resource", "corev1.Secret",
 	))
-	return finalizeObject(ctx, client, namespace, name, &corev1.Secret{})
+	return FinalizeObject(ctx, client, namespace, name, &corev1.Secret{})
 }
 
-func finalizeObject(
+func FinalizeObject(
 	ctx context.Context,
 	c client.Client,
 	namespace, name string,

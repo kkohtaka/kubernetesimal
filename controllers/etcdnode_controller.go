@@ -29,11 +29,11 @@ import (
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 	"github.com/kkohtaka/kubernetesimal/controller/errors"
+	"github.com/kkohtaka/kubernetesimal/controller/finalizer"
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
 )
 
@@ -100,8 +100,8 @@ func (r *EtcdNodeReconciler) doReconcile(
 	defer span.End()
 
 	if en.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !controllerutil.ContainsFinalizer(en, finalizerName) {
-			if err := addFinalizer(ctx, r.Client, en, finalizerName); err != nil {
+		if !finalizer.HasFinalizer(en) {
+			if err := finalizer.SetFinalizer(ctx, r.Client, en); err != nil {
 				if apierrors.IsNotFound(err) {
 					return status, nil
 				}
@@ -110,14 +110,14 @@ func (r *EtcdNodeReconciler) doReconcile(
 			return status, errors.NewRequeueError("finalizer was set").WithDelay(time.Second)
 		}
 	} else {
-		if controllerutil.ContainsFinalizer(en, finalizerName) {
+		if finalizer.HasFinalizer(en) {
 			if newStatus, err := r.finalizeExternalResources(ctx, en, status); err != nil {
 				return newStatus, err
 			} else {
 				status = newStatus
 			}
 
-			if err := removeFinalizer(ctx, r.Client, en, finalizerName); err != nil {
+			if err := finalizer.UnsetFinalizer(ctx, r.Client, en); err != nil {
 				if apierrors.IsNotFound(err) {
 					return status, nil
 				}
