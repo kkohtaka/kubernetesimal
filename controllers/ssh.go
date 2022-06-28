@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
+	"github.com/kkohtaka/kubernetesimal/controller/finalizer"
 	k8s_object "github.com/kkohtaka/kubernetesimal/k8s/object"
 	k8s_secret "github.com/kkohtaka/kubernetesimal/k8s/secret"
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
@@ -116,7 +117,7 @@ func finalizeSSHKeyPairSecret(
 	if status.SSHPrivateKeyRef == nil {
 		return status, nil
 	}
-	if err := finalizeSecret(ctx, c, e.GetNamespace(), status.SSHPrivateKeyRef.Name); err != nil {
+	if err := finalizer.FinalizeSecret(ctx, c, e.GetNamespace(), status.SSHPrivateKeyRef.Name); err != nil {
 		return status, err
 	}
 	status.SSHPrivateKeyRef = nil

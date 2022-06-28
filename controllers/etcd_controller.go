@@ -32,7 +32,6 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -41,6 +40,7 @@ import (
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 	"github.com/kkohtaka/kubernetesimal/controller/errors"
 	"github.com/kkohtaka/kubernetesimal/controller/expectations"
+	"github.com/kkohtaka/kubernetesimal/controller/finalizer"
 	k8s_etcdnode "github.com/kkohtaka/kubernetesimal/k8s/etcdnode"
 	k8s_object "github.com/kkohtaka/kubernetesimal/k8s/object"
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
@@ -116,8 +116,8 @@ func (r *EtcdReconciler) doReconcile(
 	defer span.End()
 
 	if e.GetDeletionTimestamp().IsZero() {
-		if !controllerutil.ContainsFinalizer(e, finalizerName) {
-			if err := addFinalizer(ctx, r.Client, e, finalizerName); err != nil {
+		if !finalizer.HasFinalizer(e) {
+			if err := finalizer.SetFinalizer(ctx, r.Client, e); err != nil {
 				if apierrors.IsNotFound(err) {
 					return status, nil
 				}
@@ -126,14 +126,14 @@ func (r *EtcdReconciler) doReconcile(
 			return status, errors.NewRequeueError("finalizer was set").WithDelay(time.Second)
 		}
 	} else {
-		if controllerutil.ContainsFinalizer(e, finalizerName) {
+		if finalizer.HasFinalizer(e) {
 			if newStatus, err := r.finalizeExternalResources(ctx, e, status); err != nil {
 				return newStatus, err
 			} else {
 				status = newStatus
 			}
 
-			if err := removeFinalizer(ctx, r.Client, e, finalizerName); err != nil {
+			if err := finalizer.UnsetFinalizer(ctx, r.Client, e); err != nil {
 				if apierrors.IsNotFound(err) {
 					return status, nil
 				}

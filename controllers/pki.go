@@ -15,6 +15,7 @@ import (
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 	"github.com/kkohtaka/kubernetesimal/controller/errors"
+	"github.com/kkohtaka/kubernetesimal/controller/finalizer"
 	k8s_object "github.com/kkohtaka/kubernetesimal/k8s/object"
 	k8s_secret "github.com/kkohtaka/kubernetesimal/k8s/secret"
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
@@ -117,7 +118,7 @@ func finalizeCACertificateSecret(
 	if status.CACertificateRef == nil {
 		return status, nil
 	}
-	if err := finalizeSecret(ctx, c, e.GetNamespace(), status.CACertificateRef.Name); err != nil {
+	if err := finalizer.FinalizeSecret(ctx, c, e.GetNamespace(), status.CACertificateRef.Name); err != nil {
 		return status, err
 	}
 	status.CACertificateRef = nil
@@ -356,7 +357,7 @@ func finalizeClientCertificateSecret(
 	if status.ClientCertificateRef == nil {
 		return status, nil
 	}
-	if err := finalizeSecret(ctx, c, e.GetNamespace(), status.ClientCertificateRef.Name); err != nil {
+	if err := finalizer.FinalizeSecret(ctx, c, e.GetNamespace(), status.ClientCertificateRef.Name); err != nil {
 		return status, err
 	}
 	status.ClientCertificateRef = nil
@@ -377,7 +378,7 @@ func finalizePeerCertificateSecret(
 	if status.PeerCertificateRef == nil {
 		return status, nil
 	}
-	if err := finalizeSecret(ctx, c, e.GetNamespace(), status.PeerCertificateRef.Name); err != nil {
+	if err := finalizer.FinalizeSecret(ctx, c, e.GetNamespace(), status.PeerCertificateRef.Name); err != nil {
 		return status, err
 	}
 	status.PeerCertificateRef = nil

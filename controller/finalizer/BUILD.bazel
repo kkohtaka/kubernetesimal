@@ -1,0 +1,17 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "finalizer",
+    srcs = ["finalizer.go"],
+    importpath = "github.com/kkohtaka/kubernetesimal/controller/finalizer",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//controller/errors",
+        "@io_k8s_api//core/v1:core",
+        "@io_k8s_apimachinery//pkg/api/errors",
+        "@io_k8s_apimachinery//pkg/types",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+        "@io_k8s_sigs_controller_runtime//pkg/controller/controllerutil",
+        "@io_k8s_sigs_controller_runtime//pkg/log",
+    ],
+)

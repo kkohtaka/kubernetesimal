@@ -21,6 +21,7 @@ import (
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 	"github.com/kkohtaka/kubernetesimal/controller/errors"
+	"github.com/kkohtaka/kubernetesimal/controller/finalizer"
 	k8s_object "github.com/kkohtaka/kubernetesimal/k8s/object"
 	k8s_secret "github.com/kkohtaka/kubernetesimal/k8s/secret"
 	k8s_vmi "github.com/kkohtaka/kubernetesimal/k8s/vmi"
@@ -264,7 +265,7 @@ func finalizeVirtualMachineInstance(
 	)
 	ctx = log.IntoContext(ctx, logger)
 
-	if err := finalizeObject(
+	if err := finalizer.FinalizeObject(
 		ctx,
 		client,
 		en.Namespace,
