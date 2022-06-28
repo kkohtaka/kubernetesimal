@@ -80,7 +80,7 @@ func (r *Prober) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, 
 
 func (r *Prober) doReconcile(
 	ctx context.Context,
-	e *kubernetesimalv1alpha1.Etcd,
+	obj client.Object,
 	spec kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
@@ -88,11 +88,11 @@ func (r *Prober) doReconcile(
 	defer span.End()
 	logger := log.FromContext(ctx)
 
-	if !e.ObjectMeta.DeletionTimestamp.IsZero() {
+	if !obj.GetDeletionTimestamp().IsZero() {
 		return status, nil
 	}
 
-	if probed, err := probeEtcd(ctx, r.Client, e, spec, status); err != nil {
+	if probed, err := probeEtcd(ctx, r.Client, obj, spec, status); err != nil {
 		status.WithReady(false, err.Error()).DeepCopyInto(&status)
 		return status, fmt.Errorf("unable to probe an etcd: %w", err)
 	} else {

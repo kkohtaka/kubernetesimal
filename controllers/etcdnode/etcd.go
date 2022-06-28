@@ -27,7 +27,7 @@ import (
 func provisionEtcdMember(
 	ctx context.Context,
 	c client.Client,
-	en *kubernetesimalv1alpha1.EtcdNode,
+	obj client.Object,
 	spec kubernetesimalv1alpha1.EtcdNodeSpec,
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) error {
@@ -39,7 +39,7 @@ func provisionEtcdMember(
 	if err := c.Get(
 		ctx,
 		types.NamespacedName{
-			Namespace: en.Namespace,
+			Namespace: obj.GetNamespace(),
 			Name:      status.VirtualMachineRef.Name,
 		},
 		&vmi,
@@ -48,7 +48,7 @@ func provisionEtcdMember(
 			return errors.NewRequeueError("waiting for a VirtualMachineInstance prepared").Wrap(err)
 		}
 		return fmt.Errorf(
-			"unable to get a VirtualMachineInstance %s/%s: %w", en.Namespace, status.VirtualMachineRef.Name, err)
+			"unable to get a VirtualMachineInstance %s/%s: %w", obj.GetNamespace(), status.VirtualMachineRef.Name, err)
 	}
 	if vmi.Status.Phase != kubevirtv1.Running {
 		return errors.NewRequeueError("waiting for a VirtualMachineInstance become running")
@@ -57,7 +57,7 @@ func provisionEtcdMember(
 	privateKey, err := k8s_secret.GetValueFromSecretKeySelector(
 		ctx,
 		c,
-		en.Namespace,
+		obj.GetNamespace(),
 		spec.SSHPrivateKeyRef,
 	)
 	if err != nil {
@@ -71,7 +71,7 @@ func provisionEtcdMember(
 	if err := c.Get(
 		ctx,
 		types.NamespacedName{
-			Namespace: en.Namespace,
+			Namespace: obj.GetNamespace(),
 			Name:      status.PeerServiceRef.Name,
 		},
 		&peerService,
@@ -115,7 +115,7 @@ func provisionEtcdMember(
 func probeEtcdMember(
 	ctx context.Context,
 	c client.Client,
-	e *kubernetesimalv1alpha1.EtcdNode,
+	obj client.Object,
 	spec kubernetesimalv1alpha1.EtcdNodeSpec,
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (bool, error) {
@@ -124,7 +124,7 @@ func probeEtcdMember(
 	defer span.End()
 	logger := log.FromContext(ctx)
 
-	address, err := k8s_service.GetAddressFromServiceRef(ctx, c, e.Namespace, "etcd", status.PeerServiceRef)
+	address, err := k8s_service.GetAddressFromServiceRef(ctx, c, obj.GetNamespace(), "etcd", status.PeerServiceRef)
 	if err != nil {
 		return false, fmt.Errorf("unable to get an etcd address from a peer Service: %w", err)
 	}
@@ -132,7 +132,7 @@ func probeEtcdMember(
 	caCertificate, err := k8s_secret.GetValueFromSecretKeySelector(
 		ctx,
 		c,
-		e.Namespace,
+		obj.GetNamespace(),
 		spec.CACertificateRef,
 	)
 	if err != nil {
@@ -154,7 +154,7 @@ func probeEtcdMember(
 	clientCertificate, err := k8s_secret.GetValueFromSecretKeySelector(
 		ctx,
 		c,
-		e.Namespace,
+		obj.GetNamespace(),
 		spec.ClientCertificateRef,
 	)
 	if err != nil {
@@ -168,7 +168,7 @@ func probeEtcdMember(
 	clientPrivateKey, err := k8s_secret.GetValueFromSecretKeySelector(
 		ctx,
 		c,
-		e.Namespace,
+		obj.GetNamespace(),
 		spec.ClientPrivateKeyRef,
 	)
 	if err != nil {

@@ -6,7 +6,6 @@ import (
 
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -30,15 +29,15 @@ const (
 	serviceContainerPortSSH  = 22
 )
 
-func newPeerServiceName(en metav1.Object) string {
-	return en.GetName()
+func newPeerServiceName(obj client.Object) string {
+	return obj.GetName()
 }
 
 func reconcilePeerService(
 	ctx context.Context,
 	c client.Client,
 	scheme *runtime.Scheme,
-	en *kubernetesimalv1alpha1.EtcdNode,
+	obj client.Object,
 	_ kubernetesimalv1alpha1.EtcdNodeSpec,
 	status kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (*corev1.LocalObjectReference, error) {
@@ -48,17 +47,17 @@ func reconcilePeerService(
 
 	if service, err := k8s_service.Reconcile(
 		ctx,
-		en,
+		obj,
 		c,
-		newPeerServiceName(en),
-		en.Namespace,
-		k8s_object.WithOwner(en, scheme),
+		newPeerServiceName(obj),
+		obj.GetNamespace(),
+		k8s_object.WithOwner(obj, scheme),
 		k8s_service.WithType(corev1.ServiceTypeNodePort),
 		k8s_service.WithPort(serviceNameEtcd, servicePortEtcd, serviceContainerPortEtcd),
 		k8s_service.WithPort(serviceNamePeer, servicePortPeer, serviceContainerPortPeer),
 		k8s_service.WithPort(serviceNameSSH, servicePortSSH, serviceContainerPortSSH),
 		k8s_service.WithSelector("app.kubernetes.io/name", "virtualmachineimage"),
-		k8s_service.WithSelector("app.kubernetes.io/instance", newVirtualMachineInstanceName(en)),
+		k8s_service.WithSelector("app.kubernetes.io/instance", newVirtualMachineInstanceName(obj)),
 		k8s_service.WithSelector("app.kubernetes.io/part-of", "etcd"),
 	); err != nil {
 		return nil, fmt.Errorf("unable to prepare a Service for an etcd member: %w", err)

@@ -8,7 +8,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	pointerutils "k8s.io/utils/pointer"
@@ -22,7 +21,7 @@ import (
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
 )
 
-func newEndpointSliceName(e metav1.Object) string {
+func newEndpointSliceName(e client.Object) string {
 	return e.GetName()
 }
 
@@ -30,7 +29,7 @@ func reconcileEndpointSlice(
 	ctx context.Context,
 	c client.Client,
 	scheme *runtime.Scheme,
-	e metav1.Object,
+	obj client.Object,
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.LocalObjectReference, error) {
@@ -43,7 +42,7 @@ func reconcileEndpointSlice(
 	if err := c.Get(
 		ctx,
 		types.NamespacedName{
-			Namespace: e.GetNamespace(),
+			Namespace: obj.GetNamespace(),
 			Name:      status.ServiceRef.Name,
 		},
 		&service,
@@ -59,7 +58,7 @@ func reconcileEndpointSlice(
 		var (
 			node    kubernetesimalv1alpha1.EtcdNode
 			nodeKey = types.NamespacedName{
-				Namespace: e.GetNamespace(),
+				Namespace: obj.GetNamespace(),
 				Name:      ref.Name,
 			}
 		)
@@ -138,11 +137,11 @@ func reconcileEndpointSlice(
 
 	if ep, err := k8s_endpointslice.Reconcile(
 		ctx,
-		e,
+		obj,
 		c,
-		newEndpointSliceName(e),
-		e.GetNamespace(),
-		k8s_object.WithOwner(e, scheme),
+		newEndpointSliceName(obj),
+		obj.GetNamespace(),
+		k8s_object.WithOwner(obj, scheme),
 		k8s_object.WithLabel("kubernetes.io/service-name", service.Name),
 		k8s_object.WithLabel("endpointslice.kubernetes.io/managed-by", "etcd-controller.kubernetesimal.kkohtaka.org"),
 		k8s_endpointslice.WithAddressType(discoveryv1beta1.AddressTypeIPv4),

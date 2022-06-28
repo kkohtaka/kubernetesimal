@@ -6,7 +6,6 @@ import (
 
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -24,15 +23,15 @@ const (
 	ServiceContainerPortEtcd = 2379
 )
 
-func newServiceName(e metav1.Object) string {
-	return e.GetName()
+func newServiceName(obj client.Object) string {
+	return obj.GetName()
 }
 
 func reconcileService(
 	ctx context.Context,
 	c client.Client,
 	scheme *runtime.Scheme,
-	e metav1.Object,
+	obj client.Object,
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.LocalObjectReference, error) {
@@ -42,11 +41,11 @@ func reconcileService(
 
 	if service, err := k8s_service.Reconcile(
 		ctx,
-		e,
+		obj,
 		c,
-		newServiceName(e),
-		e.GetNamespace(),
-		k8s_object.WithOwner(e, scheme),
+		newServiceName(obj),
+		obj.GetNamespace(),
+		k8s_object.WithOwner(obj, scheme),
 		k8s_service.WithType(corev1.ServiceTypeNodePort),
 		k8s_service.WithPort(ServiceNameEtcd, ServicePortEtcd, ServiceContainerPortEtcd),
 	); err != nil {

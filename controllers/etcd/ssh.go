@@ -7,7 +7,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -21,8 +20,8 @@ import (
 	"github.com/kkohtaka/kubernetesimal/ssh"
 )
 
-func newSSHKeyPairName(e metav1.Object) string {
-	return "ssh-keypair-" + e.GetName()
+func newSSHKeyPairName(obj client.Object) string {
+	return "ssh-keypair-" + obj.GetName()
 }
 
 const (
@@ -33,7 +32,7 @@ func reconcileSSHKeyPair(
 	ctx context.Context,
 	c client.Client,
 	scheme *runtime.Scheme,
-	e metav1.Object,
+	obj client.Object,
 	_ kubernetesimalv1alpha1.EtcdSpec,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
@@ -42,12 +41,12 @@ func reconcileSSHKeyPair(
 	defer span.End()
 
 	if status.SSHPrivateKeyRef != nil {
-		if name := status.SSHPrivateKeyRef.LocalObjectReference.Name; name != newSSHKeyPairName(e) {
+		if name := status.SSHPrivateKeyRef.LocalObjectReference.Name; name != newSSHKeyPairName(obj) {
 			return nil, nil, fmt.Errorf("invalid Secret name %s to store an SSH private key", name)
 		}
 	}
 	if status.SSHPublicKeyRef != nil {
-		if name := status.SSHPublicKeyRef.LocalObjectReference.Name; name != newSSHKeyPairName(e) {
+		if name := status.SSHPublicKeyRef.LocalObjectReference.Name; name != newSSHKeyPairName(obj) {
 			return nil, nil, fmt.Errorf("invalid Secret name %s to store an SSH public key", name)
 		}
 	}
@@ -56,7 +55,7 @@ func reconcileSSHKeyPair(
 	if status.SSHPrivateKeyRef != nil && status.SSHPublicKeyRef != nil {
 		if err := c.Get(
 			ctx,
-			types.NamespacedName{Namespace: e.GetNamespace(), Name: status.SSHPrivateKeyRef.Name},
+			types.NamespacedName{Namespace: obj.GetNamespace(), Name: status.SSHPrivateKeyRef.Name},
 			&sshKeyPair,
 		); err != nil {
 			if !apierrors.IsNotFound(err) {
@@ -77,11 +76,11 @@ func reconcileSSHKeyPair(
 	}
 	if secret, err := k8s_secret.CreateOnlyIfNotExist(
 		ctx,
-		e,
+		obj,
 		c,
-		newSSHKeyPairName(e),
-		e.GetNamespace(),
-		k8s_object.WithOwner(e, scheme),
+		newSSHKeyPairName(obj),
+		obj.GetNamespace(),
+		k8s_object.WithOwner(obj, scheme),
 		k8s_secret.WithType(corev1.SecretTypeSSHAuth),
 		k8s_secret.WithDataWithKey(corev1.SSHAuthPrivateKey, privateKey),
 		k8s_secret.WithDataWithKey(sshKeyPairKeyPublicKey, publicKey),
@@ -107,7 +106,7 @@ func reconcileSSHKeyPair(
 func finalizeSSHKeyPairSecret(
 	ctx context.Context,
 	c client.Client,
-	e metav1.Object,
+	obj client.Object,
 	status kubernetesimalv1alpha1.EtcdStatus,
 ) (kubernetesimalv1alpha1.EtcdStatus, error) {
 	var span trace.Span
@@ -117,7 +116,7 @@ func finalizeSSHKeyPairSecret(
 	if status.SSHPrivateKeyRef == nil {
 		return status, nil
 	}
-	if err := finalizer.FinalizeSecret(ctx, c, e.GetNamespace(), status.SSHPrivateKeyRef.Name); err != nil {
+	if err := finalizer.FinalizeSecret(ctx, c, obj.GetNamespace(), status.SSHPrivateKeyRef.Name); err != nil {
 		return status, err
 	}
 	status.SSHPrivateKeyRef = nil
