@@ -1,0 +1,17 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "errors",
+    srcs = ["requeue_error.go"],
+    importpath = "github.com/kkohtaka/kubernetesimal/controller/errors",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "errors_test",
+    srcs = ["requeue_error_test.go"],
+    deps = [
+        ":errors",
+        "@com_github_stretchr_testify//assert",
+    ],
+)

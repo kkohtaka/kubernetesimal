@@ -40,6 +40,7 @@ import (
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 	"github.com/kkohtaka/kubernetesimal/controller/errors"
+	"github.com/kkohtaka/kubernetesimal/controller/expectations"
 	k8s_etcdnode "github.com/kkohtaka/kubernetesimal/k8s/etcdnode"
 	k8s_object "github.com/kkohtaka/kubernetesimal/k8s/object"
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
@@ -52,7 +53,7 @@ type EtcdReconciler struct {
 
 	Tracer trace.Tracer
 
-	Expectations *UIDTrackingControllerExpectations
+	Expectations *expectations.UIDTrackingControllerExpectations
 }
 
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds,verbs=get;list;watch;create;update;patch;delete
