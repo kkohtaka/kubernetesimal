@@ -29,7 +29,7 @@ func provisionEtcdMember(
 	c client.Client,
 	obj client.Object,
 	spec *kubernetesimalv1alpha1.EtcdNodeSpec,
-	status kubernetesimalv1alpha1.EtcdNodeStatus,
+	status *kubernetesimalv1alpha1.EtcdNodeStatus,
 ) error {
 	var span trace.Span
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "provisionEtcdMember")
@@ -117,7 +117,7 @@ func probeEtcdMember(
 	c client.Client,
 	obj client.Object,
 	spec *kubernetesimalv1alpha1.EtcdNodeSpec,
-	status kubernetesimalv1alpha1.EtcdNodeStatus,
+	status *kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (bool, error) {
 	var span trace.Span
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "probeEtcdMember")

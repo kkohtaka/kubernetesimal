@@ -34,7 +34,7 @@ func reconcileSSHKeyPair(
 	scheme *runtime.Scheme,
 	obj client.Object,
 	_ *kubernetesimalv1alpha1.EtcdSpec,
-	status kubernetesimalv1alpha1.EtcdStatus,
+	status *kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.SecretKeySelector, *corev1.SecretKeySelector, error) {
 	var span trace.Span
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "reconcileSSHKeyPair")
@@ -107,8 +107,8 @@ func finalizeSSHKeyPairSecret(
 	ctx context.Context,
 	c client.Client,
 	obj client.Object,
-	status kubernetesimalv1alpha1.EtcdStatus,
-) (kubernetesimalv1alpha1.EtcdStatus, error) {
+	status *kubernetesimalv1alpha1.EtcdStatus,
+) (*kubernetesimalv1alpha1.EtcdStatus, error) {
 	var span trace.Span
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "finalizeSSHKeyPairSecret")
 	defer span.End()
