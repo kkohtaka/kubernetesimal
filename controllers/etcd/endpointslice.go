@@ -31,7 +31,7 @@ func reconcileEndpointSlice(
 	scheme *runtime.Scheme,
 	obj client.Object,
 	_ *kubernetesimalv1alpha1.EtcdSpec,
-	status kubernetesimalv1alpha1.EtcdStatus,
+	status *kubernetesimalv1alpha1.EtcdStatus,
 ) (*corev1.LocalObjectReference, error) {
 	var span trace.Span
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "reconcileEndpointSlice")

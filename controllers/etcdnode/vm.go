@@ -57,7 +57,7 @@ func reconcileUserData(
 	scheme *runtime.Scheme,
 	obj client.Object,
 	spec *kubernetesimalv1alpha1.EtcdNodeSpec,
-	status kubernetesimalv1alpha1.EtcdNodeStatus,
+	status *kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (*corev1.LocalObjectReference, error) {
 	var span trace.Span
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "reconcileUserData")
@@ -224,7 +224,7 @@ func reconcileVirtualMachineInstance(
 	scheme *runtime.Scheme,
 	obj client.Object,
 	_ *kubernetesimalv1alpha1.EtcdNodeSpec,
-	status kubernetesimalv1alpha1.EtcdNodeStatus,
+	status *kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (*corev1.LocalObjectReference, error) {
 	var span trace.Span
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "reconcileVirtualMachineInstance")
@@ -257,8 +257,8 @@ func finalizeVirtualMachineInstance(
 	ctx context.Context,
 	client client.Client,
 	obj client.Object,
-	status kubernetesimalv1alpha1.EtcdNodeStatus,
-) (kubernetesimalv1alpha1.EtcdNodeStatus, error) {
+	status *kubernetesimalv1alpha1.EtcdNodeStatus,
+) (*kubernetesimalv1alpha1.EtcdNodeStatus, error) {
 	var span trace.Span
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "finalizeVirtualMachineInstance")
 	defer span.End()

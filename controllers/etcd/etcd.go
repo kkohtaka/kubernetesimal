@@ -23,7 +23,7 @@ func probeEtcd(
 	c client.Client,
 	obj client.Object,
 	_ *kubernetesimalv1alpha1.EtcdSpec,
-	status kubernetesimalv1alpha1.EtcdStatus,
+	status *kubernetesimalv1alpha1.EtcdStatus,
 ) (bool, error) {
 	var span trace.Span
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "probeEtcd")
@@ -31,20 +31,20 @@ func probeEtcd(
 	logger := log.FromContext(ctx)
 
 	if status.ServiceRef == nil {
-		logger.Info("a Service for an etcd is not prepared yet")
+		logger.V(4).Info("a Service for an etcd is not prepared yet")
 		return false, nil
 	}
 	address, err := k8s_service.GetAddressFromServiceRef(ctx, c, obj.GetNamespace(), "etcd", status.ServiceRef)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("Skip probing an etcd since an etcd Service isn't prepared yet.")
+			logger.V(4).Info("Skip probing an etcd since an etcd Service isn't prepared yet.")
 			return false, nil
 		}
 		return false, fmt.Errorf("unable to get an etcd address from an etcd Service: %w", err)
 	}
 
 	if status.CACertificateRef == nil {
-		logger.Info("a CA certificate for an etcd Service is not prepared yet")
+		logger.V(4).Info("a CA certificate for an etcd Service is not prepared yet")
 		return false, nil
 	}
 	caCertificate, err := k8s_secret.GetValueFromSecretKeySelector(
@@ -55,7 +55,7 @@ func probeEtcd(
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("Skip probing an etcd since CA certificate isn't prepared yet.")
+			logger.V(4).Info("Skip probing an etcd since CA certificate isn't prepared yet.")
 			return false, nil
 		}
 		return false, fmt.Errorf("unable to get a CA certificate: %w", err)
@@ -97,7 +97,7 @@ func probeEtcd(
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("Skip probing an etcd since a client private key isn't prepared yet.")
+			logger.V(4).Info("Skip probing an etcd since a client private key isn't prepared yet.")
 			return false, nil
 		}
 		return false, fmt.Errorf("unable to get a client private key: %w", err)

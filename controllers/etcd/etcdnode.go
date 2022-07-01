@@ -15,8 +15,8 @@ func finalizeEtcdNodes(
 	ctx context.Context,
 	c client.Client,
 	e client.Object,
-	status kubernetesimalv1alpha1.EtcdStatus,
-) (kubernetesimalv1alpha1.EtcdStatus, error) {
+	status *kubernetesimalv1alpha1.EtcdStatus,
+) (*kubernetesimalv1alpha1.EtcdStatus, error) {
 	var span trace.Span
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "finalizeEtcdNode")
 	defer span.End()

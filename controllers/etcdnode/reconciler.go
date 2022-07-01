@@ -69,7 +69,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, err
 	}
 
-	status, err := r.doReconcile(ctx, &en, en.Spec.DeepCopy(), en.Status)
+	status, err := r.doReconcile(ctx, &en, en.Spec.DeepCopy(), en.Status.DeepCopy())
 	if statusUpdateErr := r.updateStatus(ctx, &en, status); statusUpdateErr != nil {
 		logger.Error(statusUpdateErr, "unable to update a status of an object")
 	}
@@ -94,8 +94,8 @@ func (r *Reconciler) doReconcile(
 	ctx context.Context,
 	obj client.Object,
 	spec *kubernetesimalv1alpha1.EtcdNodeSpec,
-	status kubernetesimalv1alpha1.EtcdNodeStatus,
-) (kubernetesimalv1alpha1.EtcdNodeStatus, error) {
+	status *kubernetesimalv1alpha1.EtcdNodeStatus,
+) (*kubernetesimalv1alpha1.EtcdNodeStatus, error) {
 	ctx, span := tracing.FromContext(ctx).Start(ctx, "doReconcile")
 	defer span.End()
 
@@ -139,8 +139,8 @@ func (r *Reconciler) doReconcile(
 func (r *Reconciler) finalizeExternalResources(
 	ctx context.Context,
 	obj client.Object,
-	status kubernetesimalv1alpha1.EtcdNodeStatus,
-) (kubernetesimalv1alpha1.EtcdNodeStatus, error) {
+	status *kubernetesimalv1alpha1.EtcdNodeStatus,
+) (*kubernetesimalv1alpha1.EtcdNodeStatus, error) {
 	var span trace.Span
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "finalizeExternalResources")
 	defer span.End()
@@ -158,8 +158,8 @@ func (r *Reconciler) reconcileExternalResources(
 	ctx context.Context,
 	obj client.Object,
 	spec *kubernetesimalv1alpha1.EtcdNodeSpec,
-	status kubernetesimalv1alpha1.EtcdNodeStatus,
-) (kubernetesimalv1alpha1.EtcdNodeStatus, error) {
+	status *kubernetesimalv1alpha1.EtcdNodeStatus,
+) (*kubernetesimalv1alpha1.EtcdNodeStatus, error) {
 	var span trace.Span
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "reconcileExternalResources")
 	defer span.End()
@@ -185,10 +185,10 @@ func (r *Reconciler) reconcileExternalResources(
 
 	if !status.IsProvisioned() {
 		if err := provisionEtcdMember(ctx, r.Client, obj, spec, status); err != nil {
-			status.WithProvisioned(false, err.Error()).DeepCopyInto(&status)
+			status.WithProvisioned(false, err.Error()).DeepCopyInto(status)
 			return status, fmt.Errorf("unable to provision an etcd member: %w", err)
 		}
-		status.WithProvisioned(true, "").DeepCopyInto(&status)
+		status.WithProvisioned(true, "").DeepCopyInto(status)
 		logger.Info("Provisioning an etcd member was completed.")
 	}
 
@@ -198,7 +198,7 @@ func (r *Reconciler) reconcileExternalResources(
 func (r *Reconciler) updateStatus(
 	ctx context.Context,
 	en *kubernetesimalv1alpha1.EtcdNode,
-	status kubernetesimalv1alpha1.EtcdNodeStatus,
+	status *kubernetesimalv1alpha1.EtcdNodeStatus,
 ) error {
 	logger := log.FromContext(ctx)
 
@@ -215,16 +215,16 @@ func (r *Reconciler) updateStatus(
 		status.Phase = kubernetesimalv1alpha1.EtcdNodePhaseCreating
 	}
 
-	if !apiequality.Semantic.DeepEqual(status, en.Status) {
+	if !apiequality.Semantic.DeepEqual(status, &en.Status) {
 		patch := client.MergeFrom(en.DeepCopy())
-		en.Status = status
+		status.DeepCopyInto(&en.Status)
 		if err := r.Client.Status().Patch(ctx, en, patch); err != nil {
 			if apierrors.IsNotFound(err) {
 				return nil
 			}
 			return fmt.Errorf("status couldn't be applied a patch: %w", err)
 		}
-		logger.V(4).Info("Status was updated.")
+		logger.V(2).Info("Status was updated.")
 	}
 	return nil
 }

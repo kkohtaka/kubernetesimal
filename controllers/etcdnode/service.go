@@ -39,7 +39,7 @@ func reconcilePeerService(
 	scheme *runtime.Scheme,
 	obj client.Object,
 	_ *kubernetesimalv1alpha1.EtcdNodeSpec,
-	status kubernetesimalv1alpha1.EtcdNodeStatus,
+	_ *kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (*corev1.LocalObjectReference, error) {
 	var span trace.Span
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "reconcileService")

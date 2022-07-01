@@ -85,7 +85,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, err
 	}
 
-	status, err := r.doReconcile(ctx, &e, e.Spec.DeepCopy(), e.Status)
+	status, err := r.doReconcile(ctx, &e, e.Spec.DeepCopy(), e.Status.DeepCopy())
 	if statusUpdateErr := r.updateStatus(ctx, &e, status); statusUpdateErr != nil {
 		logger.Error(statusUpdateErr, "unable to update a status of an object")
 	}
@@ -110,8 +110,8 @@ func (r *Reconciler) doReconcile(
 	ctx context.Context,
 	obj client.Object,
 	spec *kubernetesimalv1alpha1.EtcdSpec,
-	status kubernetesimalv1alpha1.EtcdStatus,
-) (kubernetesimalv1alpha1.EtcdStatus, error) {
+	status *kubernetesimalv1alpha1.EtcdStatus,
+) (*kubernetesimalv1alpha1.EtcdStatus, error) {
 	ctx, span := tracing.FromContext(ctx).Start(ctx, "doReconcile")
 	defer span.End()
 
@@ -155,8 +155,8 @@ func (r *Reconciler) doReconcile(
 func (r *Reconciler) finalizeExternalResources(
 	ctx context.Context,
 	obj client.Object,
-	status kubernetesimalv1alpha1.EtcdStatus,
-) (kubernetesimalv1alpha1.EtcdStatus, error) {
+	status *kubernetesimalv1alpha1.EtcdStatus,
+) (*kubernetesimalv1alpha1.EtcdStatus, error) {
 	var span trace.Span
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "finalizeExternalResources")
 	defer span.End()
@@ -198,8 +198,8 @@ func (r *Reconciler) reconcileExternalResources(
 	ctx context.Context,
 	obj client.Object,
 	spec *kubernetesimalv1alpha1.EtcdSpec,
-	status kubernetesimalv1alpha1.EtcdStatus,
-) (kubernetesimalv1alpha1.EtcdStatus, error) {
+	status *kubernetesimalv1alpha1.EtcdStatus,
+) (*kubernetesimalv1alpha1.EtcdStatus, error) {
 	var span trace.Span
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "reconcileExternalResources")
 	defer span.End()
@@ -338,7 +338,7 @@ func (r *Reconciler) reconcileExternalResources(
 func (r *Reconciler) updateStatus(
 	ctx context.Context,
 	e *kubernetesimalv1alpha1.Etcd,
-	status kubernetesimalv1alpha1.EtcdStatus,
+	status *kubernetesimalv1alpha1.EtcdStatus,
 ) error {
 	logger := log.FromContext(ctx)
 
@@ -358,16 +358,16 @@ func (r *Reconciler) updateStatus(
 		}
 	}
 
-	if !apiequality.Semantic.DeepEqual(status, e.Status) {
+	if !apiequality.Semantic.DeepEqual(status, &e.Status) {
 		patch := client.MergeFrom(e.DeepCopy())
-		e.Status = status
+		status.DeepCopyInto(&e.Status)
 		if err := r.Client.Status().Patch(ctx, e, patch); err != nil {
 			if apierrors.IsNotFound(err) {
 				return nil
 			}
 			return fmt.Errorf("status couldn't be applied a patch: %w", err)
 		}
-		logger.V(4).Info("Status was updated.")
+		logger.V(2).Info("Status was updated.")
 	}
 	return nil
 }

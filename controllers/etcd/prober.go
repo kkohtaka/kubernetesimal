@@ -67,7 +67,7 @@ func (r *Prober) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, 
 		return ctrl.Result{}, err
 	}
 
-	status, err := r.doReconcile(ctx, &e, e.Spec.DeepCopy(), e.Status)
+	status, err := r.doReconcile(ctx, &e, e.Spec.DeepCopy(), e.Status.DeepCopy())
 	if statusUpdateErr := r.updateStatus(ctx, &e, status); statusUpdateErr != nil {
 		logger.Error(statusUpdateErr, "unable to update a status of an object")
 		return ctrl.Result{}, statusUpdateErr
@@ -82,8 +82,8 @@ func (r *Prober) doReconcile(
 	ctx context.Context,
 	obj client.Object,
 	spec *kubernetesimalv1alpha1.EtcdSpec,
-	status kubernetesimalv1alpha1.EtcdStatus,
-) (kubernetesimalv1alpha1.EtcdStatus, error) {
+	status *kubernetesimalv1alpha1.EtcdStatus,
+) (*kubernetesimalv1alpha1.EtcdStatus, error) {
 	ctx, span := tracing.FromContext(ctx).Start(ctx, "doReconcile")
 	defer span.End()
 	logger := log.FromContext(ctx)
@@ -93,15 +93,15 @@ func (r *Prober) doReconcile(
 	}
 
 	if probed, err := probeEtcd(ctx, r.Client, obj, spec, status); err != nil {
-		status.WithReady(false, err.Error()).DeepCopyInto(&status)
+		status.WithReady(false, err.Error()).DeepCopyInto(status)
 		return status, fmt.Errorf("unable to probe an etcd: %w", err)
 	} else {
 		if probed {
-			logger.V(8).Info("Probing an etcd was succeeded.")
+			logger.V(4).Info("Probing an etcd was succeeded.")
 		} else {
 			logger.V(4).Info("Probing an etcd was failed.")
 		}
-		status.WithReady(probed, "").DeepCopyInto(&status)
+		status.WithReady(probed, "").DeepCopyInto(status)
 	}
 	return status, nil
 }
@@ -109,20 +109,20 @@ func (r *Prober) doReconcile(
 func (r *Prober) updateStatus(
 	ctx context.Context,
 	e *kubernetesimalv1alpha1.Etcd,
-	status kubernetesimalv1alpha1.EtcdStatus,
+	status *kubernetesimalv1alpha1.EtcdStatus,
 ) error {
 	logger := log.FromContext(ctx)
 
-	if !apiequality.Semantic.DeepEqual(status, e.Status) {
+	if !apiequality.Semantic.DeepEqual(status, &e.Status) {
 		patch := client.MergeFrom(e.DeepCopy())
-		e.Status = status
+		status.DeepCopyInto(&e.Status)
 		if err := r.Client.Status().Patch(ctx, e, patch); err != nil {
 			if apierrors.IsNotFound(err) {
 				return nil
 			}
 			return fmt.Errorf("status couldn't be applied a patch: %w", err)
 		}
-		logger.V(4).Info("Status was updated.")
+		logger.V(2).Info("Status was updated.")
 	}
 	return nil
 }

@@ -67,7 +67,7 @@ func (r *Prober) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, 
 		return ctrl.Result{}, err
 	}
 
-	status, err := r.doReconcile(ctx, &en, en.Spec.DeepCopy(), en.Status)
+	status, err := r.doReconcile(ctx, &en, en.Spec.DeepCopy(), en.Status.DeepCopy())
 	if statusUpdateErr := r.updateStatus(ctx, &en, status); statusUpdateErr != nil {
 		logger.Error(statusUpdateErr, "unable to update a status of an object")
 		return ctrl.Result{}, statusUpdateErr
@@ -82,8 +82,8 @@ func (r *Prober) doReconcile(
 	ctx context.Context,
 	obj client.Object,
 	spec *kubernetesimalv1alpha1.EtcdNodeSpec,
-	status kubernetesimalv1alpha1.EtcdNodeStatus,
-) (kubernetesimalv1alpha1.EtcdNodeStatus, error) {
+	status *kubernetesimalv1alpha1.EtcdNodeStatus,
+) (*kubernetesimalv1alpha1.EtcdNodeStatus, error) {
 	ctx, span := tracing.FromContext(ctx).Start(ctx, "doReconcile")
 	defer span.End()
 	logger := log.FromContext(ctx)
@@ -97,15 +97,15 @@ func (r *Prober) doReconcile(
 	}
 
 	if probed, err := probeEtcdMember(ctx, r.Client, obj, spec, status); err != nil {
-		status.WithReady(false, err.Error()).DeepCopyInto(&status)
+		status.WithReady(false, err.Error()).DeepCopyInto(status)
 		return status, fmt.Errorf("unable to probe an etcd member: %w", err)
 	} else {
 		if probed {
 			logger.V(4).Info("Probing an etcd member was succeeded.")
 		} else {
-			logger.Info("Probing an etcd member was failed.")
+			logger.V(4).Info("Probing an etcd member was failed.")
 		}
-		status.WithReady(probed, "").DeepCopyInto(&status)
+		status.WithReady(probed, "").DeepCopyInto(status)
 	}
 	return status, nil
 }
@@ -113,20 +113,20 @@ func (r *Prober) doReconcile(
 func (r *Prober) updateStatus(
 	ctx context.Context,
 	en *kubernetesimalv1alpha1.EtcdNode,
-	status kubernetesimalv1alpha1.EtcdNodeStatus,
+	status *kubernetesimalv1alpha1.EtcdNodeStatus,
 ) error {
 	logger := log.FromContext(ctx)
 
-	if !apiequality.Semantic.DeepEqual(status, en.Status) {
+	if !apiequality.Semantic.DeepEqual(status, &en.Status) {
 		patch := client.MergeFrom(en.DeepCopy())
-		en.Status = status
+		status.DeepCopyInto(&en.Status)
 		if err := r.Client.Status().Patch(ctx, en, patch); err != nil {
 			if apierrors.IsNotFound(err) {
 				return nil
 			}
 			return fmt.Errorf("status couldn't be applied a patch: %w", err)
 		}
-		logger.V(4).Info("Status was updated.")
+		logger.V(2).Info("Status was updated.")
 	}
 	return nil
 }
