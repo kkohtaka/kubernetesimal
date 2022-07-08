@@ -92,7 +92,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err != nil {
 		if errors.ShouldRequeue(err) {
 			delay := errors.GetDelay(err)
-			logger.Info(
+			logger.V(2).Info(
 				"Reconciliation will be requeued.",
 				"reason", err,
 				"delay", delay,
