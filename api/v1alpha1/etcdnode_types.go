@@ -134,6 +134,15 @@ func init() {
 	SchemeBuilder.Register(&EtcdNode{}, &EtcdNodeList{})
 }
 
+func (status *EtcdNodeStatus) LastReadyProbeTime() *metav1.Time {
+	for i := range status.Conditions {
+		if status.Conditions[i].Type == EtcdNodeConditionTypeReady {
+			return status.Conditions[i].LastProbeTime
+		}
+	}
+	return nil
+}
+
 func (status *EtcdNodeStatus) IsProvisioned() bool {
 	for i := range status.Conditions {
 		if status.Conditions[i].Type == EtcdNodeConditionTypeProvisioned {

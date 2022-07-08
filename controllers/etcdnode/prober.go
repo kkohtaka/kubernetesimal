@@ -30,11 +30,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
+	"github.com/kkohtaka/kubernetesimal/controller/errors"
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
-)
-
-const (
-	probeInterval = 5 * time.Second
 )
 
 // Prober reconciles a EtcdNode object
@@ -73,9 +70,20 @@ func (r *Prober) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, 
 		return ctrl.Result{}, statusUpdateErr
 	}
 	if err != nil {
-		return ctrl.Result{}, err
+		if errors.ShouldRequeue(err) {
+			delay := errors.GetDelay(err)
+			logger.Info(
+				"Reconciliation will be requeued.",
+				"reason", err,
+				"delay", delay,
+			)
+			return ctrl.Result{
+				RequeueAfter: delay,
+			}, nil
+		}
+		logger.Error(err, "unable to process probing")
 	}
-	return ctrl.Result{RequeueAfter: probeInterval}, nil
+	return ctrl.Result{RequeueAfter: getProbeInterval(status)}, nil
 }
 
 func (r *Prober) doReconcile(
@@ -89,11 +97,21 @@ func (r *Prober) doReconcile(
 	logger := log.FromContext(ctx)
 
 	if !obj.GetDeletionTimestamp().IsZero() {
+		logger.V(4).Info("EtcdNode is being deleted")
 		return status, nil
 	}
 
 	if !status.IsProvisioned() {
+		logger.V(4).Info("EtcdNode is not provisioned yet")
 		return status, nil
+	}
+
+	if probeTime := status.LastReadyProbeTime(); probeTime != nil {
+		interval := getProbeInterval(status)
+		if time.Since(probeTime.Time) < interval {
+			return status, errors.NewRequeueError("the object was probed within the last probe interval").
+				WithDelay(interval - time.Since(probeTime.Time))
+		}
 	}
 
 	if probed, err := probeEtcdMember(ctx, r.Client, obj, spec, status); err != nil {
@@ -137,4 +155,16 @@ func (r *Prober) SetupWithManager(mgr ctrl.Manager) error {
 		Named("etcdnode-prober").
 		For(&kubernetesimalv1alpha1.EtcdNode{}).
 		Complete(r)
+}
+
+func getProbeInterval(status *kubernetesimalv1alpha1.EtcdNodeStatus) time.Duration {
+	const (
+		probeIntervalOnNotReady = 5 * time.Second
+		probeInterval           = 3 * time.Minute
+	)
+
+	if !status.IsReady() {
+		return probeIntervalOnNotReady
+	}
+	return probeInterval
 }

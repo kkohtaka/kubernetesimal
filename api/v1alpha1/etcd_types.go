@@ -138,6 +138,15 @@ func init() {
 	SchemeBuilder.Register(&Etcd{}, &EtcdList{})
 }
 
+func (status *EtcdStatus) LastReadyProbeTime() *metav1.Time {
+	for i := range status.Conditions {
+		if status.Conditions[i].Type == EtcdConditionTypeReady {
+			return status.Conditions[i].LastProbeTime
+		}
+	}
+	return nil
+}
+
 func (status *EtcdStatus) IsReady() bool {
 	for i := range status.Conditions {
 		if status.Conditions[i].Type == EtcdConditionTypeReady {
