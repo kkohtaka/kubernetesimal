@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	pointerutils "k8s.io/utils/pointer"
@@ -17,9 +17,9 @@ import (
 	k8s_object "github.com/kkohtaka/kubernetesimal/k8s/object"
 )
 
-func WithAddressType(addressType discoveryv1beta1.AddressType) k8s_object.ObjectOption {
+func WithAddressType(addressType discoveryv1.AddressType) k8s_object.ObjectOption {
 	return func(o runtime.Object) error {
-		ep, ok := o.(*discoveryv1beta1.EndpointSlice)
+		ep, ok := o.(*discoveryv1.EndpointSlice)
 		if !ok {
 			return errors.New("not a instance of EndpointSlice")
 		}
@@ -30,7 +30,7 @@ func WithAddressType(addressType discoveryv1beta1.AddressType) k8s_object.Object
 
 func WithPort(name string, port int32) k8s_object.ObjectOption {
 	return func(o runtime.Object) error {
-		ep, ok := o.(*discoveryv1beta1.EndpointSlice)
+		ep, ok := o.(*discoveryv1.EndpointSlice)
 		if !ok {
 			return errors.New("not a instance of EndpointSlice")
 		}
@@ -40,7 +40,7 @@ func WithPort(name string, port int32) k8s_object.ObjectOption {
 				return nil
 			}
 		}
-		ep.Ports = append(ep.Ports, discoveryv1beta1.EndpointPort{
+		ep.Ports = append(ep.Ports, discoveryv1.EndpointPort{
 			Name: pointerutils.StringPtr(name),
 			Port: pointerutils.Int32(port),
 		})
@@ -48,9 +48,9 @@ func WithPort(name string, port int32) k8s_object.ObjectOption {
 	}
 }
 
-func WithEndpoints(endpoints []discoveryv1beta1.Endpoint) k8s_object.ObjectOption {
+func WithEndpoints(endpoints []discoveryv1.Endpoint) k8s_object.ObjectOption {
 	return func(o runtime.Object) error {
-		ep, ok := o.(*discoveryv1beta1.EndpointSlice)
+		ep, ok := o.(*discoveryv1.EndpointSlice)
 		if !ok {
 			return errors.New("not a instance of EndpointSlice")
 		}
@@ -65,8 +65,8 @@ func Reconcile(
 	c client.Client,
 	name, namespace string,
 	opts ...k8s_object.ObjectOption,
-) (*discoveryv1beta1.EndpointSlice, error) {
-	var endpointSlice discoveryv1beta1.EndpointSlice
+) (*discoveryv1.EndpointSlice, error) {
+	var endpointSlice discoveryv1.EndpointSlice
 	endpointSlice.Name = name
 	endpointSlice.Namespace = namespace
 	opRes, err := ctrl.CreateOrUpdate(ctx, c, &endpointSlice, func() error {

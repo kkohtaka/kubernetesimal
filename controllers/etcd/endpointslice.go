@@ -6,7 +6,7 @@ import (
 
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
-	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -53,7 +53,7 @@ func reconcileEndpointSlice(
 		return nil, err
 	}
 
-	var endpoints []discoveryv1beta1.Endpoint
+	var endpoints []discoveryv1.Endpoint
 	for _, ref := range status.NodeRefs {
 		var (
 			node    kubernetesimalv1alpha1.EtcdNode
@@ -117,10 +117,10 @@ func reconcileEndpointSlice(
 			ready       = serving && !terminating
 		)
 
-		endpoints = append(endpoints, discoveryv1beta1.Endpoint{
+		endpoints = append(endpoints, discoveryv1.Endpoint{
 			Addresses: peerService.Spec.ClusterIPs,
 			Hostname:  pointerutils.StringPtr(peerService.Name),
-			Conditions: discoveryv1beta1.EndpointConditions{
+			Conditions: discoveryv1.EndpointConditions{
 				Ready:       &ready,
 				Serving:     &serving,
 				Terminating: &terminating,
@@ -144,7 +144,7 @@ func reconcileEndpointSlice(
 		k8s_object.WithOwner(obj, scheme),
 		k8s_object.WithLabel("kubernetes.io/service-name", service.Name),
 		k8s_object.WithLabel("endpointslice.kubernetes.io/managed-by", "etcd-controller.kubernetesimal.kkohtaka.org"),
-		k8s_endpointslice.WithAddressType(discoveryv1beta1.AddressTypeIPv4),
+		k8s_endpointslice.WithAddressType(discoveryv1.AddressTypeIPv4),
 		k8s_endpointslice.WithPort(ServiceNameEtcd, ServicePortEtcd),
 		k8s_endpointslice.WithEndpoints(endpoints),
 	); err != nil {
