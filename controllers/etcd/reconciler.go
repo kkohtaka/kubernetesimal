@@ -277,6 +277,10 @@ func (r *Reconciler) reconcileExternalResources(
 		return status, errors.NewRequeueError("expected creations or deletions are left")
 	}
 
+	if err := removeOrphanNodes(ctx, r.Client, obj, status); err != nil {
+		return status, fmt.Errorf("unable to remove orphan EtcdNodes: %w", err)
+	}
+
 	var (
 		nRunning, nPending int
 	)
