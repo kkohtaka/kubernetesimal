@@ -267,12 +267,6 @@ func (r *Reconciler) reconcileExternalResources(
 		status.ServiceRef = serviceRef
 	}
 
-	if endpointSliceRef, err := reconcileEndpointSlice(ctx, r.Client, r.Scheme, obj, spec, status); err != nil {
-		return status, fmt.Errorf("unable to prepare an endpoint slice: %w", err)
-	} else {
-		status.EndpointSliceRef = endpointSliceRef
-	}
-
 	if needSync := !r.Expectations.SatisfiedExpectations(expectations.KeyFromObject(obj)); needSync {
 		return status, errors.NewRequeueError("expected creations or deletions are left")
 	}
@@ -305,6 +299,12 @@ func (r *Reconciler) reconcileExternalResources(
 	if len(status.NodeRefs) > int(*spec.Replicas) {
 		// TODO(kkohtaka): Decrease etcd nodes
 		return status, nil
+	}
+
+	if endpointSliceRef, err := reconcileEndpointSlice(ctx, r.Client, r.Scheme, obj, spec, status); err != nil {
+		return status, fmt.Errorf("unable to prepare an endpoint slice: %w", err)
+	} else {
+		status.EndpointSliceRef = endpointSliceRef
 	}
 
 	if len(status.NodeRefs) < int(*spec.Replicas) {
