@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
+	"github.com/kkohtaka/kubernetesimal/controller/errors"
 	"github.com/kkohtaka/kubernetesimal/controller/finalizer"
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
 	"go.opentelemetry.io/otel/trace"
@@ -16,6 +17,7 @@ import (
 func removeOrphanNodes(
 	ctx context.Context,
 	c client.Client,
+	directClient client.Reader,
 	obj client.Object,
 	status *kubernetesimalv1alpha1.EtcdStatus,
 ) error {
@@ -52,6 +54,12 @@ func removeOrphanNodes(
 			}
 
 			// Here, this EtcdNode is owned by the Etcd but not listed in Status.NodeRefs.
+			if outdated, err := isStatusOutdated(ctx, directClient, obj, status); err != nil {
+				return err
+			} else if outdated {
+				return errors.NewRequeueError("status is outdated")
+			}
+
 			logger.Info("Orphaned EtcdNode was found.", "etcdnode", node.GetName())
 			if err := finalizeEtcdNode(ctx, c, obj.GetNamespace(), node.GetName()); err != nil {
 				return fmt.Errorf("unable to finalize a EtcdNode: %w", err)

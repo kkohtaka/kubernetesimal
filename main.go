@@ -123,9 +123,10 @@ func main() {
 	}
 
 	if err = (&etcd.Reconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-		Tracer: provider.Tracer("etcd-controller"),
+		Client:    mgr.GetClient(),
+		APIReader: mgr.GetAPIReader(),
+		Scheme:    mgr.GetScheme(),
+		Tracer:    provider.Tracer("etcd-controller"),
 		Expectations: expectations.NewUIDTrackingControllerExpectations(
 			expectations.NewControllerExpectations(),
 		),

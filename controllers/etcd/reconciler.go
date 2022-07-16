@@ -51,6 +51,8 @@ type Reconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
+	APIReader client.Reader
+
 	Tracer trace.Tracer
 
 	Expectations *expectations.UIDTrackingControllerExpectations
@@ -271,8 +273,14 @@ func (r *Reconciler) reconcileExternalResources(
 		return status, errors.NewRequeueError("expected creations or deletions are left")
 	}
 
-	if err := removeOrphanNodes(ctx, r.Client, obj, status); err != nil {
+	if err := removeOrphanNodes(ctx, r.Client, r.APIReader, obj, status); err != nil {
 		return status, fmt.Errorf("unable to remove orphan EtcdNodes: %w", err)
+	}
+
+	if nodeRefs, err := reconcileNodeReferences(ctx, r.Client, r.APIReader, obj, spec, status); err != nil {
+		return status, fmt.Errorf("unable to prepare an endpoint slice: %w", err)
+	} else {
+		status.NodeRefs = nodeRefs
 	}
 
 	var (
