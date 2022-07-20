@@ -1619,8 +1619,8 @@ def go_dependencies():
     go_repository(
         name = "io_opentelemetry_go_otel",
         importpath = "go.opentelemetry.io/otel",
-        sum = "h1:Z2lA3Tdch0iDcrhJXDIlC94XE+bxok1F9B+4Lz/lGsM=",
-        version = "v1.7.0",
+        sum = "h1:zcvBFizPbpa1q7FehvFiHbQwGzmPILebO0tyqIR5Djg=",
+        version = "v1.8.0",
     )
     go_repository(
         name = "io_opentelemetry_go_otel_exporters_otlp",
@@ -1667,8 +1667,8 @@ def go_dependencies():
     go_repository(
         name = "io_opentelemetry_go_otel_sdk",
         importpath = "go.opentelemetry.io/otel/sdk",
-        sum = "h1:4OmStpcKVOfvDOgCt7UriAPtKolwIhxpnSNI/yK+1B0=",
-        version = "v1.7.0",
+        sum = "h1:xwu69/fNuwbSHWe/0PGS888RmjWY181OmcXDQKu7ZQk=",
+        version = "v1.8.0",
     )
     go_repository(
         name = "io_opentelemetry_go_otel_sdk_export_metric",
@@ -1685,8 +1685,8 @@ def go_dependencies():
     go_repository(
         name = "io_opentelemetry_go_otel_trace",
         importpath = "go.opentelemetry.io/otel/trace",
-        sum = "h1:O37Iogk1lEkMRXewVtZ1BBTVn5JEp8GrJvP92bJqC6o=",
-        version = "v1.7.0",
+        sum = "h1:cSy0DF9eGI5WIfNwZ1q2iUyGj00tGzP24dE1lOlHrfY=",
+        version = "v1.8.0",
     )
     go_repository(
         name = "io_opentelemetry_go_proto_otlp",
