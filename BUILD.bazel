@@ -9,6 +9,14 @@ gazelle(
 )
 
 gazelle(
+    name = "gazelle-validate",
+    command = "fix",
+    extra_args = [
+        "-mode=diff",
+    ],
+)
+
+gazelle(
     name = "gazelle-update-repos",
     args = [
         "-from_file=go.mod",
