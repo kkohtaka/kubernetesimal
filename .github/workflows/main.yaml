@@ -5,8 +5,26 @@ on:
   pull_request: {}
 
 jobs:
+  validate:
+    name: Validate repository status
+
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: bazelbuild/setup-bazelisk@v2
+      - uses: actions/cache@v3
+        with:
+          path: "~/.cache/bazel"
+          key: bazel
+      - run: bazel run //:gazelle-validate
+
+
   test:
     name: Run tests
+
+    needs:
+      - validate
 
     runs-on: ubuntu-20.04
 
