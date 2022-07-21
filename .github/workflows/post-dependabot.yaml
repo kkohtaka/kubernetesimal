@@ -1,0 +1,33 @@
+name: Post actions of a Pull Request by dependabot
+
+on:
+  pull_request:
+    branches:
+      - dependabot/**
+    paths:
+      - go.mod
+      - go.sum
+
+jobs:
+  generate:
+    name: Generate Bazel files
+
+    if: github.actor == "dependabot[bot]"
+
+    runs-on: ubuntu-20.04
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: bazelbuild/setup-bazelisk@v2
+      - uses: actions/cache@v3
+        with:
+          path: "~/.cache/bazel"
+          key: bazel
+      - run: bazel run //:gazelle-update-repos
+      - run: bazel run //:gazelle
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "[dependabot skip] Re-generate Bazel files"
