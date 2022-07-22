@@ -1505,8 +1505,8 @@ def go_dependencies():
     go_repository(
         name = "io_k8s_client_go",
         importpath = "k8s.io/client-go",
-        sum = "h1:CoXFSf8if+bLEbinDqN9ePIDGzcLtqhfd6jpfnwGOFA=",
-        version = "v0.24.2",
+        sum = "h1:Nl1840+6p4JqkFWEW2LnMKU667BUxw03REfLAVhuKQY=",
+        version = "v0.24.3",
     )
     go_repository(
         name = "io_k8s_code_generator",
