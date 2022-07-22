@@ -2,8 +2,6 @@ name: Post actions of a Pull Request by dependabot
 
 on:
   pull_request:
-    branches:
-      - 'dependabot/**'
     paths:
       - go.mod
       - go.sum
