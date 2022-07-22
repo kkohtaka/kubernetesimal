@@ -1577,14 +1577,14 @@ def go_dependencies():
     go_repository(
         name = "io_kubevirt_api",
         importpath = "kubevirt.io/api",
-        sum = "h1:rVHaKrsxpYf5Cu6rhASOxNTChS76Nvtn5tArtG2M2Ds=",
-        version = "v0.54.0",
+        sum = "h1:DEAKKaIc6zpQHy/AIsyKzIsbzpgv+q+WxCtlAPCHf8Q=",
+        version = "v0.55.0",
     )
     go_repository(
         name = "io_kubevirt_containerized_data_importer_api",
         importpath = "kubevirt.io/containerized-data-importer-api",
-        sum = "h1:fncmQ/2J8MVb3c2snNkUXlBQX472nqCjJJ2AduuMrDc=",
-        version = "v1.47.0",
+        sum = "h1:O01F8L5K8qRLnkYICIfmAu0dU0P48jdO42uFPElht38=",
+        version = "v1.50.0",
     )
     go_repository(
         name = "io_kubevirt_controller_lifecycle_operator_sdk_api",
