@@ -1034,14 +1034,14 @@ def go_dependencies():
     go_repository(
         name = "com_github_onsi_ginkgo_v2",
         importpath = "github.com/onsi/ginkgo/v2",
-        sum = "h1:e/3Cwtogj0HA+25nMP1jCMDIf8RtRYbGwGGuBIFztkc=",
-        version = "v2.1.3",
+        sum = "h1:GNapqRSid3zijZ9H77KrgVG4/8KqiyRsxcSxe+7ApXY=",
+        version = "v2.1.4",
     )
     go_repository(
         name = "com_github_onsi_gomega",
         importpath = "github.com/onsi/gomega",
-        sum = "h1:4ieX6qQjPP/BfC3mpsAtIGGlxTWPeA3Inl/7DtXw1tw=",
-        version = "v1.19.0",
+        sum = "h1:8W0cWlwFkflGPLltQvLRB7ZVD5HuP6ng320w2IS245Q=",
+        version = "v1.20.0",
     )
     go_repository(
         name = "com_github_openshift_custom_resource_status",
