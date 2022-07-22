@@ -3,7 +3,10 @@ name: Post actions of a Pull Request by dependabot
 on:
   pull_request:
     branches:
-      - dependabot/**
+      - 'dependabot/**'
+    paths:
+      - go.mod
+      - go.sum
 
 jobs:
   generate:
