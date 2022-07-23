@@ -3,6 +3,7 @@ load("@io_bazel_rules_go//go:def.bzl", "go_test")
 go_test(
     name = "controllers_test",
     srcs = ["suite_test.go"],
+    data = glob(["testdata/**"]),
     deps = [
         "//api/v1alpha1",
         "@com_github_onsi_ginkgo//:ginkgo",

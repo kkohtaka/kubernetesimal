@@ -24,8 +24,11 @@ jobs:
         with:
           path: "~/.cache/bazel"
           key: bazel
+      - uses: helm/kind-action@v1.3.0
       - run: bazel run //:gazelle-update-repos
       - run: bazel run //:gazelle
       - uses: stefanzweifel/git-auto-commit-action@v4
         with:
           commit_message: "[dependabot skip] Re-generate Bazel files"
+      - run: bazel test //... --test_env=USE_EXISTING_CLUSTER=true
+      - run: bazel build //:push_kubernetesimal
