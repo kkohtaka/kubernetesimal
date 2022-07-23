@@ -20,36 +20,11 @@ jobs:
       - run: bazel run //:gazelle-validate
 
 
-  test:
-    name: Run tests
+  build:
+    name: Run tests and build a Docker image
 
     needs:
       - validate
-
-    runs-on: ubuntu-20.04
-
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/cache@v3
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - uses: helm/kind-action@v1.3.0
-      - uses: actions/setup-go@v3
-        with:
-          go-version-file: go.mod
-      - run: go test ./...
-        env:
-          USE_EXISTING_CLUSTER: 'true'
-
-
-  build:
-    name: Build a Docker image
-
-    needs:
-      - test
 
     runs-on: ubuntu-20.04
 
@@ -60,6 +35,8 @@ jobs:
         with:
           path: "~/.cache/bazel"
           key: bazel
+      - uses: helm/kind-action@v1.3.0
+      - run: bazel test //... --test_env=USE_EXISTING_CLUSTER=true
       - run: bazel build //:push_kubernetesimal
 
 
