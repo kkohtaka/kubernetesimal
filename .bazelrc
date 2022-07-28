@@ -3,3 +3,4 @@ build --workspace_status_command "sh workspace_status.sh"
 build --stamp
 
 test --test_output errors
+test --test_env=USE_EXISTING_CLUSTER=true

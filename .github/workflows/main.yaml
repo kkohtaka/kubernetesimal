@@ -36,7 +36,7 @@ jobs:
           path: "~/.cache/bazel"
           key: bazel
       - uses: helm/kind-action@v1.3.0
-      - run: bazel test //... --test_env=USE_EXISTING_CLUSTER=true
+      - run: bazel test //...
       - run: bazel build //:push_kubernetesimal
 
 
