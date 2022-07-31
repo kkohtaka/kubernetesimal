@@ -1,4 +1,4 @@
-{{ define "start-etcd.sh.tmpl" }}
+{{ define "join-cluster.sh.tmpl" }}
 #!/usr/bin/env bash
 
 if etcdadm version --short | grep -F 'v{{ .EtcdadmVersion }}'; then
@@ -13,10 +13,11 @@ etcdadm version
 if systemctl is-active etcd; then
     :
 else
-    etcdadm init \
+    etcdadm join \
         --name={{ .ServiceName }} \
         --server-cert-extra-sans={{ .ExtraSANs }} \
-        --version={{ .EtcdVersion }}
+        --version={{ .EtcdVersion }} \
+        {{ .EtcdClientEndpoint }}
 fi
 
 etcdadm info

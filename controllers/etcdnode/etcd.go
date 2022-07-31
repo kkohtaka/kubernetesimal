@@ -105,8 +105,14 @@ func provisionEtcdMember(
 	}
 	defer closer()
 
-	if err := ssh.RunCommandOverSSHSession(ctx, client, "sudo /opt/bin/start-etcd.sh"); err != nil {
-		return err
+	if spec.AsFirstNode {
+		if err := ssh.RunCommandOverSSHSession(ctx, client, "sudo /opt/bin/start-cluster.sh"); err != nil {
+			return err
+		}
+	} else {
+		if err := ssh.RunCommandOverSSHSession(ctx, client, "sudo /opt/bin/join-cluster.sh"); err != nil {
+			return err
+		}
 	}
 
 	return nil
