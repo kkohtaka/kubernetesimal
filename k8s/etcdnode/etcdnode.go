@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -104,7 +103,7 @@ func WithServiceRef(serviceRef corev1.LocalObjectReference) k8s_object.ObjectOpt
 	}
 }
 
-func CreateOnlyIfNotExist(
+func Create(
 	ctx context.Context,
 	c client.Client,
 	opts ...k8s_object.ObjectOption,
@@ -116,13 +115,36 @@ func CreateOnlyIfNotExist(
 		}
 	}
 	if err := c.Create(ctx, &node); err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			if err := c.Get(ctx, client.ObjectKeyFromObject(&node), &node); err != nil {
-				return nil, err
-			}
-			return &node, nil
-		}
 		return nil, fmt.Errorf("unable to create EtcdNode %s: %w", k8s_object.ObjectName(&node.ObjectMeta), err)
+	}
+
+	logger := log.FromContext(ctx).WithValues(
+		"namespace", node.Namespace,
+		"name", node.Name,
+	)
+	logger.Info("EtcdNode was created")
+
+	return &node, nil
+}
+
+func Update(
+	ctx context.Context,
+	c client.Client,
+	name, namespace string,
+	opts ...k8s_object.ObjectOption,
+) (*kubernetesimalv1alpha1.EtcdNode, error) {
+	var node kubernetesimalv1alpha1.EtcdNode
+	node.Name = name
+	node.Namespace = namespace
+	node.Spec.AsFirstNode = false
+
+	for _, fn := range opts {
+		if err := fn(&node); err != nil {
+			return nil, err
+		}
+	}
+	if err := c.Update(ctx, &node); err != nil {
+		return nil, fmt.Errorf("unable to update EtcdNode %s: %w", k8s_object.ObjectName(&node.ObjectMeta), err)
 	}
 
 	logger := log.FromContext(ctx).WithValues(
