@@ -143,16 +143,16 @@ func reconcileUserData(
 		return nil, errors.NewRequeueError("waiting for a cluster IP of the etcd peer Service prepared")
 	}
 
-	startEtcdScriptBuf := bytes.Buffer{}
-	startEtcdScriptTmpl, err := template.New("start-etcd.sh.tmpl").ParseFS(
+	startClusterScriptBuf := bytes.Buffer{}
+	startClusterScriptTmpl, err := template.New("start-cluster.sh.tmpl").ParseFS(
 		cloudConfigTemplates,
-		"templates/start-etcd.sh.tmpl",
+		"templates/start-cluster.sh.tmpl",
 	)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse a template of start-etcd.sh: %w", err)
+		return nil, fmt.Errorf("unable to parse a template of start-cluster.sh: %w", err)
 	}
-	if err := startEtcdScriptTmpl.Execute(
-		&startEtcdScriptBuf,
+	if err := startClusterScriptTmpl.Execute(
+		&startClusterScriptBuf,
 		&struct {
 			EtcdadmReleaseURL string
 			EtcdadmVersion    string
@@ -177,7 +177,46 @@ func reconcileUserData(
 			),
 		},
 	); err != nil {
-		return nil, fmt.Errorf("unable to render start-etcd.sh from a template: %w", err)
+		return nil, fmt.Errorf("unable to render start-cluster.sh from a template: %w", err)
+	}
+
+	joinClusterScriptBuf := bytes.Buffer{}
+	joinClusterScriptTmpl, err := template.New("join-cluster.sh.tmpl").ParseFS(
+		cloudConfigTemplates,
+		"templates/join-cluster.sh.tmpl",
+	)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse a template of join-cluster.sh: %w", err)
+	}
+	if err := joinClusterScriptTmpl.Execute(
+		&joinClusterScriptBuf,
+		&struct {
+			EtcdadmReleaseURL  string
+			EtcdadmVersion     string
+			EtcdVersion        string
+			ServiceName        string
+			ExtraSANs          string
+			EtcdClientEndpoint string
+		}{
+			EtcdadmReleaseURL: defaultEtcdadmReleaseURL,
+			EtcdadmVersion:    defaultEtcdadmVersion,
+			EtcdVersion:       defaultEtcdVersion,
+			ServiceName:       peerService.Name,
+			ExtraSANs: strings.Join(
+				[]string{
+					peerService.Spec.ClusterIP,
+					fmt.Sprintf("%s.%s.svc", peerService.Name, peerService.Namespace),
+					fmt.Sprintf("%s.%s", peerService.Name, peerService.Namespace),
+					service.Spec.ClusterIP,
+					fmt.Sprintf("%s.%s.svc", service.Name, service.Namespace),
+					fmt.Sprintf("%s.%s", service.Name, service.Namespace),
+				},
+				",",
+			),
+			EtcdClientEndpoint: fmt.Sprintf("https://%s:%d", service.Spec.ClusterIP, servicePortEtcd),
+		},
+	); err != nil {
+		return nil, fmt.Errorf("unable to render join-cluster.sh from a template: %w", err)
 	}
 
 	cloudInitBuf := bytes.Buffer{}
@@ -189,13 +228,15 @@ func reconcileUserData(
 		&cloudInitBuf,
 		&struct {
 			AuthorizedKeys              []string
-			StartEtcdScript             string
+			StartClusterScript          string
+			JoinClusterScript           string
 			CACertificate, CAPrivateKey string
 		}{
-			AuthorizedKeys:  []string{string(publicKey)},
-			StartEtcdScript: base64.StdEncoding.EncodeToString(startEtcdScriptBuf.Bytes()),
-			CACertificate:   base64.StdEncoding.EncodeToString(caCertificate),
-			CAPrivateKey:    base64.StdEncoding.EncodeToString(caPrivateKey),
+			AuthorizedKeys:     []string{string(publicKey)},
+			StartClusterScript: base64.StdEncoding.EncodeToString(startClusterScriptBuf.Bytes()),
+			JoinClusterScript:  base64.StdEncoding.EncodeToString(joinClusterScriptBuf.Bytes()),
+			CACertificate:      base64.StdEncoding.EncodeToString(caCertificate),
+			CAPrivateKey:       base64.StdEncoding.EncodeToString(caPrivateKey),
 		},
 	); err != nil {
 		return nil, fmt.Errorf("unable to render a cloud-config from a template: %w", err)

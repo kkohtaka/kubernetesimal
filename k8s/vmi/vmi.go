@@ -53,7 +53,7 @@ func newDefaultVirtualMachineInstance() kubevirtv1.VirtualMachineInstance {
 						},
 					},
 					Interfaces: []kubevirtv1.Interface{
-						*kubevirtv1.DefaultMasqueradeNetworkInterface(),
+						*kubevirtv1.DefaultBridgeNetworkInterface(),
 					},
 				},
 				Resources: kubevirtv1.ResourceRequirements{

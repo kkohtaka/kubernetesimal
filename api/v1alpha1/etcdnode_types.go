@@ -45,6 +45,9 @@ type EtcdNodeSpec struct {
 
 	// ServiceRef is a reference to a Service of an etcd cluster.
 	ServiceRef corev1.LocalObjectReference `json:"serviceRef"`
+
+	// AsFirstNode is whether the node is the first node of a cluster.
+	AsFirstNode bool `json:"asFirstNode"`
 }
 
 // EtcdNodeStatus defines the observed state of EtcdNode

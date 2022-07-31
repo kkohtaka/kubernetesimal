@@ -40,6 +40,10 @@ spec:
           spec:
             description: EtcdNodeSpec defines the desired state of EtcdNode
             properties:
+              asFirstNode:
+                description: AsFirstNode is whether the node is the first node of
+                  a cluster.
+                type: boolean
               caCertificateRef:
                 description: CACertificateRef is a reference to a Secret key that
                   composes a CA certificate.
@@ -160,6 +164,7 @@ spec:
                 description: Version is the desired version of the etcd cluster.
                 type: string
             required:
+            - asFirstNode
             - caCertificateRef
             - caPrivateKeyRef
             - serviceRef

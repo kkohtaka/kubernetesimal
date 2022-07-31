@@ -315,6 +315,26 @@ func (r *Reconciler) reconcileExternalResources(
 		status.EndpointSliceRef = endpointSliceRef
 	}
 
+	var asFirstNode bool
+	if len(status.NodeRefs) == 0 {
+		asFirstNode = true
+	} else {
+		for _, nodeRef := range status.NodeRefs {
+			key := client.ObjectKey{Namespace: obj.GetNamespace(), Name: nodeRef.Name}
+			var node kubernetesimalv1alpha1.EtcdNode
+			if err := r.Get(ctx, key, &node); err != nil {
+				return status, fmt.Errorf("unable to get an EtcdNode %s: %w", key, err)
+			}
+			if node.Spec.AsFirstNode {
+				node.Spec.AsFirstNode = false
+				if err := r.Update(ctx, &node, &client.UpdateOptions{}); err != nil {
+					return status, fmt.Errorf("unable to update an EtcdNode %s: %w", key, err)
+				}
+				return status, errors.NewRequeueError("EtcdNode %s was updated")
+			}
+		}
+	}
+
 	if len(status.NodeRefs) < int(*spec.Replicas) {
 		if err := r.Expectations.ExpectCreations(expectations.KeyFromObject(obj), 1); err != nil {
 			return status, fmt.Errorf("unable to update expectations: %w", err)
@@ -333,6 +353,7 @@ func (r *Reconciler) reconcileExternalResources(
 			k8s_etcdnode.WithSSHPrivateKeyRef(*status.SSHPrivateKeyRef),
 			k8s_etcdnode.WithSSHPublicKeyRef(*status.SSHPublicKeyRef),
 			k8s_etcdnode.WithServiceRef(*status.ServiceRef),
+			k8s_etcdnode.AsFirstNode(asFirstNode),
 		); err != nil {
 			r.Expectations.CreationObserved(expectations.KeyFromObject(obj))
 			return status, fmt.Errorf("unable to create EtcdNode: %w", err)

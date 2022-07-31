@@ -11,8 +11,12 @@ ssh_authorized_keys:
 {{- end }}
 write_files:
 - encoding: b64
-  content: {{ .StartEtcdScript }}
-  path: /opt/bin/start-etcd.sh
+  content: {{ .StartClusterScript }}
+  path: /opt/bin/start-cluster.sh
+  permissions: '0755'
+- encoding: b64
+  content: {{ .JoinClusterScript }}
+  path: /opt/bin/join-cluster.sh
   permissions: '0755'
 - encoding: b64
   content: {{ .CACertificate }}

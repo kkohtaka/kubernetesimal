@@ -103,12 +103,25 @@ func WithServiceRef(serviceRef corev1.LocalObjectReference) k8s_object.ObjectOpt
 	}
 }
 
+func AsFirstNode(asFirstNode bool) k8s_object.ObjectOption {
+	return func(o runtime.Object) error {
+		node, ok := o.(*kubernetesimalv1alpha1.EtcdNode)
+		if !ok {
+			return errors.New("not a instance of EtcdNode")
+		}
+		node.Spec.AsFirstNode = asFirstNode
+		return nil
+	}
+}
+
 func Create(
 	ctx context.Context,
 	c client.Client,
 	opts ...k8s_object.ObjectOption,
 ) (*kubernetesimalv1alpha1.EtcdNode, error) {
 	var node kubernetesimalv1alpha1.EtcdNode
+	node.Spec.AsFirstNode = false
+
 	for _, fn := range opts {
 		if err := fn(&node); err != nil {
 			return nil, err
