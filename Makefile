@@ -49,29 +49,6 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
-SETUP_ENVTEST := $(shell pwd)/bin/setup-envtest
-.PHONY: setup-envtest
-setup-envtest: ## Download setup-envtest locally if necessary
-	# see https://github.com/kubernetes-sigs/controller-runtime/tree/master/tools/setup-envtest
-	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
-
-test: manifests generate fmt vet setup-envtest ## Run tests.
-	source <($(SETUP_ENVTEST) use -p env); go test ./... -coverprofile cover.out
-
-##@ Build
-
-build: generate fmt vet ## Build manager binary.
-	go build -o bin/manager main.go
-
-run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./main.go
-
-docker-build: test ## Build docker image with the manager.
-	docker build -t ${IMG} .
-
-docker-push: ## Push docker image with the manager.
-	docker push ${IMG}
-
 ##@ Deployment
 
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
