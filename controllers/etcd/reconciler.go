@@ -319,7 +319,7 @@ func (r *Reconciler) reconcileExternalResources(
 		if err := r.Expectations.ExpectCreations(expectations.KeyFromObject(obj), 1); err != nil {
 			return status, fmt.Errorf("unable to update expectations: %w", err)
 		}
-		if node, err := k8s_etcdnode.CreateOnlyIfNotExist(
+		if node, err := k8s_etcdnode.Create(
 			ctx,
 			r.Client,
 			k8s_object.WithGeneratorName(obj.GetName()+"-"),
