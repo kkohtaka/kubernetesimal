@@ -160,7 +160,7 @@ spec:
                       description: Type is the type of the condition.
                       enum:
                       - Ready
-                      - Provisioned
+                      - MembersHealthy
                       type: string
                   required:
                   - status

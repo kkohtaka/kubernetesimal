@@ -109,7 +109,7 @@ func (r *Prober) doReconcile(
 		}
 	}
 
-	if probed, err := probeEtcd(ctx, r.Client, obj, spec, status); err != nil {
+	if probed, message, err := probeEtcd(ctx, r.Client, obj, spec, status); err != nil {
 		status.WithReady(false, err.Error()).DeepCopyInto(status)
 		return status, fmt.Errorf("unable to probe an etcd: %w", err)
 	} else {
@@ -118,8 +118,21 @@ func (r *Prober) doReconcile(
 		} else {
 			logger.V(4).Info("Probing an etcd was failed.")
 		}
-		status.WithReady(probed, "").DeepCopyInto(status)
+		status.WithReady(probed, message).DeepCopyInto(status)
 	}
+
+	if probed, message, err := probeEtcdMembers(ctx, r.Client, obj, spec, status); err != nil {
+		status.WithMembersHealthy(false, err.Error()).DeepCopyInto(status)
+		return status, fmt.Errorf("unable to probe etcd members: %w", err)
+	} else {
+		if probed {
+			logger.V(4).Info("Probing etcd members was succeeded.")
+		} else {
+			logger.V(4).Info("Probing etcd members was failed.")
+		}
+		status.WithMembersHealthy(probed, message).DeepCopyInto(status)
+	}
+
 	return status, nil
 }
 
@@ -159,6 +172,9 @@ func getProbeInterval(status *kubernetesimalv1alpha1.EtcdStatus) time.Duration {
 	)
 
 	if !status.IsReady() {
+		return probeIntervalOnNotReady
+	}
+	if !status.AreMembersHealthy() {
 		return probeIntervalOnNotReady
 	}
 	return probeInterval
