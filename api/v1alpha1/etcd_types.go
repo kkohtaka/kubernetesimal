@@ -101,12 +101,15 @@ type EtcdCondition struct {
 }
 
 // EtcdConditionType represents a type of condition.
-//+kubebuilder:validation:Enum=Ready;Provisioned
+//+kubebuilder:validation:Enum=Ready;MembersHealthy
 type EtcdConditionType string
 
 const (
 	// EtcdConditionTypeReady is a status respective to a cluster readiness.
 	EtcdConditionTypeReady EtcdConditionType = "Ready"
+
+	// EtcdConditionTypeMembersHealthy indicates whether all EtcdNodes are registered successfully and healthy.
+	EtcdConditionTypeMembersHealthy EtcdConditionType = "MembersHealthy"
 )
 
 //+kubebuilder:object:root=true
@@ -165,12 +168,32 @@ func (status *EtcdStatus) IsReadyOnce() bool {
 	return false
 }
 
+func (status *EtcdStatus) AreMembersHealthy() bool {
+	for i := range status.Conditions {
+		if status.Conditions[i].Type == EtcdConditionTypeMembersHealthy {
+			return status.Conditions[i].Status == corev1.ConditionTrue
+		}
+	}
+	return false
+}
+
 func (status *EtcdStatus) WithReady(
 	ready bool,
 	message string,
 ) *EtcdStatus {
 	return status.WithStatusCondition(
 		EtcdConditionTypeReady,
+		ready,
+		message,
+	)
+}
+
+func (status *EtcdStatus) WithMembersHealthy(
+	ready bool,
+	message string,
+) *EtcdStatus {
+	return status.WithStatusCondition(
+		EtcdConditionTypeMembersHealthy,
 		ready,
 		message,
 	)
