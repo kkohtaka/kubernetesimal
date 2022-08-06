@@ -50,7 +50,7 @@ type Prober struct {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *Prober) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := log.FromContext(ctx).WithValues("etcdnode", req.NamespacedName)
+	logger := log.FromContext(ctx).WithValues("etcd", req.NamespacedName)
 	ctx = log.IntoContext(ctx, logger)
 	var span trace.Span
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "Reconcile")
