@@ -1667,8 +1667,8 @@ def go_dependencies():
     go_repository(
         name = "io_opentelemetry_go_otel_sdk",
         importpath = "go.opentelemetry.io/otel/sdk",
-        sum = "h1:xwu69/fNuwbSHWe/0PGS888RmjWY181OmcXDQKu7ZQk=",
-        version = "v1.8.0",
+        sum = "h1:LNXp1vrr83fNXTHgU8eO89mhzxb/bbWAsHG6fNf3qWo=",
+        version = "v1.9.0",
     )
     go_repository(
         name = "io_opentelemetry_go_otel_sdk_export_metric",
