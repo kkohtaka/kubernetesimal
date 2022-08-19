@@ -1493,8 +1493,8 @@ def go_dependencies():
         name = "io_k8s_apimachinery",
         build_file_proto_mode = "disable",
         importpath = "k8s.io/apimachinery",
-        sum = "h1:hrFiNSA2cBZqllakVYyH/VyEh4B581bQRmqATJSeQTg=",
-        version = "v0.24.3",
+        sum = "h1:S0Ur3J/PbivTcL43EdSdPhqCqKla2NIuneNwZcTDeGQ=",
+        version = "v0.24.4",
     )
     go_repository(
         name = "io_k8s_apiserver",
