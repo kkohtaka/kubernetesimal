@@ -219,6 +219,29 @@ func reconcileUserData(
 		return nil, fmt.Errorf("unable to render join-cluster.sh from a template: %w", err)
 	}
 
+	leaveClusterScriptBuf := bytes.Buffer{}
+	leaveClusterScriptTmpl, err := template.New("leave-cluster.sh.tmpl").ParseFS(
+		cloudConfigTemplates,
+		"templates/leave-cluster.sh.tmpl",
+	)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse a template of leave-cluster.sh: %w", err)
+	}
+	if err := leaveClusterScriptTmpl.Execute(
+		&leaveClusterScriptBuf,
+		&struct {
+			EtcdadmReleaseURL string
+			EtcdadmVersion    string
+			EtcdVersion       string
+		}{
+			EtcdadmReleaseURL: defaultEtcdadmReleaseURL,
+			EtcdadmVersion:    defaultEtcdadmVersion,
+			EtcdVersion:       defaultEtcdVersion,
+		},
+	); err != nil {
+		return nil, fmt.Errorf("unable to render leave-cluster.sh from a template: %w", err)
+	}
+
 	cloudInitBuf := bytes.Buffer{}
 	cloudInitTmpl, err := template.New("cloud-init.tmpl").ParseFS(cloudConfigTemplates, "templates/cloud-init.tmpl")
 	if err != nil {
@@ -230,11 +253,13 @@ func reconcileUserData(
 			AuthorizedKeys              []string
 			StartClusterScript          string
 			JoinClusterScript           string
+			LeaveClusterScript          string
 			CACertificate, CAPrivateKey string
 		}{
 			AuthorizedKeys:     []string{string(publicKey)},
 			StartClusterScript: base64.StdEncoding.EncodeToString(startClusterScriptBuf.Bytes()),
 			JoinClusterScript:  base64.StdEncoding.EncodeToString(joinClusterScriptBuf.Bytes()),
+			LeaveClusterScript: base64.StdEncoding.EncodeToString(leaveClusterScriptBuf.Bytes()),
 			CACertificate:      base64.StdEncoding.EncodeToString(caCertificate),
 			CAPrivateKey:       base64.StdEncoding.EncodeToString(caPrivateKey),
 		},

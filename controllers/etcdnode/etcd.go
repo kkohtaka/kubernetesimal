@@ -201,3 +201,94 @@ func probeEtcdMember(
 		}),
 	).Once(ctx)
 }
+
+func finalizeEtcdMember(
+	ctx context.Context,
+	c client.Client,
+	obj client.Object,
+	spec *kubernetesimalv1alpha1.EtcdNodeSpec,
+	status *kubernetesimalv1alpha1.EtcdNodeStatus,
+) (*kubernetesimalv1alpha1.EtcdNodeStatus, error) {
+	var span trace.Span
+	ctx, span = tracing.FromContext(ctx).Start(ctx, "finalizeEtcdMember")
+	defer span.End()
+	logger := log.FromContext(ctx)
+
+	if status.IsMemberFinalized() {
+		logger.V(4).Info("An etcd member is already finalized.")
+		return status, nil
+	}
+
+	if !status.IsProvisioned() {
+		logger.V(4).Info("Skip finalizing an etcd member since an etcd member was not provisioned")
+		return status, nil
+	}
+
+	if status.VirtualMachineRef == nil {
+		logger.V(4).Info("Skip finalizing an etcd member since a VirtualMachine doesn't exit")
+		return status, nil
+	}
+
+	var vmi kubevirtv1.VirtualMachineInstance
+	if err := c.Get(
+		ctx,
+		types.NamespacedName{
+			Namespace: obj.GetNamespace(),
+			Name:      status.VirtualMachineRef.Name,
+		},
+		&vmi,
+	); err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.V(4).Info("Skip finalizing an etcd member since a VirtualMachine doesn't exit")
+			return status, nil
+		}
+		return status, fmt.Errorf(
+			"unable to get a VirtualMachineInstance %s/%s: %w", obj.GetNamespace(), status.VirtualMachineRef.Name, err)
+	}
+
+	privateKey, err := k8s_secret.GetValueFromSecretKeySelector(
+		ctx,
+		c,
+		obj.GetNamespace(),
+		spec.SSHPrivateKeyRef,
+	)
+	if err != nil {
+		return status, fmt.Errorf(
+			"unable to get an SSH private key %s/%s: %w", obj.GetNamespace(), spec.SSHPrivateKeyRef.Name, err)
+	}
+
+	var peerService corev1.Service
+	if err := c.Get(
+		ctx,
+		types.NamespacedName{
+			Namespace: obj.GetNamespace(),
+			Name:      status.PeerServiceRef.Name,
+		},
+		&peerService,
+	); err != nil {
+		return status, fmt.Errorf(
+			"unable to get the etcd Service %s/%s: %w", obj.GetNamespace(), status.PeerServiceRef.Name, err)
+	}
+	var port int32
+	for i := range peerService.Spec.Ports {
+		if peerService.Spec.Ports[i].Name == serviceNameSSH {
+			port = peerService.Spec.Ports[i].TargetPort.IntVal
+			break
+		}
+	}
+
+	client, closer, err := ssh.StartSSHConnection(ctx, privateKey, peerService.Spec.ClusterIP, int(port))
+	if err != nil {
+		err = errors.NewRequeueError("waiting for an SSH port of an etcd member prepared").
+			Wrap(err).
+			WithDelay(5 * time.Second)
+		return status.WithMemberFinalized(false, err.Error()), err
+	}
+	defer closer()
+
+	if err := ssh.RunCommandOverSSHSession(ctx, client, "sudo /opt/bin/leave-cluster.sh"); err != nil {
+		return status.WithMemberFinalized(false, err.Error()), err
+	}
+	logger.Info("An etcd member was finalized successfully.")
+	return status.WithMemberFinalized(true, ""), nil
+}

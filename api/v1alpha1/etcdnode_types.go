@@ -101,7 +101,7 @@ type EtcdNodeCondition struct {
 }
 
 // EtcdNodeConditionType represents a type of condition.
-//+kubebuilder:validation:Enum=Ready;Provisioned
+//+kubebuilder:validation:Enum=Ready;Provisioned;MemberFinalized
 type EtcdNodeConditionType string
 
 const (
@@ -109,6 +109,8 @@ const (
 	EtcdNodeConditionTypeReady EtcdNodeConditionType = "Ready"
 	// EtcdNodeConditionTypeProvisioned is a status respective to a node provisioning.
 	EtcdNodeConditionTypeProvisioned EtcdNodeConditionType = "Provisioned"
+	// EtcdNodeConditionTypeMemberFinalized is a status representing a node as an etcd member was left from a cluster.
+	EtcdNodeConditionTypeMemberFinalized EtcdNodeConditionType = "MemberFinalized"
 )
 
 //+kubebuilder:object:root=true
@@ -173,6 +175,15 @@ func (status *EtcdNodeStatus) IsReadyOnce() bool {
 	return false
 }
 
+func (status *EtcdNodeStatus) IsMemberFinalized() bool {
+	for i := range status.Conditions {
+		if status.Conditions[i].Type == EtcdNodeConditionTypeMemberFinalized {
+			return !status.Conditions[i].LastProbeTime.IsZero()
+		}
+	}
+	return false
+}
+
 func (status *EtcdNodeStatus) WithReady(
 	ready bool,
 	message string,
@@ -191,6 +202,17 @@ func (status *EtcdNodeStatus) WithProvisioned(
 	return status.WithStatusCondition(
 		EtcdNodeConditionTypeProvisioned,
 		provisioned,
+		message,
+	)
+}
+
+func (status *EtcdNodeStatus) WithMemberFinalized(
+	leftFromCluster bool,
+	message string,
+) *EtcdNodeStatus {
+	return status.WithStatusCondition(
+		EtcdNodeConditionTypeMemberFinalized,
+		leftFromCluster,
 		message,
 	)
 }
