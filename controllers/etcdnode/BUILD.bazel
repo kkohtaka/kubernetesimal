@@ -13,6 +13,7 @@ go_library(
         "templates/cloud-init.tmpl",
         "templates/join-cluster.sh.tmpl",
         "templates/start-cluster.sh.tmpl",
+        "templates/leave-cluster.sh.tmpl",
     ],
     importpath = "github.com/kkohtaka/kubernetesimal/controllers/etcdnode",
     visibility = ["//visibility:public"],

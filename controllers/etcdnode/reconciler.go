@@ -111,7 +111,7 @@ func (r *Reconciler) doReconcile(
 		}
 	} else {
 		if finalizer.HasFinalizer(obj) {
-			if newStatus, err := r.finalizeExternalResources(ctx, obj, status); err != nil {
+			if newStatus, err := r.finalizeExternalResources(ctx, obj, spec, status); err != nil {
 				return newStatus, err
 			} else {
 				status = newStatus
@@ -139,11 +139,18 @@ func (r *Reconciler) doReconcile(
 func (r *Reconciler) finalizeExternalResources(
 	ctx context.Context,
 	obj client.Object,
+	spec *kubernetesimalv1alpha1.EtcdNodeSpec,
 	status *kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (*kubernetesimalv1alpha1.EtcdNodeStatus, error) {
 	var span trace.Span
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "finalizeExternalResources")
 	defer span.End()
+
+	if newStatus, err := finalizeEtcdMember(ctx, r.Client, obj, spec, status); err != nil {
+		return newStatus, err
+	} else {
+		status = newStatus
+	}
 
 	if newStatus, err := finalizeVirtualMachineInstance(ctx, r.Client, obj, status); err != nil {
 		return newStatus, err
