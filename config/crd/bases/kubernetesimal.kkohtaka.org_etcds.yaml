@@ -49,6 +49,7 @@ spec:
               replicas:
                 description: Replicas is the desired number of etcd replicas.
                 format: int32
+                minimum: 0
                 type: integer
               version:
                 description: Version is the desired version of the etcd cluster.

@@ -305,7 +305,10 @@ func (r *Reconciler) reconcileExternalResources(
 	}
 
 	if len(status.NodeRefs) > int(*spec.Replicas) {
-		// TODO(kkohtaka): Decrease etcd nodes
+		logger.Info("Finalizing a redundant EtcdNode.", "etcdnode", status.NodeRefs[0].Name)
+		if err := finalizeEtcdNode(ctx, r.Client, obj.GetNamespace(), status.NodeRefs[0].Name); err != nil {
+			return status, fmt.Errorf("unable to finalize a EtcdNode: %w", err)
+		}
 		return status, nil
 	}
 

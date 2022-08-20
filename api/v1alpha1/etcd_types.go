@@ -29,6 +29,7 @@ type EtcdSpec struct {
 	Version *string `json:"version,omitempty"`
 
 	// Replicas is the desired number of etcd replicas.
+	//+kubebuilder:validation:Minimum=0
 	Replicas *int32 `json:"replicas,omitempty"`
 }
 
