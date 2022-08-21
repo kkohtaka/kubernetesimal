@@ -37,6 +37,7 @@ import (
 	"github.com/kkohtaka/kubernetesimal/controller/expectations"
 	"github.com/kkohtaka/kubernetesimal/controllers/etcd"
 	"github.com/kkohtaka/kubernetesimal/controllers/etcdnode"
+	"github.com/kkohtaka/kubernetesimal/controllers/etcdnodeset"
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
 	//+kubebuilder:scaffold:imports
 )
@@ -160,6 +161,17 @@ func main() {
 		Tracer: provider.Tracer("etcdnode-prober"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create prober", "prober", "EtcdNode")
+		os.Exit(1)
+	}
+	if err = (&etcdnodeset.Reconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		Tracer: provider.Tracer("etcdnodeset-reconciler"),
+		Expectations: expectations.NewUIDTrackingControllerExpectations(
+			expectations.NewControllerExpectations(),
+		),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "EtcdNodeSet")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

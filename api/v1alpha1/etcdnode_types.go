@@ -23,6 +23,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type EtcdNodeTemplateSpec struct {
+	// +kubebuilder:pruning:PreserveUnknownFields
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// Specification of the desired behavior of the EtcdNode.
+	Spec EtcdNodeSpec `json:"spec,omitempty"`
+}
+
 // EtcdNodeSpec defines the desired state of EtcdNode
 type EtcdNodeSpec struct {
 	// Version is the desired version of the etcd cluster.
@@ -173,6 +181,15 @@ func (status *EtcdNodeStatus) IsReadyOnce() bool {
 		}
 	}
 	return false
+}
+
+func (status *EtcdNodeStatus) ReadySinceTime() *metav1.Time {
+	for i := range status.Conditions {
+		if status.Conditions[i].Type == EtcdNodeConditionTypeReady {
+			return status.Conditions[i].LastTransitionTime
+		}
+	}
+	return nil
 }
 
 func (status *EtcdNodeStatus) IsMemberFinalized() bool {

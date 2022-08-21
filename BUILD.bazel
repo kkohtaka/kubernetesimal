@@ -36,6 +36,7 @@ go_library(
         "//controller/expectations",
         "//controllers/etcd",
         "//controllers/etcdnode",
+        "//controllers/etcdnodeset",
         "//observability/tracing",
         "@io_k8s_apimachinery//pkg/runtime",
         "@io_k8s_apimachinery//pkg/util/runtime",
