@@ -1,0 +1,6 @@
+apiVersion: kubernetesimal.kkohtaka.org/v1alpha1
+kind: EtcdNodeSet
+metadata:
+  name: etcdnodeset-sample
+spec:
+  # TODO(user): Add fields here

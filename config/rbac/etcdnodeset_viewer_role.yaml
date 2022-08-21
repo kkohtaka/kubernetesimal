@@ -1,0 +1,20 @@
+# permissions for end users to view etcdnodesets.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: etcdnodeset-viewer-role
+rules:
+- apiGroups:
+  - kubernetesimal.kkohtaka.org
+  resources:
+  - etcdnodesets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - kubernetesimal.kkohtaka.org
+  resources:
+  - etcdnodesets/status
+  verbs:
+  - get

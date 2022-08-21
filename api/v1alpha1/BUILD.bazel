@@ -6,6 +6,7 @@ go_library(
         "etcd_types.go",
         "etcd_webhook.go",
         "etcdnode_types.go",
+        "etcdnodeset_types.go",
         "groupversion_info.go",
         "kubernetesimalconfig_types.go",
         "zz_generated.deepcopy.go",

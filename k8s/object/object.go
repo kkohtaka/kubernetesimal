@@ -58,6 +58,25 @@ func WithLabel(key, value string) ObjectOption {
 	}
 }
 
+func WithLabels(src map[string]string) ObjectOption {
+	return func(o runtime.Object) error {
+		meta, err := meta.Accessor(o)
+		if err != nil {
+			return err
+		}
+		labels := make(map[string]string)
+		dist := meta.GetLabels()
+		for key, value := range dist {
+			labels[key] = value
+		}
+		for key, value := range src {
+			labels[key] = value
+		}
+		meta.SetLabels(labels)
+		return nil
+	}
+}
+
 func WithOwner(owner metav1.Object, scheme *runtime.Scheme) ObjectOption {
 	return func(o runtime.Object) error {
 		meta, err := meta.Accessor(o)
