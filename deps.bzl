@@ -1291,8 +1291,8 @@ def go_dependencies():
     go_repository(
         name = "io_opentelemetry_go_otel_sdk",
         importpath = "go.opentelemetry.io/otel/sdk",
-        sum = "h1:LNXp1vrr83fNXTHgU8eO89mhzxb/bbWAsHG6fNf3qWo=",
-        version = "v1.9.0",
+        sum = "h1:F7KmQgoHljhUuJyA+9BiU+EkJfyX5nVVF4wyzWZpKxs=",
+        version = "v1.11.1",
     )
     go_repository(
         name = "io_opentelemetry_go_otel_sdk_export_metric",
@@ -1432,8 +1432,8 @@ def go_dependencies():
     go_repository(
         name = "org_golang_x_sys",
         importpath = "golang.org/x/sys",
-        sum = "h1:v4INt8xihDGvnrfjMDVXGxw9wrfxYyCjk0KbXjhR55s=",
-        version = "v0.0.0-20220722155257-8c9f86f7a55f",
+        sum = "h1:h+EGohizhe9XlX18rfpa8k8RAc5XyaeamM+0VHRd4lc=",
+        version = "v0.0.0-20220919091848-fb04ddd9f9c8",
     )
     go_repository(
         name = "org_golang_x_term",
