@@ -1108,8 +1108,8 @@ def go_dependencies():
         name = "io_k8s_api",
         build_file_proto_mode = "disable",
         importpath = "k8s.io/api",
-        sum = "h1:H+Q4ma2U/ww0iGB78ijZx6DRByPz6/733jIuFpX70e0=",
-        version = "v0.25.0",
+        sum = "h1:Q1v5UFfYe87vi5H7NU0p4RXC26PPMT8KOpr1TLQbCMQ=",
+        version = "v0.25.3",
     )
     go_repository(
         name = "io_k8s_apiextensions_apiserver",
@@ -1122,8 +1122,8 @@ def go_dependencies():
         name = "io_k8s_apimachinery",
         build_file_proto_mode = "disable",
         importpath = "k8s.io/apimachinery",
-        sum = "h1:MlP0r6+3XbkUG2itd6vp3oxbtdQLQI94fD5gCS+gnoU=",
-        version = "v0.25.0",
+        sum = "h1:7o9ium4uyUOM76t6aunP0nZuex7gDf8VGwkR5RcJnQc=",
+        version = "v0.25.3",
     )
     go_repository(
         name = "io_k8s_apiserver",
