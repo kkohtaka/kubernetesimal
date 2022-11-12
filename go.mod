@@ -15,7 +15,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.11.1
 	go.opentelemetry.io/otel/trace v1.11.1
 	golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd
-	k8s.io/api v0.25.0
+	k8s.io/api v0.25.4
 	k8s.io/apimachinery v0.25.4
 	k8s.io/client-go v0.25.0
 	k8s.io/klog/v2 v2.80.1
