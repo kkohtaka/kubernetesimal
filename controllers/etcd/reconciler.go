@@ -23,26 +23,18 @@ import (
 
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
-	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/source"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 	"github.com/kkohtaka/kubernetesimal/controller/errors"
-	"github.com/kkohtaka/kubernetesimal/controller/expectations"
 	"github.com/kkohtaka/kubernetesimal/controller/finalizer"
-	k8s_etcdnode "github.com/kkohtaka/kubernetesimal/k8s/etcdnode"
-	k8s_object "github.com/kkohtaka/kubernetesimal/k8s/object"
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
 )
 
@@ -51,11 +43,7 @@ type Reconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	APIReader client.Reader
-
 	Tracer trace.Tracer
-
-	Expectations *expectations.UIDTrackingControllerExpectations
 }
 
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds,verbs=get;list;watch;create;update;patch;delete
@@ -64,7 +52,10 @@ type Reconciler struct {
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcdnodes,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcdnodedeployments,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcdnodedeployments/status,verbs=get
+//+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcdnodes,verbs=get;list;watch
+//+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcdnodes/status,verbs=get
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -163,10 +154,8 @@ func (r *Reconciler) finalizeExternalResources(
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "finalizeExternalResources")
 	defer span.End()
 
-	if newStatus, err := finalizeEtcdNodes(ctx, r.Client, obj, status); err != nil {
-		return newStatus, err
-	} else {
-		status = newStatus
+	if err := finalizeEtcdNodeDeployments(ctx, r.Client, obj); err != nil {
+		return status, err
 	}
 
 	if newStatus, err := finalizeCACertificateSecret(ctx, r.Client, obj, status); err != nil {
@@ -205,7 +194,6 @@ func (r *Reconciler) reconcileExternalResources(
 	var span trace.Span
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "reconcileExternalResources")
 	defer span.End()
-	logger := log.FromContext(ctx)
 
 	if certificateRef, privateKeyRef, err := reconcileCACertificate(
 		ctx,
@@ -269,105 +257,17 @@ func (r *Reconciler) reconcileExternalResources(
 		status.ServiceRef = serviceRef
 	}
 
-	if needSync := !r.Expectations.SatisfiedExpectations(expectations.KeyFromObject(obj)); needSync {
-		return status, errors.NewRequeueError("expected creations or deletions are left")
-	}
-
-	if err := removeOrphanNodes(ctx, r.Client, r.APIReader, obj, status); err != nil {
-		return status, fmt.Errorf("unable to remove orphan EtcdNodes: %w", err)
-	}
-
-	if nodeRefs, err := reconcileNodeReferences(ctx, r.Client, r.APIReader, obj, spec, status); err != nil {
-		return status, fmt.Errorf("unable to prepare an endpoint slice: %w", err)
-	} else {
-		status.NodeRefs = nodeRefs
-	}
-
-	var (
-		nRunning, nPending int
-	)
-	for _, nodeRef := range status.NodeRefs {
-		var node kubernetesimalv1alpha1.EtcdNode
-		if err := r.Get(ctx, types.NamespacedName{Namespace: obj.GetNamespace(), Name: nodeRef.Name}, &node); err != nil {
-			return status, fmt.Errorf("unable to get an etcd node from reference: %w", err)
-		}
-		switch node.Status.Phase {
-		case kubernetesimalv1alpha1.EtcdNodePhaseRunning:
-			nRunning++
-		default:
-			nPending++
-		}
-	}
-	status.Replicas = int32(nRunning)
-	if nPending > 0 {
-		logger.V(4).Info("Skip reconciliation since not all nodes are running.")
-		return status, nil
-	}
-
-	if len(status.NodeRefs) > int(*spec.Replicas) {
-		logger.Info("Finalizing a redundant EtcdNode.", "etcdnode", status.NodeRefs[0].Name)
-		if err := finalizeEtcdNode(ctx, r.Client, obj.GetNamespace(), status.NodeRefs[0].Name); err != nil {
-			return status, fmt.Errorf("unable to finalize a EtcdNode: %w", err)
-		}
-		return status, nil
-	}
-
 	if endpointSliceRef, err := reconcileEndpointSlice(ctx, r.Client, r.Scheme, obj, spec, status); err != nil {
 		return status, fmt.Errorf("unable to prepare an endpoint slice: %w", err)
 	} else {
 		status.EndpointSliceRef = endpointSliceRef
 	}
 
-	var asFirstNode bool
-	if len(status.NodeRefs) == 0 {
-		asFirstNode = true
+	if deployment, err := reconcileEtcdNodeDeployment(ctx, r.Client, r.Scheme, obj, spec, status); err != nil {
+		return nil, fmt.Errorf("unable to prepare EtcdNodeDeployment: %w", err)
 	} else {
-		for _, nodeRef := range status.NodeRefs {
-			key := client.ObjectKey{Namespace: obj.GetNamespace(), Name: nodeRef.Name}
-			var node kubernetesimalv1alpha1.EtcdNode
-			if err := r.Get(ctx, key, &node); err != nil {
-				return status, fmt.Errorf("unable to get an EtcdNode %s: %w", key, err)
-			}
-			if node.Spec.AsFirstNode {
-				node.Spec.AsFirstNode = false
-				if err := r.Update(ctx, &node, &client.UpdateOptions{}); err != nil {
-					return status, fmt.Errorf("unable to update an EtcdNode %s: %w", key, err)
-				}
-				return status, errors.NewRequeueError("EtcdNode %s was updated")
-			}
-		}
+		status.ReadyReplicas = deployment.Status.ReadyReplicas
 	}
-
-	if len(status.NodeRefs) < int(*spec.Replicas) {
-		if err := r.Expectations.ExpectCreations(expectations.KeyFromObject(obj), 1); err != nil {
-			return status, fmt.Errorf("unable to update expectations: %w", err)
-		}
-		if node, err := k8s_etcdnode.Create(
-			ctx,
-			r.Client,
-			k8s_object.WithGeneratorName(obj.GetName()+"-"),
-			k8s_object.WithNamespace(obj.GetNamespace()),
-			k8s_object.WithOwner(obj, r.Scheme),
-			k8s_etcdnode.WithVersion(*spec.Version),
-			k8s_etcdnode.WithCACertificateRef(*status.CACertificateRef),
-			k8s_etcdnode.WithCAPrivateKeyRef(*status.CAPrivateKeyRef),
-			k8s_etcdnode.WithClientCertificateRef(*status.ClientCertificateRef),
-			k8s_etcdnode.WithClientPrivateKeyRef(*status.ClientPrivateKeyRef),
-			k8s_etcdnode.WithSSHPrivateKeyRef(*status.SSHPrivateKeyRef),
-			k8s_etcdnode.WithSSHPublicKeyRef(*status.SSHPublicKeyRef),
-			k8s_etcdnode.WithServiceRef(*status.ServiceRef),
-			k8s_etcdnode.AsFirstNode(asFirstNode),
-		); err != nil {
-			r.Expectations.CreationObserved(expectations.KeyFromObject(obj))
-			return status, fmt.Errorf("unable to create EtcdNode: %w", err)
-		} else {
-			status.NodeRefs = append(status.NodeRefs, &corev1.LocalObjectReference{
-				Name: node.Name,
-			})
-			return status, nil
-		}
-	}
-
 	return status, nil
 }
 
@@ -378,9 +278,13 @@ func (r *Reconciler) updateStatus(
 ) error {
 	logger := log.FromContext(ctx)
 
-	if !e.ObjectMeta.DeletionTimestamp.IsZero() {
+	if e.Spec.Replicas != nil {
+		status.Replicas = *e.Spec.Replicas
+	}
+
+	if !e.GetDeletionTimestamp().IsZero() {
 		status.Phase = kubernetesimalv1alpha1.EtcdPhaseDeleting
-	} else if status.Replicas != *e.Spec.Replicas {
+	} else if status.ReadyReplicas != *e.Spec.Replicas {
 		if status.IsReadyOnce() && !status.IsReady() {
 			status.Phase = kubernetesimalv1alpha1.EtcdPhaseError
 		} else {
@@ -412,33 +316,25 @@ func (r *Reconciler) updateStatus(
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("etcd-reconciler").
-		For(&kubernetesimalv1alpha1.Etcd{}).
-		Owns(&corev1.Secret{}).
-		Owns(&corev1.Service{}).
-		Owns(&discoveryv1beta1.EndpointSlice{}).
-		Owns(&kubernetesimalv1alpha1.EtcdNode{}).
-		Watches(&source.Kind{Type: &kubernetesimalv1alpha1.EtcdNode{}}, &handler.Funcs{
-			CreateFunc: func(ce event.CreateEvent, rli workqueue.RateLimitingInterface) {
-				if ownerRef := metav1.GetControllerOf(ce.Object); ownerRef != nil {
-					r.Expectations.CreationObserved(
-						client.ObjectKey{
-							Namespace: ce.Object.GetNamespace(),
-							Name:      ownerRef.Name,
-						}.String(),
-					)
-				}
-			},
-			DeleteFunc: func(ce event.DeleteEvent, rli workqueue.RateLimitingInterface) {
-				if ownerRef := metav1.GetControllerOf(ce.Object); ownerRef != nil {
-					r.Expectations.DeletionObserved(
-						client.ObjectKey{
-							Namespace: ce.Object.GetNamespace(),
-							Name:      ownerRef.Name,
-						}.String(),
-						client.ObjectKeyFromObject(ce.Object).String(),
-					)
-				}
-			},
-		}).
+		For(
+			&kubernetesimalv1alpha1.Etcd{},
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Owns(
+			&corev1.Secret{},
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Owns(
+			&corev1.Service{},
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Owns(
+			&kubernetesimalv1alpha1.EtcdNodeDeployment{},
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Owns(
+			&kubernetesimalv1alpha1.EtcdNode{},
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
 		Complete(r)
 }

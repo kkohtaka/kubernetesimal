@@ -577,17 +577,6 @@ func (in *EtcdStatus) DeepCopyInto(out *EtcdStatus) {
 		*out = new(v1.LocalObjectReference)
 		**out = **in
 	}
-	if in.NodeRefs != nil {
-		in, out := &in.NodeRefs, &out.NodeRefs
-		*out = make([]*v1.LocalObjectReference, len(*in))
-		for i := range *in {
-			if (*in)[i] != nil {
-				in, out := &(*in)[i], &(*out)[i]
-				*out = new(v1.LocalObjectReference)
-				**out = **in
-			}
-		}
-	}
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
 		*out = make([]EtcdCondition, len(*in))

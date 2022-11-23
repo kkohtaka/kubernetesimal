@@ -11,15 +11,11 @@ import (
 
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.opentelemetry.io/otel/trace"
-	corev1 "k8s.io/api/core/v1"
-	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
-	"github.com/kkohtaka/kubernetesimal/controller/errors"
 	k8s_secret "github.com/kkohtaka/kubernetesimal/k8s/secret"
 	k8s_service "github.com/kkohtaka/kubernetesimal/k8s/service"
 	"github.com/kkohtaka/kubernetesimal/net/http"
@@ -205,9 +201,14 @@ func probeEtcdMembers(
 	}
 	logger.V(4).Info("List etcd members.", "members", resp.Members)
 
+	nodes, err := getComponentEtcdNodes(ctx, c, obj)
+	if err != nil {
+		return false, "", fmt.Errorf("unable to list component EtcdNodes: %w", err)
+	}
+
 	probed := map[string]bool{}
-	for _, nodeRef := range status.NodeRefs {
-		probed[nodeRef.Name] = false
+	for _, node := range nodes {
+		probed[node.GetName()] = false
 	}
 
 members:
@@ -255,55 +256,4 @@ members:
 		return false, fmt.Sprintf("[%s] are not members", strings.Join(notFoundNodes, ", ")), nil
 	}
 	return true, "", nil
-}
-
-func isStatusOutdated(
-	ctx context.Context,
-	c client.Reader,
-	obj client.Object,
-	status *kubernetesimalv1alpha1.EtcdStatus,
-) (bool, error) {
-	var etcd kubernetesimalv1alpha1.Etcd
-	getCtx, getCancel := context.WithTimeout(ctx, 5*time.Second)
-	defer getCancel()
-	err := c.Get(getCtx, client.ObjectKeyFromObject(obj), &etcd)
-	if err != nil {
-		return false, fmt.Errorf("unable to get Etcd: %w", err)
-	}
-	return !apiequality.Semantic.DeepEqual(status, &etcd.Status), nil
-}
-
-func reconcileNodeReferences(
-	ctx context.Context,
-	c client.Client,
-	directClient client.Reader,
-	obj client.Object,
-	_ *kubernetesimalv1alpha1.EtcdSpec,
-	status *kubernetesimalv1alpha1.EtcdStatus,
-) ([]*corev1.LocalObjectReference, error) {
-	logger := log.FromContext(ctx)
-
-	var nodeRefs []*corev1.LocalObjectReference
-	for _, nodeRef := range status.NodeRefs {
-		var node kubernetesimalv1alpha1.EtcdNode
-		if err := c.Get(
-			ctx,
-			types.NamespacedName{Namespace: obj.GetNamespace(), Name: nodeRef.Name},
-			&node,
-		); err != nil {
-			if apierrors.IsNotFound(err) {
-				if outdated, err := isStatusOutdated(ctx, directClient, obj, status); err != nil {
-					return nil, err
-				} else if outdated {
-					return nil, errors.NewRequeueError("status is outdated")
-				}
-				logger.Info("NodeRef references a non-existent node", "node", nodeRef.Name)
-				continue
-			} else {
-				return nil, fmt.Errorf("unable to get an etcd node from reference: %w", err)
-			}
-		}
-		nodeRefs = append(nodeRefs, nodeRef)
-	}
-	return nodeRefs, nil
 }

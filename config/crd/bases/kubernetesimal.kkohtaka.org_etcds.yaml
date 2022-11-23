@@ -177,19 +177,10 @@ spec:
                       TODO: Add other useful fields. apiVersion, kind, uid?'
                     type: string
                 type: object
-              nodeRefs:
-                description: Nodes is a list of references of EtcdNodes that composes
-                  the etcd cluster.
-                items:
-                  description: LocalObjectReference contains enough information to
-                    let you locate the referenced object inside the same namespace.
-                  properties:
-                    name:
-                      description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                        TODO: Add other useful fields. apiVersion, kind, uid?'
-                      type: string
-                  type: object
-                type: array
+              observedGeneration:
+                description: The generation observed by the EtcdNodeDeployment controller.
+                format: int64
+                type: integer
               peerCertificateRef:
                 description: PeerCertificateRef is a reference to a Secret key that
                   composes a certificate for peer communication.
@@ -235,9 +226,13 @@ spec:
                 - Deleting
                 - Error
                 type: string
+              readyReplicas:
+                description: Total number of ready EtcdNode targeted by this EtcdNodeDeployment.
+                format: int32
+                type: integer
               replicas:
                 default: 0
-                description: Replicas is the current number of etcd replicas.
+                description: Replicas is the current number of EtcdNode replicas.
                 format: int32
                 type: integer
               serviceRef:
