@@ -20,6 +20,9 @@ spec:
     - jsonPath: .status.phase
       name: Phase
       type: string
+    - jsonPath: .spec.version
+      name: Version
+      type: string
     - jsonPath: .spec.replicas
       name: Desired Replicas
       type: integer
