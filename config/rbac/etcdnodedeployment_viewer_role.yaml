@@ -1,0 +1,20 @@
+# permissions for end users to view etcdnodedeployments.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: etcdnodedeployment-viewer-role
+rules:
+- apiGroups:
+  - kubernetesimal.kkohtaka.org
+  resources:
+  - etcdnodedeployments
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - kubernetesimal.kkohtaka.org
+  resources:
+  - etcdnodedeployments/status
+  verbs:
+  - get

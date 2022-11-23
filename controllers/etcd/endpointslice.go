@@ -53,28 +53,14 @@ func reconcileEndpointSlice(
 		return nil, err
 	}
 
+	nodes, err := getComponentEtcdNodes(ctx, c, obj)
+	if err != nil {
+		return nil, fmt.Errorf("unable to list component EtcdNodes: %w", err)
+	}
+
 	var endpoints []discoveryv1.Endpoint
-	for _, ref := range status.NodeRefs {
-		var (
-			node    kubernetesimalv1alpha1.EtcdNode
-			nodeKey = types.NamespacedName{
-				Namespace: obj.GetNamespace(),
-				Name:      ref.Name,
-			}
-		)
-		if err := c.Get(
-			ctx,
-			nodeKey,
-			&node,
-		); err != nil {
-			if apierrors.IsNotFound(err) {
-				logger.
-					WithValues("etcd-node", nodeKey).
-					Info("Skip appending an endpoint since EtcdNode is not found.")
-				continue
-			}
-			return nil, err
-		}
+	for _, node := range nodes {
+		nodeKey := client.ObjectKeyFromObject(node)
 
 		if node.Status.PeerServiceRef == nil {
 			logger.

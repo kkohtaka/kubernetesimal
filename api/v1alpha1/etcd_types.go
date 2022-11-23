@@ -59,12 +59,16 @@ type EtcdStatus struct {
 	ServiceRef *corev1.LocalObjectReference `json:"serviceRef,omitempty"`
 	// EndpointSliceRef is a reference to an EndpointSlice of an etcd cluster.
 	EndpointSliceRef *corev1.LocalObjectReference `json:"endpointSliceRef,omitempty"`
-	// Nodes is a list of references of EtcdNodes that composes the etcd cluster.
-	NodeRefs []*corev1.LocalObjectReference `json:"nodeRefs,omitempty"`
 
-	// Replicas is the current number of etcd replicas.
+	// The generation observed by the EtcdNodeDeployment controller.
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// Replicas is the current number of EtcdNode replicas.
 	//+kubebuilder:default=0
 	Replicas int32 `json:"replicas,omitempty"`
+
+	// Total number of ready EtcdNode targeted by this EtcdNodeDeployment.
+	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
 
 	// Conditions is a list of statuses respected to certain conditions.
 	Conditions []EtcdCondition `json:"conditions,omitempty"`
