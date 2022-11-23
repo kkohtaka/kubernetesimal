@@ -75,7 +75,7 @@ type EtcdStatus struct {
 }
 
 // EtcdPhase is a label for the phase of the etcd cluster at the current time.
-//+kubebuilder:validation:Enum=Creating;Running;Deleting;Error
+// +kubebuilder:validation:Enum=Creating;Running;Deleting;Error
 type EtcdPhase string
 
 const (
@@ -106,7 +106,7 @@ type EtcdCondition struct {
 }
 
 // EtcdConditionType represents a type of condition.
-//+kubebuilder:validation:Enum=Ready;MembersHealthy
+// +kubebuilder:validation:Enum=Ready;MembersHealthy
 type EtcdConditionType string
 
 const (
