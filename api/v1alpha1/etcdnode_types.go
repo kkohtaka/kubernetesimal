@@ -124,6 +124,7 @@ const (
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+//+kubebuilder:printcolumn:name="Version",type=string,JSONPath=`.spec.version`
 
 // EtcdNode is the Schema for the etcd nodes API
 type EtcdNode struct {
