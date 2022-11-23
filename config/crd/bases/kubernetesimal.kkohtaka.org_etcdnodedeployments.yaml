@@ -1,0 +1,374 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
+  name: etcdnodedeployments.kubernetesimal.kkohtaka.org
+spec:
+  group: kubernetesimal.kkohtaka.org
+  names:
+    kind: EtcdNodeDeployment
+    listKind: EtcdNodeDeploymentList
+    plural: etcdnodedeployments
+    singular: etcdnodedeployment
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.replicas
+      name: Desired Replicas
+      type: integer
+    - jsonPath: .status.replicas
+      name: Current Replicas
+      priority: 1
+      type: integer
+    - jsonPath: .status.updatedReplicas
+      name: Updated Replicas
+      priority: 1
+      type: integer
+    - jsonPath: .status.readyReplicas
+      name: Ready Replicas
+      type: integer
+    - jsonPath: .status.availableReplicas
+      name: Available Replicas
+      priority: 1
+      type: integer
+    - jsonPath: .status.unavailableReplicas
+      name: Unavailable Replicas
+      priority: 1
+      type: integer
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: EtcdNodeDeployment is the Schema for the etcdnodedeployments
+          API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: EtcdNodeDeploymentSpec defines the desired state of EtcdNodeDeployment
+            properties:
+              replicas:
+                default: 1
+                description: Replicas is the number of desired replicas. This is a
+                  pointer to distinguish between explicit zero and unspecified. Defaults
+                  to 1.
+                format: int32
+                type: integer
+              revisionHistoryLimit:
+                description: The number of old EtcdNodeSets to retain to allow rollback.
+                  This is a pointer to distinguish between explicit zero and not specified.
+                  This is set to the max value of int32 (i.e. 2147483647) by default,
+                  which means "retaining all old EtcdNodeSets".
+                format: int32
+                type: integer
+              rollingUpdate:
+                description: Rolling update config params. Present only if DeploymentStrategyType
+                  = RollingUpdate.
+                properties:
+                  maxSurge:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    default: 25%
+                    description: 'The maximum number of pods that can be scheduled
+                      above the original number of pods. Value can be an absolute
+                      number (ex: 5) or a percentage of total pods at the start of
+                      the update (ex: 10%). This can not be 0 if MaxUnavailable is
+                      0. Absolute number is calculated from percentage by rounding
+                      up. By default, a value of 1 is used. Example: when this is
+                      set to 30%, the new RC can be scaled up by 30% immediately when
+                      the rolling update starts. Once old pods have been killed, new
+                      RC can be scaled up further, ensuring that total number of pods
+                      running at any time during the update is at most 130% of original
+                      pods.'
+                    x-kubernetes-int-or-string: true
+                  maxUnavailable:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    default: 25%
+                    description: 'The maximum number of pods that can be unavailable
+                      during the update. Value can be an absolute number (ex: 5) or
+                      a percentage of total pods at the start of update (ex: 10%).
+                      Absolute number is calculated from percentage by rounding down.
+                      This can not be 0 if MaxSurge is 0. By default, a fixed value
+                      of 1 is used. Example: when this is set to 30%, the old RC can
+                      be scaled down by 30% immediately when the rolling update starts.
+                      Once new pods are ready, old RC can be scaled down further,
+                      followed by scaling up the new RC, ensuring that at least 70%
+                      of original number of pods are available at all times during
+                      the update.'
+                    x-kubernetes-int-or-string: true
+                type: object
+              selector:
+                description: A label selector is a label query over a set of resources.
+                  The result of matchLabels and matchExpressions are ANDed. An empty
+                  label selector matches all objects. A null label selector matches
+                  no objects.
+                properties:
+                  matchExpressions:
+                    description: matchExpressions is a list of label selector requirements.
+                      The requirements are ANDed.
+                    items:
+                      description: A label selector requirement is a selector that
+                        contains values, a key, and an operator that relates the key
+                        and values.
+                      properties:
+                        key:
+                          description: key is the label key that the selector applies
+                            to.
+                          type: string
+                        operator:
+                          description: operator represents a key's relationship to
+                            a set of values. Valid operators are In, NotIn, Exists
+                            and DoesNotExist.
+                          type: string
+                        values:
+                          description: values is an array of string values. If the
+                            operator is In or NotIn, the values array must be non-empty.
+                            If the operator is Exists or DoesNotExist, the values
+                            array must be empty. This array is replaced during a strategic
+                            merge patch.
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - key
+                      - operator
+                      type: object
+                    type: array
+                  matchLabels:
+                    additionalProperties:
+                      type: string
+                    description: matchLabels is a map of {key,value} pairs. A single
+                      {key,value} in the matchLabels map is equivalent to an element
+                      of matchExpressions, whose key field is "key", the operator
+                      is "In", and the values array contains only "value". The requirements
+                      are ANDed.
+                    type: object
+                type: object
+              template:
+                description: Template is the object that describes the EtcdNode that
+                  will be created if insufficient replicas are detected.
+                properties:
+                  metadata:
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                  spec:
+                    description: Specification of the desired behavior of the EtcdNode.
+                    properties:
+                      asFirstNode:
+                        description: AsFirstNode is whether the node is the first
+                          node of a cluster.
+                        type: boolean
+                      caCertificateRef:
+                        description: CACertificateRef is a reference to a Secret key
+                          that composes a CA certificate.
+                        properties:
+                          key:
+                            description: The key of the secret to select from.  Must
+                              be a valid secret key.
+                            type: string
+                          name:
+                            description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                              TODO: Add other useful fields. apiVersion, kind, uid?'
+                            type: string
+                          optional:
+                            description: Specify whether the Secret or its key must
+                              be defined
+                            type: boolean
+                        required:
+                        - key
+                        type: object
+                      caPrivateKeyRef:
+                        description: CAPrivateKeyRef is a reference to a Secret key
+                          that composes a CA private key.
+                        properties:
+                          key:
+                            description: The key of the secret to select from.  Must
+                              be a valid secret key.
+                            type: string
+                          name:
+                            description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                              TODO: Add other useful fields. apiVersion, kind, uid?'
+                            type: string
+                          optional:
+                            description: Specify whether the Secret or its key must
+                              be defined
+                            type: boolean
+                        required:
+                        - key
+                        type: object
+                      clientCertificateRef:
+                        description: ClientCertificateRef is a reference to a Secret
+                          key that composes a Client certificate.
+                        properties:
+                          key:
+                            description: The key of the secret to select from.  Must
+                              be a valid secret key.
+                            type: string
+                          name:
+                            description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                              TODO: Add other useful fields. apiVersion, kind, uid?'
+                            type: string
+                          optional:
+                            description: Specify whether the Secret or its key must
+                              be defined
+                            type: boolean
+                        required:
+                        - key
+                        type: object
+                      clientPrivateKeyRef:
+                        description: ClientPrivateKeyRef is a reference to a Secret
+                          key that composes a Client private key.
+                        properties:
+                          key:
+                            description: The key of the secret to select from.  Must
+                              be a valid secret key.
+                            type: string
+                          name:
+                            description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                              TODO: Add other useful fields. apiVersion, kind, uid?'
+                            type: string
+                          optional:
+                            description: Specify whether the Secret or its key must
+                              be defined
+                            type: boolean
+                        required:
+                        - key
+                        type: object
+                      serviceRef:
+                        description: ServiceRef is a reference to a Service of an
+                          etcd cluster.
+                        properties:
+                          name:
+                            description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                              TODO: Add other useful fields. apiVersion, kind, uid?'
+                            type: string
+                        type: object
+                      sshPrivateKeyRef:
+                        description: SSHPrivateKeyRef is a reference to a Secret key
+                          that composes an SSH private key.
+                        properties:
+                          key:
+                            description: The key of the secret to select from.  Must
+                              be a valid secret key.
+                            type: string
+                          name:
+                            description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                              TODO: Add other useful fields. apiVersion, kind, uid?'
+                            type: string
+                          optional:
+                            description: Specify whether the Secret or its key must
+                              be defined
+                            type: boolean
+                        required:
+                        - key
+                        type: object
+                      sshPublicKeyRef:
+                        description: SSHPublicKeyRef is a reference to a Secret key
+                          that composes an SSH public key.
+                        properties:
+                          key:
+                            description: The key of the secret to select from.  Must
+                              be a valid secret key.
+                            type: string
+                          name:
+                            description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                              TODO: Add other useful fields. apiVersion, kind, uid?'
+                            type: string
+                          optional:
+                            description: Specify whether the Secret or its key must
+                              be defined
+                            type: boolean
+                        required:
+                        - key
+                        type: object
+                      version:
+                        description: Version is the desired version of the etcd cluster.
+                        type: string
+                    required:
+                    - asFirstNode
+                    - caCertificateRef
+                    - caPrivateKeyRef
+                    - serviceRef
+                    - sshPrivateKeyRef
+                    - sshPublicKeyRef
+                    - version
+                    type: object
+                type: object
+            type: object
+          status:
+            description: EtcdNodeDeploymentStatus defines the observed state of EtcdNodeDeployment
+            properties:
+              availableReplicas:
+                description: AvailableReplicas
+                format: int32
+                minimum: 0
+                type: integer
+              collisionCount:
+                description: Count of hash collisions for the EtcdNodeDeployment.
+                  The EtcdNodeDeployment controller uses this field as a collision
+                  avoidance mechanism when it needs to create the name for the newest
+                  EtcdNodeSet.
+                format: int32
+                type: integer
+              observedGeneration:
+                description: ObservedGeneration reflects the generation of the most
+                  recently observed EtcdNodeSet.
+                format: int64
+                type: integer
+              readyReplicas:
+                description: ReadyReplicas is the number of EtcdNodes targeted by
+                  this EtcdNodeSet with a Ready Condition.
+                format: int32
+                minimum: 0
+                type: integer
+              replicas:
+                description: Replicas is the most recently observed number of replicas.
+                format: int32
+                minimum: 0
+                type: integer
+              revision:
+                default: 0
+                description: Revision
+                format: int64
+                type: integer
+              unavailableReplicas:
+                description: UnavailableReplicas
+                format: int32
+                minimum: 0
+                type: integer
+              updatedReplicas:
+                description: UpdatedReplicas
+                format: int32
+                minimum: 0
+                type: integer
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      scale:
+        specReplicasPath: .spec.replicas
+        statusReplicasPath: .status.replicas
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

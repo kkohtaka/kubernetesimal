@@ -1,0 +1,37 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "etcdnodedeployment",
+    srcs = [
+        "etcdnodedeployment.go",
+        "etcdnodeset.go",
+        "reconciler.go",
+    ],
+    importpath = "github.com/kkohtaka/kubernetesimal/controllers/etcdnodedeployment",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//api/v1alpha1",
+        "//controller/errors",
+        "//controller/finalizer",
+        "//hash",
+        "//k8s/etcdnodeset",
+        "//k8s/object",
+        "//observability/tracing",
+        "@io_k8s_apimachinery//pkg/api/equality",
+        "@io_k8s_apimachinery//pkg/api/errors",
+        "@io_k8s_apimachinery//pkg/api/meta",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_apimachinery//pkg/labels",
+        "@io_k8s_apimachinery//pkg/runtime",
+        "@io_k8s_apimachinery//pkg/util/intstr",
+        "@io_k8s_apimachinery//pkg/util/rand",
+        "@io_k8s_sigs_controller_runtime//:controller-runtime",
+        "@io_k8s_sigs_controller_runtime//pkg/builder",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+        "@io_k8s_sigs_controller_runtime//pkg/controller/controllerutil",
+        "@io_k8s_sigs_controller_runtime//pkg/log",
+        "@io_k8s_sigs_controller_runtime//pkg/predicate",
+        "@io_k8s_utils//integer",
+        "@io_opentelemetry_go_otel_trace//:trace",
+    ],
+)

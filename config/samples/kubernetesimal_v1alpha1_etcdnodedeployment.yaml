@@ -1,0 +1,5 @@
+apiVersion: kubernetesimal.kkohtaka.org/v1alpha1
+kind: EtcdNodeDeployment
+metadata:
+  name: etcdnodedeployment-sample
+spec: {}
