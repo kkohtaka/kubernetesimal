@@ -158,3 +158,9 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - kubevirt.io
+  resources:
+  - virtualmachineinstances/status
+  verbs:
+  - get
