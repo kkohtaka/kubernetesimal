@@ -15,8 +15,8 @@ limitations under the License.
 */
 
 // Package v1alpha1 contains API Schema definitions for the kubernetesimal v1alpha1 API group
-//+kubebuilder:object:generate=true
-//+groupName=kubernetesimal.kkohtaka.org
+// +kubebuilder:object:generate=true
+// +groupName=kubernetesimal.kkohtaka.org
 package v1alpha1
 
 import (
