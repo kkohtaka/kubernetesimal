@@ -28,8 +28,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 	"github.com/kkohtaka/kubernetesimal/controller/errors"
@@ -49,13 +51,14 @@ type Reconciler struct {
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcdnodes/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcdnodes/finalizers,verbs=update
 //+kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachineinstances,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachineinstances/status,verbs=get
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := log.FromContext(ctx).WithValues("etcdnode", req.NamespacedName)
+	logger := log.FromContext(ctx).WithValues("etcd-node", req.NamespacedName)
 	ctx = log.IntoContext(ctx, logger)
 	var span trace.Span
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "Reconcile")
@@ -240,9 +243,21 @@ func (r *Reconciler) updateStatus(
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("etcdnode-reconciler").
-		For(&kubernetesimalv1alpha1.EtcdNode{}).
-		Owns(&corev1.Secret{}).
-		Owns(&corev1.Service{}).
-		Owns(&kubevirtv1.VirtualMachineInstance{}).
+		For(
+			&kubernetesimalv1alpha1.EtcdNode{},
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Owns(
+			&corev1.Secret{},
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Owns(
+			&corev1.Service{},
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Owns(
+			&kubevirtv1.VirtualMachineInstance{},
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
 		Complete(r)
 }
