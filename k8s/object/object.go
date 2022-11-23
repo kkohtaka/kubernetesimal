@@ -77,6 +77,41 @@ func WithLabels(src map[string]string) ObjectOption {
 	}
 }
 
+func WithAnnotation(key, value string) ObjectOption {
+	return func(o runtime.Object) error {
+		meta, err := meta.Accessor(o)
+		if err != nil {
+			return err
+		}
+		annotations := meta.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+		annotations[key] = value
+		meta.SetAnnotations(annotations)
+		return nil
+	}
+}
+
+func WithAnnotations(src map[string]string) ObjectOption {
+	return func(o runtime.Object) error {
+		meta, err := meta.Accessor(o)
+		if err != nil {
+			return err
+		}
+		annotations := make(map[string]string)
+		dist := meta.GetAnnotations()
+		for key, value := range dist {
+			annotations[key] = value
+		}
+		for key, value := range src {
+			annotations[key] = value
+		}
+		meta.SetAnnotations(annotations)
+		return nil
+	}
+}
+
 func WithOwner(owner metav1.Object, scheme *runtime.Scheme) ObjectOption {
 	return func(o runtime.Object) error {
 		meta, err := meta.Accessor(o)

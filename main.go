@@ -37,6 +37,7 @@ import (
 	"github.com/kkohtaka/kubernetesimal/controller/expectations"
 	"github.com/kkohtaka/kubernetesimal/controllers/etcd"
 	"github.com/kkohtaka/kubernetesimal/controllers/etcdnode"
+	"github.com/kkohtaka/kubernetesimal/controllers/etcdnodedeployment"
 	"github.com/kkohtaka/kubernetesimal/controllers/etcdnodeset"
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
 	//+kubebuilder:scaffold:imports
@@ -172,6 +173,14 @@ func main() {
 		),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "EtcdNodeSet")
+		os.Exit(1)
+	}
+	if err = (&etcdnodedeployment.Reconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		Tracer: provider.Tracer("etcdnodedeployment-reconciler"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "EtcdNodeDeployment")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
