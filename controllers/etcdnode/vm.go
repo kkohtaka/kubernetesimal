@@ -58,11 +58,11 @@ var (
 )
 
 const (
-	defaultEtcdadmReleaseURL = "https://github.com/kkohtaka/etcdadm/releases/download"
+	defaultEtcdadmReleaseURL = "https://github.com/kubernetes-sigs/etcdadm/releases/download"
 )
 
 var (
-	defaultEtcdadmVersion = "2022.05.31"
+	defaultEtcdadmVersion = "0.1.5"
 
 	defaultEtcdVersion = "3.5.1"
 )
