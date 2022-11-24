@@ -167,6 +167,11 @@ func reconcileUserData(
 		return nil, errors.NewRequeueError("waiting for a cluster IP of the etcd peer Service prepared")
 	}
 
+	etcdVersion := spec.Version
+	if etcdVersion == "" {
+		etcdVersion = defaultEtcdVersion
+	}
+
 	startClusterScriptBuf := bytes.Buffer{}
 	startClusterScriptTmpl, err := template.New("start-cluster.sh.tmpl").ParseFS(
 		cloudConfigTemplates,
@@ -186,7 +191,7 @@ func reconcileUserData(
 		}{
 			EtcdadmReleaseURL: defaultEtcdadmReleaseURL,
 			EtcdadmVersion:    defaultEtcdadmVersion,
-			EtcdVersion:       defaultEtcdVersion,
+			EtcdVersion:       etcdVersion,
 			ServiceName:       peerService.Name,
 			ExtraSANs: strings.Join(
 				[]string{
@@ -224,7 +229,7 @@ func reconcileUserData(
 		}{
 			EtcdadmReleaseURL: defaultEtcdadmReleaseURL,
 			EtcdadmVersion:    defaultEtcdadmVersion,
-			EtcdVersion:       defaultEtcdVersion,
+			EtcdVersion:       etcdVersion,
 			ServiceName:       peerService.Name,
 			ExtraSANs: strings.Join(
 				[]string{
