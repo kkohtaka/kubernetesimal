@@ -198,7 +198,7 @@ func (r *Reconciler) reconcileExternalResources(
 	if vmiRef, err := reconcileVirtualMachineInstance(ctx, r.Client, r.Scheme, obj, spec, status); err != nil {
 		return status, fmt.Errorf("unable to prepare a virtual machine instance: %w", err)
 	} else {
-		status.VirtualMachineRef = vmiRef
+		status.VirtualMachineInstanceRef = vmiRef
 	}
 
 	if !status.IsProvisioned() {

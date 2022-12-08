@@ -245,8 +245,8 @@ spec:
                       TODO: Add other useful fields. apiVersion, kind, uid?'
                     type: string
                 type: object
-              virtualMachineRef:
-                description: VirtualMachineRef is a reference to a VirtualMachineInstance
+              virtualMachineInstanceRef:
+                description: VirtualMachineInstanceRef is a reference to a VirtualMachineInstance
                   that composes an etcd node.
                 properties:
                   name:

@@ -74,8 +74,8 @@ type EtcdNodeStatus struct {
 
 	// UserDataRef is a reference to a Secret that contains a userdata used to start a virtual machine instance.
 	UserDataRef *corev1.LocalObjectReference `json:"userDataRef,omitempty"`
-	// VirtualMachineRef is a reference to a VirtualMachineInstance that composes an etcd node.
-	VirtualMachineRef *corev1.LocalObjectReference `json:"virtualMachineRef,omitempty"`
+	// VirtualMachineInstanceRef is a reference to a VirtualMachineInstance that composes an etcd node.
+	VirtualMachineInstanceRef *corev1.LocalObjectReference `json:"virtualMachineInstanceRef,omitempty"`
 	// PeerServiceRef is a reference to a Service of an etcd node.
 	PeerServiceRef *corev1.LocalObjectReference `json:"peerServiceRef,omitempty"`
 

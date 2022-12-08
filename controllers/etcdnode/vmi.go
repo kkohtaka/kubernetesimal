@@ -358,12 +358,12 @@ func finalizeVirtualMachineInstance(
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "finalizeVirtualMachineInstance")
 	defer span.End()
 
-	if status.VirtualMachineRef == nil {
+	if status.VirtualMachineInstanceRef == nil {
 		return status, nil
 	}
 
 	logger := log.FromContext(ctx).WithValues(
-		"object", status.VirtualMachineRef.Name,
+		"object", status.VirtualMachineInstanceRef.Name,
 		"resource", "VirtualMachineInstance",
 	)
 	ctx = log.IntoContext(ctx, logger)
@@ -372,12 +372,12 @@ func finalizeVirtualMachineInstance(
 		ctx,
 		client,
 		obj.GetNamespace(),
-		status.VirtualMachineRef.Name,
+		status.VirtualMachineInstanceRef.Name,
 		&kubevirtv1.VirtualMachineInstance{},
 	); err != nil {
 		return status, err
 	}
-	status.VirtualMachineRef = nil
-	logger.Info("VirtualMachine was finalized.")
+	status.VirtualMachineInstanceRef = nil
+	logger.Info("VirtualMachineInstance was finalized.")
 	return status, nil
 }

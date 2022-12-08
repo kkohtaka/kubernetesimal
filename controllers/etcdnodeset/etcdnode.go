@@ -344,14 +344,14 @@ func getEtcdNodesToDelete(
 			continue
 		}
 
-		if node.Status.VirtualMachineRef == nil {
+		if node.Status.VirtualMachineInstanceRef == nil {
 			continue
 		}
 
 		var vmi kubevirtv1.VirtualMachineInstance
 		if err := c.Get(
 			ctx,
-			client.ObjectKey{Namespace: node.Namespace, Name: node.Status.VirtualMachineRef.Name},
+			client.ObjectKey{Namespace: node.Namespace, Name: node.Status.VirtualMachineInstanceRef.Name},
 			&vmi,
 		); err != nil {
 			return nil, fmt.Errorf("unable to get VirtualMachineInstance: %w", err)
@@ -364,14 +364,14 @@ func getEtcdNodesToDelete(
 	for i := range controlleeNodes {
 		node := relatedNodes[i]
 
-		if node.Status.VirtualMachineRef == nil {
+		if node.Status.VirtualMachineInstanceRef == nil {
 			continue
 		}
 
 		var vmi kubevirtv1.VirtualMachineInstance
 		if err := c.Get(
 			ctx,
-			client.ObjectKey{Namespace: node.Namespace, Name: node.Status.VirtualMachineRef.Name},
+			client.ObjectKey{Namespace: node.Namespace, Name: node.Status.VirtualMachineInstanceRef.Name},
 			&vmi,
 		); err != nil {
 			return nil, fmt.Errorf("unable to get VirtualMachineInstance: %w", err)

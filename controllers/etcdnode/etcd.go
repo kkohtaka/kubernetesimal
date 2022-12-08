@@ -64,7 +64,7 @@ func provisionEtcdMember(
 		ctx,
 		types.NamespacedName{
 			Namespace: obj.GetNamespace(),
-			Name:      status.VirtualMachineRef.Name,
+			Name:      status.VirtualMachineInstanceRef.Name,
 		},
 		&vmi,
 	); err != nil {
@@ -72,7 +72,7 @@ func provisionEtcdMember(
 			return errors.NewRequeueError("waiting for a VirtualMachineInstance prepared").Wrap(err)
 		}
 		return fmt.Errorf(
-			"unable to get a VirtualMachineInstance %s/%s: %w", obj.GetNamespace(), status.VirtualMachineRef.Name, err)
+			"unable to get a VirtualMachineInstance %s/%s: %w", obj.GetNamespace(), status.VirtualMachineInstanceRef.Name, err)
 	}
 	if vmi.Status.Phase != kubevirtv1.Running {
 		return errors.NewRequeueError("waiting for a VirtualMachineInstance become running")
@@ -248,8 +248,8 @@ func finalizeEtcdMember(
 		return status, nil
 	}
 
-	if status.VirtualMachineRef == nil {
-		logger.V(4).Info("Skip finalizing an etcd member since a VirtualMachine doesn't exit")
+	if status.VirtualMachineInstanceRef == nil {
+		logger.V(4).Info("Skip finalizing an etcd member since a VirtualMachineInstance doesn't exit")
 		return status, nil
 	}
 
@@ -258,16 +258,16 @@ func finalizeEtcdMember(
 		ctx,
 		types.NamespacedName{
 			Namespace: obj.GetNamespace(),
-			Name:      status.VirtualMachineRef.Name,
+			Name:      status.VirtualMachineInstanceRef.Name,
 		},
 		&vmi,
 	); err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.V(4).Info("Skip finalizing an etcd member since a VirtualMachine doesn't exit")
+			logger.V(4).Info("Skip finalizing an etcd member since a VirtualMachineInstance doesn't exit")
 			return status, nil
 		}
 		return status, fmt.Errorf(
-			"unable to get a VirtualMachineInstance %s/%s: %w", obj.GetNamespace(), status.VirtualMachineRef.Name, err)
+			"unable to get a VirtualMachineInstance %s/%s: %w", obj.GetNamespace(), status.VirtualMachineInstanceRef.Name, err)
 	}
 
 	privateKey, err := k8s_secret.GetValueFromSecretKeySelector(
