@@ -7,7 +7,7 @@ go_library(
         "prober.go",
         "reconciler.go",
         "service.go",
-        "vm.go",
+        "vmi.go",
     ],
     embedsrcs = [
         "templates/cloud-init.tmpl",

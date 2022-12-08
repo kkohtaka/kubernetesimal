@@ -461,8 +461,8 @@ func (in *EtcdNodeStatus) DeepCopyInto(out *EtcdNodeStatus) {
 		*out = new(v1.LocalObjectReference)
 		**out = **in
 	}
-	if in.VirtualMachineRef != nil {
-		in, out := &in.VirtualMachineRef, &out.VirtualMachineRef
+	if in.VirtualMachineInstanceRef != nil {
+		in, out := &in.VirtualMachineInstanceRef, &out.VirtualMachineInstanceRef
 		*out = new(v1.LocalObjectReference)
 		**out = **in
 	}
