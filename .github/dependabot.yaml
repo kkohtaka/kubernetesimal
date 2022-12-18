@@ -9,11 +9,6 @@ updates:
     directory: /
     schedule:
       interval: daily
-    ignore:
-      # Ignore these modules since bazel-gazelle cannot create BUILD files for the newer versions of these modules
-      - dependency-name: go.opentelemetry.io/otel/exporters/otlp/otlptrace
-      - dependency-name: go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp
-      - dependency-name: go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc
 
   - package-ecosystem: docker
     directory: /
