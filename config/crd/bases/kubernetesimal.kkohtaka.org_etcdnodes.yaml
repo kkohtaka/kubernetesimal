@@ -1,10 +1,9 @@
-
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
   name: etcdnodes.kubernetesimal.kkohtaka.org
 spec:
@@ -65,6 +64,7 @@ spec:
                 required:
                 - key
                 type: object
+                x-kubernetes-map-type: atomic
               caPrivateKeyRef:
                 description: CAPrivateKeyRef is a reference to a Secret key that composes
                   a CA private key.
@@ -83,6 +83,7 @@ spec:
                 required:
                 - key
                 type: object
+                x-kubernetes-map-type: atomic
               clientCertificateRef:
                 description: ClientCertificateRef is a reference to a Secret key that
                   composes a Client certificate.
@@ -101,6 +102,7 @@ spec:
                 required:
                 - key
                 type: object
+                x-kubernetes-map-type: atomic
               clientPrivateKeyRef:
                 description: ClientPrivateKeyRef is a reference to a Secret key that
                   composes a Client private key.
@@ -119,15 +121,18 @@ spec:
                 required:
                 - key
                 type: object
+                x-kubernetes-map-type: atomic
               imagePersistentVolumeClaimRef:
-                description: ImagePersistentVolumeClaimRef is a reference to a PersistentVolumeClaim
-                  that is used as an ephemeral volume to boot VirtualMachines.
+                description: ImagePersistentVolumeClaimRef is a local reference to
+                  a PersistentVolumeClaim that is used as an ephemeral volume to boot
+                  VirtualMachines.
                 properties:
                   name:
                     description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
                       TODO: Add other useful fields. apiVersion, kind, uid?'
                     type: string
                 type: object
+                x-kubernetes-map-type: atomic
               serviceRef:
                 description: ServiceRef is a reference to a Service of an etcd cluster.
                 properties:
@@ -136,6 +141,7 @@ spec:
                       TODO: Add other useful fields. apiVersion, kind, uid?'
                     type: string
                 type: object
+                x-kubernetes-map-type: atomic
               sshPrivateKeyRef:
                 description: SSHPrivateKeyRef is a reference to a Secret key that
                   composes an SSH private key.
@@ -154,6 +160,7 @@ spec:
                 required:
                 - key
                 type: object
+                x-kubernetes-map-type: atomic
               sshPublicKeyRef:
                 description: SSHPublicKeyRef is a reference to a Secret key that composes
                   an SSH public key.
@@ -172,6 +179,7 @@ spec:
                 required:
                 - key
                 type: object
+                x-kubernetes-map-type: atomic
               version:
                 description: Version is the desired version of the etcd cluster.
                 type: string
@@ -236,6 +244,7 @@ spec:
                       TODO: Add other useful fields. apiVersion, kind, uid?'
                     type: string
                 type: object
+                x-kubernetes-map-type: atomic
               phase:
                 default: Creating
                 description: Phase indicates phase of the etcd node.
@@ -255,6 +264,7 @@ spec:
                       TODO: Add other useful fields. apiVersion, kind, uid?'
                     type: string
                 type: object
+                x-kubernetes-map-type: atomic
               virtualMachineInstanceRef:
                 description: VirtualMachineInstanceRef is a reference to a VirtualMachineInstance
                   that composes an etcd node.
@@ -264,6 +274,7 @@ spec:
                       TODO: Add other useful fields. apiVersion, kind, uid?'
                     type: string
                 type: object
+                x-kubernetes-map-type: atomic
             required:
             - phase
             type: object
@@ -272,9 +283,3 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []

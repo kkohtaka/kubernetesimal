@@ -1,10 +1,9 @@
-
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
   name: etcds.kubernetesimal.kkohtaka.org
 spec:
@@ -50,14 +49,16 @@ spec:
             description: EtcdSpec defines the desired state of Etcd
             properties:
               imagePersistentVolumeClaimRef:
-                description: ImagePersistentVolumeClaimRef is a reference to a PersistentVolumeClaim
-                  that is used as an ephemeral volume to boot VirtualMachines.
+                description: ImagePersistentVolumeClaimRef is a local reference to
+                  a PersistentVolumeClaim that is used as an ephemeral volume to boot
+                  VirtualMachines.
                 properties:
                   name:
                     description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
                       TODO: Add other useful fields. apiVersion, kind, uid?'
                     type: string
                 type: object
+                x-kubernetes-map-type: atomic
               replicas:
                 description: Replicas is the desired number of etcd replicas.
                 format: int32
@@ -90,6 +91,7 @@ spec:
                 required:
                 - key
                 type: object
+                x-kubernetes-map-type: atomic
               caPrivateKeyRef:
                 description: CAPrivateKeyRef is a reference to a Secret key that composes
                   a CA private key.
@@ -108,6 +110,7 @@ spec:
                 required:
                 - key
                 type: object
+                x-kubernetes-map-type: atomic
               clientCertificateRef:
                 description: ClientCertificateRef is a reference to a Secret key that
                   composes a Client certificate.
@@ -126,6 +129,7 @@ spec:
                 required:
                 - key
                 type: object
+                x-kubernetes-map-type: atomic
               clientPrivateKeyRef:
                 description: ClientPrivateKeyRef is a reference to a Secret key that
                   composes a Client private key.
@@ -144,6 +148,7 @@ spec:
                 required:
                 - key
                 type: object
+                x-kubernetes-map-type: atomic
               conditions:
                 description: Conditions is a list of statuses respected to certain
                   conditions.
@@ -191,6 +196,7 @@ spec:
                       TODO: Add other useful fields. apiVersion, kind, uid?'
                     type: string
                 type: object
+                x-kubernetes-map-type: atomic
               observedGeneration:
                 description: The generation observed by the EtcdNodeDeployment controller.
                 format: int64
@@ -213,6 +219,7 @@ spec:
                 required:
                 - key
                 type: object
+                x-kubernetes-map-type: atomic
               peerPrivateKeyRef:
                 description: PeerPrivateKeyRef is a reference to a Secret key that
                   composes a peer private key for peer communication.
@@ -231,6 +238,7 @@ spec:
                 required:
                 - key
                 type: object
+                x-kubernetes-map-type: atomic
               phase:
                 default: Creating
                 description: Phase indicates phase of the etcd cluster.
@@ -257,6 +265,7 @@ spec:
                       TODO: Add other useful fields. apiVersion, kind, uid?'
                     type: string
                 type: object
+                x-kubernetes-map-type: atomic
               sshPrivateKeyRef:
                 description: SSHPrivateKeyRef is a reference to a Secret key that
                   composes an SSH private key.
@@ -275,6 +284,7 @@ spec:
                 required:
                 - key
                 type: object
+                x-kubernetes-map-type: atomic
               sshPublicKeyRef:
                 description: SSHPublicKeyRef is a reference to a Secret key that composes
                   an SSH public key.
@@ -293,6 +303,7 @@ spec:
                 required:
                 - key
                 type: object
+                x-kubernetes-map-type: atomic
             required:
             - phase
             type: object
@@ -304,9 +315,3 @@ spec:
         specReplicasPath: .spec.replicas
         statusReplicasPath: .status.replicas
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
