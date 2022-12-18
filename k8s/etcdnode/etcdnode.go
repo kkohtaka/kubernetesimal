@@ -50,6 +50,17 @@ func WithVersion(version string) k8s_object.ObjectOption {
 	}
 }
 
+func WithImagePersistentVolumeClaim(claimRef string) k8s_object.ObjectOption {
+	return func(o runtime.Object) error {
+		node, ok := o.(*kubernetesimalv1alpha1.EtcdNode)
+		if !ok {
+			return errors.New("not a instance of EtcdNode")
+		}
+		node.Spec.ImagePersistentVolumeClaimRef.Name = claimRef
+		return nil
+	}
+}
+
 func WithCACertificateRef(caCertificateRef corev1.SecretKeySelector) k8s_object.ObjectOption {
 	return func(o runtime.Object) error {
 		node, ok := o.(*kubernetesimalv1alpha1.EtcdNode)

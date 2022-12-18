@@ -104,6 +104,7 @@ func reconcileEtcdNodes(
 					k8s_object.WithOwner(set, scheme),
 					k8s_object.WithLabels(spec.Template.GetLabels()),
 					k8s_etcdnode.WithVersion(templateSpec.Version),
+					k8s_etcdnode.WithImagePersistentVolumeClaim(spec.Template.Spec.ImagePersistentVolumeClaimRef.Name),
 					k8s_etcdnode.WithCACertificateRef(templateSpec.CACertificateRef),
 					k8s_etcdnode.WithCAPrivateKeyRef(templateSpec.CAPrivateKeyRef),
 					k8s_etcdnode.WithClientCertificateRef(templateSpec.ClientCertificateRef),

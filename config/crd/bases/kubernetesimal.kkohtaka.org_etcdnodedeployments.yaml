@@ -250,6 +250,16 @@ spec:
                         required:
                         - key
                         type: object
+                      imagePersistentVolumeClaimRef:
+                        description: ImagePersistentVolumeClaimRef is a reference
+                          to a PersistentVolumeClaim that is used as an ephemeral
+                          volume to boot VirtualMachines.
+                        properties:
+                          name:
+                            description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                              TODO: Add other useful fields. apiVersion, kind, uid?'
+                            type: string
+                        type: object
                       serviceRef:
                         description: ServiceRef is a reference to a Service of an
                           etcd cluster.
@@ -304,6 +314,7 @@ spec:
                     - asFirstNode
                     - caCertificateRef
                     - caPrivateKeyRef
+                    - imagePersistentVolumeClaimRef
                     - serviceRef
                     - sshPrivateKeyRef
                     - sshPublicKeyRef

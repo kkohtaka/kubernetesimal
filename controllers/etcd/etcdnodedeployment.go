@@ -73,24 +73,26 @@ func reconcileEtcdNodeDeployment(
 	defer span.End()
 	logger := log.FromContext(ctx)
 
+	template := kubernetesimalv1alpha1.EtcdNodeTemplateSpec{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: newEtcdNodeTemplateSpecLabels(e),
+		},
+		Spec: kubernetesimalv1alpha1.EtcdNodeSpec{
+			Version:                       *spec.Version,
+			ImagePersistentVolumeClaimRef: spec.ImagePersistentVolumeClaimRef,
+			CACertificateRef:              *status.CACertificateRef,
+			CAPrivateKeyRef:               *status.CAPrivateKeyRef,
+			ClientCertificateRef:          *status.ClientCertificateRef,
+			ClientPrivateKeyRef:           *status.ClientPrivateKeyRef,
+			SSHPrivateKeyRef:              *status.SSHPrivateKeyRef,
+			SSHPublicKeyRef:               *status.SSHPublicKeyRef,
+			ServiceRef:                    *status.ServiceRef,
+		},
+	}
+
 	if !status.IsReadyOnce() {
 		// Create a single-node cluster before it becomes ready once.
-		template := kubernetesimalv1alpha1.EtcdNodeTemplateSpec{
-			ObjectMeta: metav1.ObjectMeta{
-				Labels: newEtcdNodeTemplateSpecLabels(e),
-			},
-			Spec: kubernetesimalv1alpha1.EtcdNodeSpec{
-				Version:              *spec.Version,
-				CACertificateRef:     *status.CACertificateRef,
-				CAPrivateKeyRef:      *status.CAPrivateKeyRef,
-				ClientCertificateRef: *status.ClientCertificateRef,
-				ClientPrivateKeyRef:  *status.ClientPrivateKeyRef,
-				SSHPrivateKeyRef:     *status.SSHPrivateKeyRef,
-				SSHPublicKeyRef:      *status.SSHPublicKeyRef,
-				ServiceRef:           *status.ServiceRef,
-				AsFirstNode:          true,
-			},
-		}
+		template.Spec.AsFirstNode = true
 
 		// If a corresponding deployment exists and the spec should be changed, scale its replicas to zero before
 		// changing the spec.
@@ -139,22 +141,6 @@ func reconcileEtcdNodeDeployment(
 	var replicas int32 = 1
 	if spec.Replicas != nil {
 		replicas = *spec.Replicas
-	}
-	template := kubernetesimalv1alpha1.EtcdNodeTemplateSpec{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels: newEtcdNodeTemplateSpecLabels(e),
-		},
-		Spec: kubernetesimalv1alpha1.EtcdNodeSpec{
-			Version:              *spec.Version,
-			CACertificateRef:     *status.CACertificateRef,
-			CAPrivateKeyRef:      *status.CAPrivateKeyRef,
-			ClientCertificateRef: *status.ClientCertificateRef,
-			ClientPrivateKeyRef:  *status.ClientPrivateKeyRef,
-			SSHPrivateKeyRef:     *status.SSHPrivateKeyRef,
-			SSHPublicKeyRef:      *status.SSHPublicKeyRef,
-			ServiceRef:           *status.ServiceRef,
-			AsFirstNode:          false,
-		},
 	}
 	if _, deployment, err := k8s_etcdnodedeployment.Reconcile(
 		ctx,

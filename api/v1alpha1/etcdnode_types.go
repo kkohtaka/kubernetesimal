@@ -44,6 +44,10 @@ type EtcdNodeSpec struct {
 	// Version is the desired version of the etcd cluster.
 	Version string `json:"version"`
 
+	// ImagePersistentVolumeClaimRef is a local reference to a PersistentVolumeClaim that is used as an ephemeral volume
+	// to boot VirtualMachines.
+	ImagePersistentVolumeClaimRef corev1.LocalObjectReference `json:"imagePersistentVolumeClaimRef"`
+
 	// CACertificateRef is a reference to a Secret key that composes a CA certificate.
 	CACertificateRef corev1.SecretKeySelector `json:"caCertificateRef"`
 	// CAPrivateKeyRef is a reference to a Secret key that composes a CA private key.
