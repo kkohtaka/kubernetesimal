@@ -92,6 +92,7 @@ func (r *Etcd) ValidateUpdate(old runtime.Object) error {
 
 	var errs field.ErrorList
 	errs = append(errs, r.validateSpecVersion()...)
+	errs = append(errs, r.validateSpecImagePersistentVolumeClaimRef()...)
 	if len(errs) > 0 {
 		err := apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "Etcd"}, r.Name, errs)
 		etcdlog.Error(err, "validation error", "name", r.Name)
@@ -123,6 +124,19 @@ func (r *Etcd) validateSpecVersion() field.ErrorList {
 				field.NewPath("spec", "version"),
 				r.Spec.Version,
 				"the version must be a semantic version",
+			),
+		)
+	}
+	return errs
+}
+
+func (r *Etcd) validateSpecImagePersistentVolumeClaimRef() field.ErrorList {
+	var errs field.ErrorList
+	if ref := r.Spec.ImagePersistentVolumeClaimRef; ref.Name == "" {
+		errs = append(errs,
+			field.Required(
+				field.NewPath("spec", "imagePersistentVolumeClaimRef"),
+				"spec must have an imagePersistentVolumeClaimRef",
 			),
 		)
 	}

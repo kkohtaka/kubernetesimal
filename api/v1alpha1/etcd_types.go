@@ -39,6 +39,10 @@ type EtcdSpec struct {
 	// Replicas is the desired number of etcd replicas.
 	//+kubebuilder:validation:Minimum=0
 	Replicas *int32 `json:"replicas,omitempty"`
+
+	// ImagePersistentVolumeClaimRef is a local reference to a PersistentVolumeClaim that is used as an ephemeral volume
+	// to boot VirtualMachines.
+	ImagePersistentVolumeClaimRef corev1.LocalObjectReference `json:"imagePersistentVolumeClaimRef"`
 }
 
 // EtcdStatus defines the observed state of Etcd

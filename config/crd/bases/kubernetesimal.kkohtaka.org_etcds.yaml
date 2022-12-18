@@ -49,6 +49,15 @@ spec:
           spec:
             description: EtcdSpec defines the desired state of Etcd
             properties:
+              imagePersistentVolumeClaimRef:
+                description: ImagePersistentVolumeClaimRef is a reference to a PersistentVolumeClaim
+                  that is used as an ephemeral volume to boot VirtualMachines.
+                properties:
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      TODO: Add other useful fields. apiVersion, kind, uid?'
+                    type: string
+                type: object
               replicas:
                 description: Replicas is the desired number of etcd replicas.
                 format: int32
@@ -57,6 +66,8 @@ spec:
               version:
                 description: Version is the desired version of the etcd cluster.
                 type: string
+            required:
+            - imagePersistentVolumeClaimRef
             type: object
           status:
             description: EtcdStatus defines the observed state of Etcd

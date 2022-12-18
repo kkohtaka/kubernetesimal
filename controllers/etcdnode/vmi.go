@@ -318,24 +318,24 @@ func reconcileVirtualMachineInstance(
 	c client.Client,
 	scheme *runtime.Scheme,
 	obj client.Object,
-	_ *kubernetesimalv1alpha1.EtcdNodeSpec,
+	spec *kubernetesimalv1alpha1.EtcdNodeSpec,
 	status *kubernetesimalv1alpha1.EtcdNodeStatus,
 ) (*corev1.LocalObjectReference, error) {
 	var span trace.Span
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "reconcileVirtualMachineInstance")
 	defer span.End()
 
-	if vmi, err := k8s_vmi.CreateIfNotExist(
+	if _, vmi, err := k8s_vmi.CreateOnlyIfNotExist(
 		ctx,
-		obj,
 		c,
-		k8s_object.WithName(newVirtualMachineInstanceName(obj)),
-		k8s_object.WithNamespace(obj.GetNamespace()),
+		newVirtualMachineInstanceName(obj),
+		obj.GetNamespace(),
 		k8s_object.WithLabel("app.kubernetes.io/name", "virtualmachineimage"),
 		k8s_object.WithLabel("app.kubernetes.io/instance", newVirtualMachineInstanceName(obj)),
 		k8s_object.WithLabel("app.kubernetes.io/part-of", "etcd"),
 		k8s_object.WithOwner(obj, scheme),
-		k8s_vmi.WithUserData(status.UserDataRef),
+		k8s_vmi.WithEphemeralVolumeSource(spec.ImagePersistentVolumeClaimRef.Name),
+		k8s_vmi.WithUserDataSecret(status.UserDataRef),
 		k8s_vmi.WithReadinessTCPProbe(&corev1.TCPSocketAction{
 			Port: intstr.FromInt(serviceContainerPortSSH),
 		}),

@@ -33,20 +33,19 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubevirtv1 "kubevirt.io/api/core/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	k8s_object "github.com/kkohtaka/kubernetesimal/k8s/object"
 )
 
 const (
-	DiskKeyForContainer = "containerdisk"
-	DiskKeyForCloudInit = "cloudinitdisk"
-
-	DefaultContainerDiskImage = "kubevirt/fedora-cloud-container-disk-demo"
+	DiskKeyForBoot      = "boot"
+	DiskKeyForCloudInit = "cloud-init"
 )
 
 var (
@@ -58,24 +57,6 @@ func newDefaultVirtualMachineInstance() kubevirtv1.VirtualMachineInstance {
 		Spec: kubevirtv1.VirtualMachineInstanceSpec{
 			Domain: kubevirtv1.DomainSpec{
 				Devices: kubevirtv1.Devices{
-					Disks: []kubevirtv1.Disk{
-						{
-							Name: DiskKeyForContainer,
-							DiskDevice: kubevirtv1.DiskDevice{
-								Disk: &kubevirtv1.DiskTarget{
-									Bus: "virtio",
-								},
-							},
-						},
-						{
-							Name: DiskKeyForCloudInit,
-							DiskDevice: kubevirtv1.DiskDevice{
-								Disk: &kubevirtv1.DiskTarget{
-									Bus: "virtio",
-								},
-							},
-						},
-					},
 					Interfaces: []kubevirtv1.Interface{
 						*kubevirtv1.DefaultBridgeNetworkInterface(),
 					},
@@ -89,45 +70,71 @@ func newDefaultVirtualMachineInstance() kubevirtv1.VirtualMachineInstance {
 			Networks: []kubevirtv1.Network{
 				*kubevirtv1.DefaultPodNetwork(),
 			},
-			Volumes: []kubevirtv1.Volume{
-				{
-					Name: DiskKeyForContainer,
-					VolumeSource: kubevirtv1.VolumeSource{
-						ContainerDisk: &kubevirtv1.ContainerDiskSource{
-							Image: DefaultContainerDiskImage,
-						},
-					},
-				},
-			},
 		},
 	}
 }
 
-func WithUserData(userDataRef *corev1.LocalObjectReference) k8s_object.ObjectOption {
+func WithEphemeralVolumeSource(claimName string) k8s_object.ObjectOption {
 	return func(o runtime.Object) error {
 		vmi, ok := o.(*kubevirtv1.VirtualMachineInstance)
 		if !ok {
 			return errors.New("not a instance of VirtualMachineInstance")
 		}
-		var volume *kubevirtv1.Volume
-		for i := range vmi.Spec.Volumes {
-			if vmi.Spec.Volumes[i].Name == DiskKeyForCloudInit {
-				volume = &vmi.Spec.Volumes[i]
-				break
+		for _, v := range vmi.Spec.Volumes {
+			if v.Name == DiskKeyForBoot {
+				return fmt.Errorf("boot volume is already set")
 			}
 		}
-		if volume == nil {
-			vmi.Spec.Volumes = append(vmi.Spec.Volumes, kubevirtv1.Volume{
-				Name: DiskKeyForCloudInit,
-				VolumeSource: kubevirtv1.VolumeSource{
-					CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
-						UserDataSecretRef: userDataRef,
+		vmi.Spec.Volumes = append(vmi.Spec.Volumes, kubevirtv1.Volume{
+			Name: DiskKeyForBoot,
+			VolumeSource: kubevirtv1.VolumeSource{
+				Ephemeral: &kubevirtv1.EphemeralVolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: claimName,
+						ReadOnly:  true,
 					},
 				},
-			})
-		} else {
-			volume.CloudInitNoCloud.UserDataSecretRef = userDataRef
+			},
+		})
+		vmi.Spec.Domain.Devices.Disks = append(vmi.Spec.Domain.Devices.Disks, kubevirtv1.Disk{
+			Name: DiskKeyForBoot,
+			DiskDevice: kubevirtv1.DiskDevice{
+				Disk: &kubevirtv1.DiskTarget{
+					Bus: kubevirtv1.DiskBusVirtio,
+				},
+			},
+		})
+		return nil
+	}
+}
+
+func WithUserDataSecret(userDataRef *corev1.LocalObjectReference) k8s_object.ObjectOption {
+	return func(o runtime.Object) error {
+		vmi, ok := o.(*kubevirtv1.VirtualMachineInstance)
+		if !ok {
+			return errors.New("not a instance of VirtualMachineInstance")
 		}
+		for i := range vmi.Spec.Volumes {
+			if vmi.Spec.Volumes[i].Name == DiskKeyForCloudInit {
+				return fmt.Errorf("cloud-init data is already set")
+			}
+		}
+		vmi.Spec.Volumes = append(vmi.Spec.Volumes, kubevirtv1.Volume{
+			Name: DiskKeyForCloudInit,
+			VolumeSource: kubevirtv1.VolumeSource{
+				CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
+					UserDataSecretRef: userDataRef,
+				},
+			},
+		})
+		vmi.Spec.Domain.Devices.Disks = append(vmi.Spec.Domain.Devices.Disks, kubevirtv1.Disk{
+			Name: DiskKeyForCloudInit,
+			DiskDevice: kubevirtv1.DiskDevice{
+				Disk: &kubevirtv1.DiskTarget{
+					Bus: kubevirtv1.DiskBusVirtio,
+				},
+			},
+		})
 		return nil
 	}
 }
@@ -147,27 +154,54 @@ func WithReadinessTCPProbe(tcpAction *corev1.TCPSocketAction) k8s_object.ObjectO
 	}
 }
 
-func CreateIfNotExist(
+func CreateOnlyIfNotExist(
 	ctx context.Context,
-	owner metav1.Object,
 	c client.Client,
+	name, namespace string,
 	opts ...k8s_object.ObjectOption,
-) (*kubevirtv1.VirtualMachineInstance, error) {
+) (controllerutil.OperationResult, *kubevirtv1.VirtualMachineInstance, error) {
 	vmi := newDefaultVirtualMachineInstance()
-	for _, fn := range opts {
-		if err := fn(&vmi); err != nil {
-			return nil, err
+	vmi.Name = name
+	vmi.Namespace = namespace
+
+	if err := c.Get(ctx, client.ObjectKeyFromObject(&vmi), &vmi); err != nil {
+		if apierrors.IsNotFound(err) {
+			return Reconcile(ctx, c, name, namespace, opts...)
+		} else {
+			return controllerutil.OperationResultNone, nil, err
 		}
 	}
-	if err := c.Create(ctx, &vmi); err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			if err := c.Get(ctx, client.ObjectKeyFromObject(&vmi), &vmi); err != nil {
-				return nil, err
+
+	logger := log.FromContext(ctx).WithValues(
+		"namespace", vmi.Namespace,
+		"name", vmi.Name,
+	)
+	logger.V(4).Info("VirtualMachineInstance already exists")
+
+	return controllerutil.OperationResultNone, &vmi, nil
+}
+
+func Reconcile(
+	ctx context.Context,
+	c client.Client,
+	name, namespace string,
+	opts ...k8s_object.ObjectOption,
+) (controllerutil.OperationResult, *kubevirtv1.VirtualMachineInstance, error) {
+	vmi := newDefaultVirtualMachineInstance()
+	vmi.Name = name
+	vmi.Namespace = namespace
+
+	opRes, err := ctrl.CreateOrUpdate(ctx, c, &vmi, func() error {
+		for _, fn := range opts {
+			if err := fn(&vmi); err != nil {
+				return err
 			}
-			return &vmi, nil
 		}
-		return nil, fmt.Errorf(
-			"unable to create VirtualMachineInstance %s: %w",
+		return nil
+	})
+	if err != nil {
+		return controllerutil.OperationResultNone, nil, fmt.Errorf(
+			"unable to create or update VirtualMachineInstance %s: %w",
 			k8s_object.ObjectName(&vmi.ObjectMeta),
 			err,
 		)
@@ -177,7 +211,14 @@ func CreateIfNotExist(
 		"namespace", vmi.Namespace,
 		"name", vmi.Name,
 	)
-	logger.Info("VirtualMachineInstance was created")
+	switch opRes {
+	case controllerutil.OperationResultCreated:
+		logger.Info("VirtualMachineInstance was created.")
+	case controllerutil.OperationResultUpdated:
+		logger.Info("VirtualMachineInstance was updated.")
+	case controllerutil.OperationResultNone:
+		logger.V(4).Info("VirtualMachineInstance was unchanged.")
+	}
 
-	return &vmi, nil
+	return opRes, &vmi, nil
 }
