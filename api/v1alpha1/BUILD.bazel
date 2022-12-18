@@ -44,7 +44,6 @@ go_test(
         "@io_k8s_sigs_controller_runtime//:controller-runtime",
         "@io_k8s_sigs_controller_runtime//pkg/client",
         "@io_k8s_sigs_controller_runtime//pkg/envtest",
-        "@io_k8s_sigs_controller_runtime//pkg/envtest/printer",
         "@io_k8s_sigs_controller_runtime//pkg/log",
         "@io_k8s_sigs_controller_runtime//pkg/log/zap",
     ],
