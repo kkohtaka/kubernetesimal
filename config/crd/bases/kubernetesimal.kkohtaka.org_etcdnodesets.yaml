@@ -1,10 +1,9 @@
-
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
   name: etcdnodesets.kubernetesimal.kkohtaka.org
 spec:
@@ -109,6 +108,7 @@ spec:
                       are ANDed.
                     type: object
                 type: object
+                x-kubernetes-map-type: atomic
               template:
                 description: Template is the object that describes the EtcdNode that
                   will be created if insufficient replicas are detected.
@@ -142,6 +142,7 @@ spec:
                         required:
                         - key
                         type: object
+                        x-kubernetes-map-type: atomic
                       caPrivateKeyRef:
                         description: CAPrivateKeyRef is a reference to a Secret key
                           that composes a CA private key.
@@ -161,6 +162,7 @@ spec:
                         required:
                         - key
                         type: object
+                        x-kubernetes-map-type: atomic
                       clientCertificateRef:
                         description: ClientCertificateRef is a reference to a Secret
                           key that composes a Client certificate.
@@ -180,6 +182,7 @@ spec:
                         required:
                         - key
                         type: object
+                        x-kubernetes-map-type: atomic
                       clientPrivateKeyRef:
                         description: ClientPrivateKeyRef is a reference to a Secret
                           key that composes a Client private key.
@@ -199,8 +202,9 @@ spec:
                         required:
                         - key
                         type: object
+                        x-kubernetes-map-type: atomic
                       imagePersistentVolumeClaimRef:
-                        description: ImagePersistentVolumeClaimRef is a reference
+                        description: ImagePersistentVolumeClaimRef is a local reference
                           to a PersistentVolumeClaim that is used as an ephemeral
                           volume to boot VirtualMachines.
                         properties:
@@ -209,6 +213,7 @@ spec:
                               TODO: Add other useful fields. apiVersion, kind, uid?'
                             type: string
                         type: object
+                        x-kubernetes-map-type: atomic
                       serviceRef:
                         description: ServiceRef is a reference to a Service of an
                           etcd cluster.
@@ -218,6 +223,7 @@ spec:
                               TODO: Add other useful fields. apiVersion, kind, uid?'
                             type: string
                         type: object
+                        x-kubernetes-map-type: atomic
                       sshPrivateKeyRef:
                         description: SSHPrivateKeyRef is a reference to a Secret key
                           that composes an SSH private key.
@@ -237,6 +243,7 @@ spec:
                         required:
                         - key
                         type: object
+                        x-kubernetes-map-type: atomic
                       sshPublicKeyRef:
                         description: SSHPublicKeyRef is a reference to a Secret key
                           that composes an SSH public key.
@@ -256,6 +263,7 @@ spec:
                         required:
                         - key
                         type: object
+                        x-kubernetes-map-type: atomic
                       version:
                         description: Version is the desired version of the etcd cluster.
                         type: string
@@ -311,9 +319,3 @@ spec:
         specReplicasPath: .spec.replicas
         statusReplicasPath: .status.replicas
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
