@@ -109,3 +109,18 @@ spec:
     #     -----END CERTIFICATE-----
     # ```
     name: fedora-cloud-base-37
+  loginPasswordSecretKeySelector:
+    # This Secret can be created with the following manifests.
+    #
+    # ```yaml
+    # apiVersion: v1
+    # kind: Secret
+    # metadata:
+    #   name: etcd-sample-password
+    #   namespace: kubernetesimal-test
+    # type: Opaque
+    # dataString:
+    #   password: fedora
+    # ```
+    name: etcd-sample-password
+    key: password

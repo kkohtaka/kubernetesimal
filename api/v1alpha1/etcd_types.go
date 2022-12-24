@@ -43,6 +43,10 @@ type EtcdSpec struct {
 	// ImagePersistentVolumeClaimRef is a local reference to a PersistentVolumeClaim that is used as an ephemeral volume
 	// to boot VirtualMachines.
 	ImagePersistentVolumeClaimRef corev1.LocalObjectReference `json:"imagePersistentVolumeClaimRef"`
+
+	// LoginPasswordSecretKeySelector is a selector for a Secret key that holds a password used as a login password of
+	// virtual machines.
+	LoginPasswordSecretKeySelector *corev1.SecretKeySelector `json:"loginPasswordSecretKeySelector,omitempty"`
 }
 
 // EtcdStatus defines the observed state of Etcd
