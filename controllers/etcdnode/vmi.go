@@ -33,6 +33,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/Masterminds/sprig/v3"
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -173,7 +174,7 @@ func reconcileUserData(
 	}
 
 	startClusterScriptBuf := bytes.Buffer{}
-	startClusterScriptTmpl, err := template.New("start-cluster.sh.tmpl").ParseFS(
+	startClusterScriptTmpl, err := template.New("start-cluster.sh.tmpl").Funcs(sprig.FuncMap()).ParseFS(
 		cloudConfigTemplates,
 		"templates/start-cluster.sh.tmpl",
 	)
@@ -210,7 +211,7 @@ func reconcileUserData(
 	}
 
 	joinClusterScriptBuf := bytes.Buffer{}
-	joinClusterScriptTmpl, err := template.New("join-cluster.sh.tmpl").ParseFS(
+	joinClusterScriptTmpl, err := template.New("join-cluster.sh.tmpl").Funcs(sprig.FuncMap()).ParseFS(
 		cloudConfigTemplates,
 		"templates/join-cluster.sh.tmpl",
 	)
@@ -249,7 +250,7 @@ func reconcileUserData(
 	}
 
 	leaveClusterScriptBuf := bytes.Buffer{}
-	leaveClusterScriptTmpl, err := template.New("leave-cluster.sh.tmpl").ParseFS(
+	leaveClusterScriptTmpl, err := template.New("leave-cluster.sh.tmpl").Funcs(sprig.FuncMap()).ParseFS(
 		cloudConfigTemplates,
 		"templates/leave-cluster.sh.tmpl",
 	)
@@ -272,7 +273,10 @@ func reconcileUserData(
 	}
 
 	cloudInitBuf := bytes.Buffer{}
-	cloudInitTmpl, err := template.New("cloud-init.tmpl").ParseFS(cloudConfigTemplates, "templates/cloud-init.tmpl")
+	cloudInitTmpl, err := template.New("cloud-init.tmpl").Funcs(sprig.FuncMap()).ParseFS(
+		cloudConfigTemplates,
+		"templates/cloud-init.tmpl",
+	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse a template of cloud-init: %w", err)
 	}
