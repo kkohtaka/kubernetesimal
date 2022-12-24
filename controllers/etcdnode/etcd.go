@@ -82,7 +82,7 @@ func provisionEtcdMember(
 		ctx,
 		c,
 		obj.GetNamespace(),
-		spec.SSHPrivateKeyRef,
+		&spec.SSHPrivateKeyRef,
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -163,7 +163,7 @@ func probeEtcdMember(
 		ctx,
 		c,
 		obj.GetNamespace(),
-		spec.CACertificateRef,
+		&spec.CACertificateRef,
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -185,7 +185,7 @@ func probeEtcdMember(
 		ctx,
 		c,
 		obj.GetNamespace(),
-		spec.ClientCertificateRef,
+		&spec.ClientCertificateRef,
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -199,7 +199,7 @@ func probeEtcdMember(
 		ctx,
 		c,
 		obj.GetNamespace(),
-		spec.ClientPrivateKeyRef,
+		&spec.ClientPrivateKeyRef,
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -274,7 +274,7 @@ func finalizeEtcdMember(
 		ctx,
 		c,
 		obj.GetNamespace(),
-		spec.SSHPrivateKeyRef,
+		&spec.SSHPrivateKeyRef,
 	)
 	if err != nil {
 		return status, fmt.Errorf(

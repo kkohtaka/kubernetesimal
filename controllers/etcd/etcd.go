@@ -71,7 +71,7 @@ func getEtcdTLSConfig(
 		ctx,
 		c,
 		obj.GetNamespace(),
-		*status.CACertificateRef,
+		status.CACertificateRef,
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -96,7 +96,7 @@ func getEtcdTLSConfig(
 		ctx,
 		c,
 		obj.GetNamespace(),
-		*status.ClientCertificateRef,
+		status.ClientCertificateRef,
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -113,7 +113,7 @@ func getEtcdTLSConfig(
 		ctx,
 		c,
 		obj.GetNamespace(),
-		*status.ClientPrivateKeyRef,
+		status.ClientPrivateKeyRef,
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {

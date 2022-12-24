@@ -91,7 +91,7 @@ func reconcileUserData(
 		ctx,
 		c,
 		obj.GetNamespace(),
-		spec.SSHPublicKeyRef,
+		&spec.SSHPublicKeyRef,
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -104,7 +104,7 @@ func reconcileUserData(
 		ctx,
 		c,
 		obj.GetNamespace(),
-		spec.CACertificateRef,
+		&spec.CACertificateRef,
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -117,7 +117,7 @@ func reconcileUserData(
 		ctx,
 		c,
 		obj.GetNamespace(),
-		spec.CAPrivateKeyRef,
+		&spec.CAPrivateKeyRef,
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {

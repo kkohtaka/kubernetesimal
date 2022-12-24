@@ -146,7 +146,7 @@ func GetValueFromSecretKeySelector(
 	ctx context.Context,
 	c client.Client,
 	namespace string,
-	selector corev1.SecretKeySelector,
+	selector *corev1.SecretKeySelector,
 ) ([]byte, error) {
 	var secret corev1.Secret
 	key := types.NamespacedName{
