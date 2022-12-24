@@ -127,6 +127,20 @@ func reconcileUserData(
 		return nil, fmt.Errorf("unable to get a CA private key: %w", err)
 	}
 
+	var loginPassword string
+	if spec.LoginPasswordSecretKeySelector != nil {
+		if v, err := k8s_secret.GetValueFromSecretKeySelector(
+			ctx,
+			c,
+			obj.GetNamespace(),
+			spec.LoginPasswordSecretKeySelector,
+		); err != nil {
+			return nil, fmt.Errorf("unable to get a login password: %w", err)
+		} else {
+			loginPassword = string(v)
+		}
+	}
+
 	var service corev1.Service
 	if err := c.Get(
 		ctx,
@@ -283,12 +297,14 @@ func reconcileUserData(
 	if err := cloudInitTmpl.Execute(
 		&cloudInitBuf,
 		&struct {
+			LoginPassword               string
 			AuthorizedKeys              []string
 			StartClusterScript          string
 			JoinClusterScript           string
 			LeaveClusterScript          string
 			CACertificate, CAPrivateKey string
 		}{
+			LoginPassword:      loginPassword,
 			AuthorizedKeys:     []string{string(publicKey)},
 			StartClusterScript: base64.StdEncoding.EncodeToString(startClusterScriptBuf.Bytes()),
 			JoinClusterScript:  base64.StdEncoding.EncodeToString(joinClusterScriptBuf.Bytes()),

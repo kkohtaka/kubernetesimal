@@ -1,6 +1,8 @@
 {{ define "cloud-init.tmpl" }}
 #cloud-config
-password: fedora
+{{- if .LoginPassword }}
+password: {{ quote .LoginPassword }}
+{{- end }}
 chpasswd: { expire: False }
 ssh_pwauth: False
 {{- if .AuthorizedKeys }}
