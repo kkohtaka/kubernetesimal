@@ -396,8 +396,8 @@ def go_dependencies():
     go_repository(
         name = "com_github_google_cel_go",
         importpath = "github.com/google/cel-go",
-        sum = "h1:DmzaiSgoaqGCjtpPQWl26/gND+yRpim56H1jCVev6d8=",
-        version = "v0.12.5",
+        sum = "h1:kjeKudqV0OygrAqA9fX6J55S8gj+Jre2tckIm5RoG4M=",
+        version = "v0.12.6",
     )
 
     go_repository(
@@ -1770,8 +1770,8 @@ def go_dependencies():
         name = "io_k8s_apiextensions_apiserver",
         build_file_proto_mode = "disable",
         importpath = "k8s.io/apiextensions-apiserver",
-        sum = "h1:Gy93Xo1eg2ZIkNX/8vy5xviVSxwQulsnUdQ00nEdpDo=",
-        version = "v0.26.0",
+        sum = "h1:cB8h1SRk6e/+i3NOrQgSFij1B2S0Y0wDoNl66bn8RMI=",
+        version = "v0.26.1",
     )
     go_repository(
         name = "io_k8s_apimachinery",
@@ -1783,8 +1783,8 @@ def go_dependencies():
     go_repository(
         name = "io_k8s_apiserver",
         importpath = "k8s.io/apiserver",
-        sum = "h1:q+LqIK5EZwdznGZb8bq0+a+vCqdeEEe4Ux3zsOjbc4o=",
-        version = "v0.26.0",
+        sum = "h1:6vmnAqCDO194SVCPU3MU8NcDgSqsUA62tBUSWrFXhsc=",
+        version = "v0.26.1",
     )
     go_repository(
         name = "io_k8s_client_go",
@@ -1795,14 +1795,14 @@ def go_dependencies():
     go_repository(
         name = "io_k8s_code_generator",
         importpath = "k8s.io/code-generator",
-        sum = "h1:ZDY+7Gic9p/lACgD1G72gQg2CvNGeAYZTPIncv+iALM=",
-        version = "v0.26.0",
+        sum = "h1:dusFDsnNSKlMFYhzIM0jAO1OlnTN5WYwQQ+Ai12IIlo=",
+        version = "v0.26.1",
     )
     go_repository(
         name = "io_k8s_component_base",
         importpath = "k8s.io/component-base",
-        sum = "h1:0IkChOCohtDHttmKuz+EP3j3+qKmV55rM9gIFTXA7Vs=",
-        version = "v0.26.0",
+        sum = "h1:4ahudpeQXHZL5kko+iDHqLj/FSGAEUnSVO0EBbgDd+4=",
+        version = "v0.26.1",
     )
     go_repository(
         name = "io_k8s_gengo",
@@ -1819,8 +1819,8 @@ def go_dependencies():
     go_repository(
         name = "io_k8s_kms",
         importpath = "k8s.io/kms",
-        sum = "h1:5+GOQLvUajSd0z5ODF52RzB2rHo1HJUSYsVC3Ri3VgI=",
-        version = "v0.26.0",
+        sum = "h1:JE0n4J4+8/Z+egvXz2BTJeJ9ecsm4ZSLKF7ttVXXm/4=",
+        version = "v0.26.1",
     )
 
     go_repository(
@@ -1832,14 +1832,14 @@ def go_dependencies():
     go_repository(
         name = "io_k8s_sigs_apiserver_network_proxy_konnectivity_client",
         importpath = "sigs.k8s.io/apiserver-network-proxy/konnectivity-client",
-        sum = "h1:LYqFq+6Cj2D0gFfrJvL7iElD4ET6ir3VDdhDdTK7rgc=",
-        version = "v0.0.33",
+        sum = "h1:+xBL5uTc+BkPBwmMi3vYfUJjq+N3K+H6PXeETwf5cPI=",
+        version = "v0.0.35",
     )
     go_repository(
         name = "io_k8s_sigs_controller_runtime",
         importpath = "sigs.k8s.io/controller-runtime",
-        sum = "h1:vThDes9pzg0Y+UbCPY3Wj34CGIYPgdmspPm2GIpxpzM=",
-        version = "v0.14.1",
+        sum = "h1:6xaWFqzT5KuAQ9ufgUaj1G/+C4Y1GRkhrxl+BJ9i+5s=",
+        version = "v0.14.5",
     )
     go_repository(
         name = "io_k8s_sigs_json",
