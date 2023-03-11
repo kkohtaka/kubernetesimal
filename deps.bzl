@@ -171,6 +171,37 @@ def go_dependencies():
         version = "v1.1.9",
     )
     go_repository(
+        name = "com_github_dave_dst",
+        importpath = "github.com/dave/dst",
+        sum = "h1:lnxLAKI3tx7MgLNVDirFCsDTlTG9nKTk7GcptKcWSwY=",
+        version = "v0.26.2",
+    )
+    go_repository(
+        name = "com_github_dave_gopackages",
+        importpath = "github.com/dave/gopackages",
+        sum = "h1:l99YKCdrK4Lvb/zTupt0GMPfNbncAGf8Cv/t1sYLOg0=",
+        version = "v0.0.0-20170318123100-46e7023ec56e",
+    )
+    go_repository(
+        name = "com_github_dave_jennifer",
+        importpath = "github.com/dave/jennifer",
+        sum = "h1:S15ZkFMRoJ36mGAQgWL1tnr0NQJh9rZ8qatseX/VbBc=",
+        version = "v1.2.0",
+    )
+    go_repository(
+        name = "com_github_dave_kerr",
+        importpath = "github.com/dave/kerr",
+        sum = "h1:xURkGi4RydhyaYR6PzcyHTueQudxY4LgxN1oYEPJHa0=",
+        version = "v0.0.0-20170318121727-bc25dd6abe8e",
+    )
+    go_repository(
+        name = "com_github_dave_rebecca",
+        importpath = "github.com/dave/rebecca",
+        sum = "h1:jxVfdOxRirbXL28vXMvUvJ1in3djwkVKXCq339qhBL0=",
+        version = "v0.9.1",
+    )
+
+    go_repository(
         name = "com_github_davecgh_go_spew",
         importpath = "github.com/davecgh/go-spew",
         sum = "h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=",
@@ -768,6 +799,19 @@ def go_dependencies():
         version = "v1.26.0",
     )
     go_repository(
+        name = "com_github_openshift_api",
+        importpath = "github.com/openshift/api",
+        sum = "h1:+ShYlGoPriGahTTFTjQ0RtNXW0srxDodk2STdc238Rk=",
+        version = "v0.0.0-20211217221424-8779abfbd571",
+    )
+    go_repository(
+        name = "com_github_openshift_build_machinery_go",
+        importpath = "github.com/openshift/build-machinery-go",
+        sum = "h1:65oBhJYHzYK5VL0gF1eiYY37lLzyLZ47b9y5Kib1nf8=",
+        version = "v0.0.0-20211213093930-7e33a7eb4ce3",
+    )
+
+    go_repository(
         name = "com_github_openshift_custom_resource_status",
         importpath = "github.com/openshift/custom-resource-status",
         sum = "h1:C3DL44LEbvlbItfd8mT5jWrqPfHnSOQoQf/sypqA6A4=",
@@ -850,6 +894,13 @@ def go_dependencies():
         sum = "h1:RR9dF3JtopPvtkroDZuVD7qquD0bnHlKSqaQhgwt8yk=",
         version = "v1.3.0",
     )
+    go_repository(
+        name = "com_github_sergi_go_diff",
+        importpath = "github.com/sergi/go-diff",
+        sum = "h1:Kpca3qRNrduNnOQeazBd0ysaKrUJiIuISHxogkT9RPQ=",
+        version = "v1.0.0",
+    )
+
     go_repository(
         name = "com_github_shopspring_decimal",
         importpath = "github.com/shopspring/decimal",
@@ -1690,6 +1741,12 @@ def go_dependencies():
         sum = "h1:1Lc07Kr7qY4U2YPouBjpCLxpiyxIVoxqXgkXLknAOE8=",
         version = "v2.0.0",
     )
+    go_repository(
+        name = "in_gopkg_src_d_go_billy_v4",
+        importpath = "gopkg.in/src-d/go-billy.v4",
+        sum = "h1:KtlZ4c1OWbIs4jCv5ZXrTqG8EQocr0g/d4DjNg70aek=",
+        version = "v4.3.0",
+    )
 
     go_repository(
         name = "in_gopkg_tomb_v1",
@@ -1868,14 +1925,14 @@ def go_dependencies():
     go_repository(
         name = "io_kubevirt_api",
         importpath = "kubevirt.io/api",
-        sum = "h1:qeNeRtD6AIJ5WVJuRXajmmXtnrO5dYchy+hpCm6QwhE=",
-        version = "v0.58.0",
+        sum = "h1:UDsJWklzd0x/w3EQjc48jafZc4p4vVxKUpmBhg2nVRk=",
+        version = "v0.59.0",
     )
     go_repository(
         name = "io_kubevirt_containerized_data_importer_api",
         importpath = "kubevirt.io/containerized-data-importer-api",
-        sum = "h1:O01F8L5K8qRLnkYICIfmAu0dU0P48jdO42uFPElht38=",
-        version = "v1.50.0",
+        sum = "h1:IQNc8PYVq1cTwKNPEJza5xSlcnXeYVNt76M5kZ8X7xo=",
+        version = "v1.55.0",
     )
     go_repository(
         name = "io_kubevirt_controller_lifecycle_operator_sdk_api",
@@ -2010,6 +2067,13 @@ def go_dependencies():
         sum = "h1:d0NfwRgPtno5B1Wa6L2DAG+KivqkdutMf1UhdNx175w=",
         version = "v1.28.1",
     )
+    go_repository(
+        name = "org_golang_x_arch",
+        importpath = "golang.org/x/arch",
+        sum = "h1:Vsc61gop4hfHdzQNolo6Fi/sw7TnJ2yl3ZR4i7bYirs=",
+        version = "v0.0.0-20180920145803-b19384d3c130",
+    )
+
     go_repository(
         name = "org_golang_x_crypto",
         importpath = "golang.org/x/crypto",
