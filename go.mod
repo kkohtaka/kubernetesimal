@@ -22,7 +22,7 @@ require (
 	k8s.io/client-go v0.26.1
 	k8s.io/klog/v2 v2.90.1
 	k8s.io/utils v0.0.0-20221128185143-99ec85e7a448
-	kubevirt.io/api v0.58.0
+	kubevirt.io/api v0.59.0
 	sigs.k8s.io/controller-runtime v0.14.5
 )
 
@@ -64,6 +64,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
+	github.com/openshift/api v0.0.0-20211217221424-8779abfbd571 // indirect
 	github.com/openshift/custom-resource-status v1.1.2 // indirect
 	github.com/pborman/uuid v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -100,7 +101,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.26.1 // indirect
 	k8s.io/component-base v0.26.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20221012153701-172d655c2280 // indirect
-	kubevirt.io/containerized-data-importer-api v1.50.0 // indirect
+	kubevirt.io/containerized-data-importer-api v1.55.0 // indirect
 	kubevirt.io/controller-lifecycle-operator-sdk/api v0.0.0-20220329064328-f3cc58c6ed90 // indirect
 	sigs.k8s.io/json v0.0.0-20220713155537-f223a00ba0e2 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
