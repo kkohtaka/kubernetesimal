@@ -1944,8 +1944,8 @@ def go_dependencies():
     go_repository(
         name = "io_k8s_sigs_controller_runtime",
         importpath = "sigs.k8s.io/controller-runtime",
-        sum = "h1:6xaWFqzT5KuAQ9ufgUaj1G/+C4Y1GRkhrxl+BJ9i+5s=",
-        version = "v0.14.5",
+        sum = "h1:oxstGVvXGNnMvY7TAESYk+lzr6S3V5VFxQ6d92KcwQA=",
+        version = "v0.14.6",
     )
     go_repository(
         name = "io_k8s_sigs_json",
