@@ -33,6 +33,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -72,7 +73,7 @@ func (r *Etcd) Default() {
 var _ webhook.Validator = &Etcd{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *Etcd) ValidateCreate() error {
+func (r *Etcd) ValidateCreate() (admission.Warnings, error) {
 	etcdlog.Info("validate create", "name", r.Name)
 
 	var errs field.ErrorList
@@ -80,14 +81,14 @@ func (r *Etcd) ValidateCreate() error {
 	if len(errs) > 0 {
 		err := apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "Etcd"}, r.Name, errs)
 		etcdlog.Error(err, "validation error", "name", r.Name)
-		return err
+		return nil, err
 	}
 
-	return nil
+	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Etcd) ValidateUpdate(old runtime.Object) error {
+func (r *Etcd) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	etcdlog.Info("validate update", "name", r.Name)
 
 	var errs field.ErrorList
@@ -96,17 +97,17 @@ func (r *Etcd) ValidateUpdate(old runtime.Object) error {
 	if len(errs) > 0 {
 		err := apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "Etcd"}, r.Name, errs)
 		etcdlog.Error(err, "validation error", "name", r.Name)
-		return err
+		return nil, err
 	}
 
-	return nil
+	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Etcd) ValidateDelete() error {
+func (r *Etcd) ValidateDelete() (admission.Warnings, error) {
 	etcdlog.Info("validate delete", "name", r.Name)
 
-	return nil
+	return nil, nil
 }
 
 func (r *Etcd) validateSpecVersion() field.ErrorList {
