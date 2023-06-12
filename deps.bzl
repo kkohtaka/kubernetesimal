@@ -1969,8 +1969,8 @@ def go_dependencies():
     go_repository(
         name = "io_kubevirt_api",
         importpath = "kubevirt.io/api",
-        sum = "h1:UDsJWklzd0x/w3EQjc48jafZc4p4vVxKUpmBhg2nVRk=",
-        version = "v0.59.0",
+        sum = "h1:HIGi/v/iuwOn7mBNrG7pQbrhfbW+z5DRKbHANKxn8Hg=",
+        version = "v0.59.1",
     )
     go_repository(
         name = "io_kubevirt_containerized_data_importer_api",
