@@ -2025,8 +2025,8 @@ def go_dependencies():
     go_repository(
         name = "io_opentelemetry_go_otel_exporters_otlp_otlptrace_otlptracegrpc",
         importpath = "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc",
-        sum = "h1:ap+y8RXX3Mu9apKVtOkM6WSFESLM8K3wNQyOU8sWHcc=",
-        version = "v1.14.0",
+        sum = "h1:TVQp/bboR4mhZSav+MdgXB8FaRho1RC8UwVn3T0vjVc=",
+        version = "v1.16.0",
     )
     go_repository(
         name = "io_opentelemetry_go_otel_exporters_otlp_otlptrace_otlptracehttp",
