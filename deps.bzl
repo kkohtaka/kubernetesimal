@@ -171,36 +171,6 @@ def go_dependencies():
         sum = "h1:uDmaGzcdjhF4i/plgjmEsriH11Y0o7RKapEf/LDaM3w=",
         version = "v1.1.9",
     )
-    go_repository(
-        name = "com_github_dave_dst",
-        importpath = "github.com/dave/dst",
-        sum = "h1:lnxLAKI3tx7MgLNVDirFCsDTlTG9nKTk7GcptKcWSwY=",
-        version = "v0.26.2",
-    )
-    go_repository(
-        name = "com_github_dave_gopackages",
-        importpath = "github.com/dave/gopackages",
-        sum = "h1:l99YKCdrK4Lvb/zTupt0GMPfNbncAGf8Cv/t1sYLOg0=",
-        version = "v0.0.0-20170318123100-46e7023ec56e",
-    )
-    go_repository(
-        name = "com_github_dave_jennifer",
-        importpath = "github.com/dave/jennifer",
-        sum = "h1:S15ZkFMRoJ36mGAQgWL1tnr0NQJh9rZ8qatseX/VbBc=",
-        version = "v1.2.0",
-    )
-    go_repository(
-        name = "com_github_dave_kerr",
-        importpath = "github.com/dave/kerr",
-        sum = "h1:xURkGi4RydhyaYR6PzcyHTueQudxY4LgxN1oYEPJHa0=",
-        version = "v0.0.0-20170318121727-bc25dd6abe8e",
-    )
-    go_repository(
-        name = "com_github_dave_rebecca",
-        importpath = "github.com/dave/rebecca",
-        sum = "h1:jxVfdOxRirbXL28vXMvUvJ1in3djwkVKXCq339qhBL0=",
-        version = "v0.9.1",
-    )
 
     go_repository(
         name = "com_github_davecgh_go_spew",
@@ -781,14 +751,8 @@ def go_dependencies():
     go_repository(
         name = "com_github_openshift_api",
         importpath = "github.com/openshift/api",
-        sum = "h1:+ShYlGoPriGahTTFTjQ0RtNXW0srxDodk2STdc238Rk=",
-        version = "v0.0.0-20211217221424-8779abfbd571",
-    )
-    go_repository(
-        name = "com_github_openshift_build_machinery_go",
-        importpath = "github.com/openshift/build-machinery-go",
-        sum = "h1:65oBhJYHzYK5VL0gF1eiYY37lLzyLZ47b9y5Kib1nf8=",
-        version = "v0.0.0-20211213093930-7e33a7eb4ce3",
+        sum = "h1:t/CahSnpqY46sQR01SoS+Jt0jtjgmhgE6lFmRnO4q70=",
+        version = "v0.0.0-20230503133300-8bbcb7ca7183",
     )
 
     go_repository(
@@ -801,8 +765,8 @@ def go_dependencies():
     go_repository(
         name = "com_github_pborman_uuid",
         importpath = "github.com/pborman/uuid",
-        sum = "h1:J7Q5mO4ysT1dv8hyrUGHb9+ooztCXu1D8MY8DZYsu3g=",
-        version = "v1.2.0",
+        sum = "h1:+ZZIw58t/ozdjRaXh/3awHfmWRbzYxJoAdNJxe/3pvw=",
+        version = "v1.2.1",
     )
 
     go_repository(
@@ -873,12 +837,6 @@ def go_dependencies():
         importpath = "github.com/rogpeppe/go-internal",
         sum = "h1:TMyTOH3F/DB16zRVcYyreMH6GnZZrwQVAoYjRBZyWFQ=",
         version = "v1.10.0",
-    )
-    go_repository(
-        name = "com_github_sergi_go_diff",
-        importpath = "github.com/sergi/go-diff",
-        sum = "h1:Kpca3qRNrduNnOQeazBd0ysaKrUJiIuISHxogkT9RPQ=",
-        version = "v1.0.0",
     )
 
     go_repository(
@@ -1785,12 +1743,6 @@ def go_dependencies():
         sum = "h1:1Lc07Kr7qY4U2YPouBjpCLxpiyxIVoxqXgkXLknAOE8=",
         version = "v2.0.0",
     )
-    go_repository(
-        name = "in_gopkg_src_d_go_billy_v4",
-        importpath = "gopkg.in/src-d/go-billy.v4",
-        sum = "h1:KtlZ4c1OWbIs4jCv5ZXrTqG8EQocr0g/d4DjNg70aek=",
-        version = "v4.3.0",
-    )
 
     go_repository(
         name = "in_gopkg_tomb_v1",
@@ -1963,20 +1915,20 @@ def go_dependencies():
     go_repository(
         name = "io_k8s_utils",
         importpath = "k8s.io/utils",
-        sum = "h1:r0BAOLElQnnFhE/ApUsg3iHdVYYPBjNSSOMowRZxxsY=",
-        version = "v0.0.0-20230209194617-a36077c30491",
+        sum = "h1:EObNQ3TW2D+WptiYXlApGNLVy0zm/JIBVY9i+M4wpAU=",
+        version = "v0.0.0-20230505201702-9f6742963106",
     )
     go_repository(
         name = "io_kubevirt_api",
         importpath = "kubevirt.io/api",
-        sum = "h1:t37z6+o1t/l09Ted4DrG5YkYjCasp3TAw3TZOgUC1xI=",
-        version = "v0.59.2",
+        sum = "h1:RBdXP5CDhE0v5qL2OUQdrYyRrHe/F68Z91GWqBDF6nw=",
+        version = "v1.0.0",
     )
     go_repository(
         name = "io_kubevirt_containerized_data_importer_api",
         importpath = "kubevirt.io/containerized-data-importer-api",
-        sum = "h1:IQNc8PYVq1cTwKNPEJza5xSlcnXeYVNt76M5kZ8X7xo=",
-        version = "v1.55.0",
+        sum = "h1:IWo12+ei3jltSN5jQN1xjgakfvRSF3G3Rr4GXVOOy2I=",
+        version = "v1.57.0-alpha1",
     )
     go_repository(
         name = "io_kubevirt_controller_lifecycle_operator_sdk_api",
@@ -2110,12 +2062,6 @@ def go_dependencies():
         importpath = "google.golang.org/protobuf",
         sum = "h1:kPPoIgf3TsEvrm0PFe15JQ+570QVxYzEvvHqChK+cng=",
         version = "v1.30.0",
-    )
-    go_repository(
-        name = "org_golang_x_arch",
-        importpath = "golang.org/x/arch",
-        sum = "h1:Vsc61gop4hfHdzQNolo6Fi/sw7TnJ2yl3ZR4i7bYirs=",
-        version = "v0.0.0-20180920145803-b19384d3c130",
     )
 
     go_repository(
