@@ -27,7 +27,7 @@ jobs:
       - uses: helm/kind-action@v1.8.0
       - run: bazel run //:gazelle-update-repos
       - run: bazel run //:gazelle
-      - uses: stefanzweifel/git-auto-commit-action@v4
+      - uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "[dependabot skip] Re-generate Bazel files"
       - run: bazel test //...
