@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: bazelbuild/setup-bazelisk@v3
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: "~/.cache/bazel"
           key: bazel
@@ -31,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: bazelbuild/setup-bazelisk@v3
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: "~/.cache/bazel"
           key: bazel
@@ -53,7 +53,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: bazelbuild/setup-bazelisk@v3
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: "~/.cache/bazel"
           key: bazel
