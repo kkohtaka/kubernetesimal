@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: bazelbuild/setup-bazelisk@v2
+      - uses: bazelbuild/setup-bazelisk@v3
       - uses: actions/cache@v3
         with:
           path: "~/.cache/bazel"
@@ -30,7 +30,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: bazelbuild/setup-bazelisk@v2
+      - uses: bazelbuild/setup-bazelisk@v3
       - uses: actions/cache@v3
         with:
           path: "~/.cache/bazel"
@@ -52,7 +52,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: bazelbuild/setup-bazelisk@v2
+      - uses: bazelbuild/setup-bazelisk@v3
       - uses: actions/cache@v3
         with:
           path: "~/.cache/bazel"
