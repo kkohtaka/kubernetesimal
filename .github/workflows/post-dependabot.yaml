@@ -24,7 +24,7 @@ jobs:
         with:
           path: "~/.cache/bazel"
           key: bazel
-      - uses: helm/kind-action@v1.8.0
+      - uses: helm/kind-action@v1.9.0
       - run: bazel run //:gazelle-update-repos
       - run: bazel run //:gazelle
       - uses: stefanzweifel/git-auto-commit-action@v5
