@@ -1,0 +1,59 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make test)",
+      "Bash(make lint)",
+      "Bash(make lint-all)",
+      "Bash(make manifests)",
+      "Bash(make generate)",
+      "Bash(make manifests generate)",
+      "Bash(make build)",
+      "Bash(make fmt)",
+      "Bash(make vet)",
+      "Bash(go build *)",
+      "Bash(go vet *)",
+      "Bash(go test *)",
+      "Bash(go mod tidy)",
+      "Bash(gofmt *)"
+    ],
+    "ask": [
+      "Bash(make deploy*)",
+      "Bash(make undeploy*)",
+      "Bash(make install*)",
+      "Bash(make uninstall*)",
+      "Bash(make docker-push*)",
+      "Bash(make docker-buildx*)",
+      "Edit(/.github/**)",
+      "Edit(/.claude/**)",
+      "Edit(/CLAUDE.md)",
+      "Edit(/CODEOWNERS)",
+      "Edit(/.golangci.yml)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format-go.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/verify-on-stop.sh",
+            "timeout": 300,
+            "statusMessage": "Verifying Go changes..."
+          }
+        ]
+      }
+    ]
+  }
+}
