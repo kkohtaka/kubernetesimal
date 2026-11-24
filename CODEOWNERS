@@ -1,1 +1,23 @@
+# While the default rule below is present, every change needs the owner's review.
 * @kkohtaka
+
+# Paths that always need a human review, even after the default rule above is relaxed.
+
+# Specifications and design decisions.
+/docs/specs/ @kkohtaka
+/docs/adr/ @kkohtaka
+
+# The API and the permissions of the operator.
+/api/ @kkohtaka
+/config/crd/ @kkohtaka
+/config/rbac/ @kkohtaka
+/config/webhook/ @kkohtaka
+
+# Guardrails: how changes are verified.
+/.github/ @kkohtaka
+/.claude/ @kkohtaka
+/CLAUDE.md @kkohtaka
+/CODEOWNERS @kkohtaka
+/.golangci.yml @kkohtaka
+/Makefile @kkohtaka
+/Dockerfile @kkohtaka

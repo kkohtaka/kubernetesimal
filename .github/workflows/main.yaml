@@ -19,11 +19,27 @@ jobs:
       - name: Check that generated files are up to date
         run: git diff --exit-code
 
+  lint:
+    name: Run linters
+
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The full history is needed to find the merge base with the main branch.
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: make lint
+
   build:
     name: Build a Docker image
 
     needs:
       - test
+      - lint
 
     runs-on: ubuntu-24.04
 
