@@ -1,6 +1,6 @@
 # 0001. Specification-driven development with AI agents
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-11-24
 
 ## Context
