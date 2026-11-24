@@ -11,8 +11,11 @@ specification, and reviews the *evidence* that it does so. Implementation code i
    pull request sets `status: approved`.
 3. **Implement.** In a second pull request, write the tests first, each claiming the requirements it verifies, and
    commit them before the implementation. Then implement until they pass, and set `status: implemented`.
-4. **Verify.** CI runs the tests and `make spec-check`, which fails when a requirement of an implemented
-   specification has no test. The owner reviews the traceability table, and the API and permission changes.
+4. **Verify.** CI runs the tests and the checks: `make spec-check` fails when a requirement of an implemented
+   specification has no test, `make cover-check` when changed code is not covered, and `make api-check` when the
+   API breaks without being recorded. An independent agent then reviews the pull request against the
+   specification and reports whether each test really verifies the requirement it claims. The owner reads that
+   review and the traceability table, and reviews the API and permission changes.
 
 Changing the behavior of something that is already specified starts again at step 1, by editing its specification.
 
@@ -75,4 +78,5 @@ prints the traceability table and fails when:
 - a requirement of an implemented specification is not claimed by any test.
 
 It checks that a claiming test exists. That the test passes is checked by `make test`, and focused or skipped tests
-are rejected by `make lint`.
+are rejected by `make lint`. Whether the test verifies what the requirement says cannot be checked mechanically.
+That is the job of the review in `.github/workflows/claude-review.yaml` and, in the end, of the owner.
