@@ -38,6 +38,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	kubevirtv1 "kubevirt.io/api/core/v1"
 
@@ -97,8 +99,8 @@ func main() {
 	ctrlConfig := kubernetesimalv1alpha1.KubernetesimalConfig{}
 	ctrlOpts := ctrl.Options{
 		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
+		Metrics:                metricsserver.Options{BindAddress: metricsAddr},
+		WebhookServer:          webhook.NewServer(webhook.Options{Port: 9443}),
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "b197ccb6.kkohtaka.org",
@@ -116,7 +118,7 @@ func main() {
 	if otlpAddr == "" && ctrlConfig.Tracing.OTELCollectorAddress != "" {
 		otlpAddr = ctrlConfig.Tracing.OTELCollectorAddress
 	}
-	if otlpAddr == "" && ctrlConfig.Tracing.OTELCollectorGRPCAddress != "" {
+	if otlpGRPCAddr == "" && ctrlConfig.Tracing.OTELCollectorGRPCAddress != "" {
 		otlpGRPCAddr = ctrlConfig.Tracing.OTELCollectorGRPCAddress
 	}
 
