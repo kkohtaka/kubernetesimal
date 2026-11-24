@@ -10,6 +10,7 @@ linters:
     - copyloopvar
     - dupword
     - errorlint
+    - forbidigo
     - gocritic
     - gocyclo
     - gosec
@@ -21,6 +22,12 @@ linters:
     - unconvert
     - unparam
   settings:
+    forbidigo:
+      forbid:
+        - pattern: ^(F|P|X)(Describe|Context|When|It|Specify|Entry|DescribeTable)$
+          msg: Focused and pending specs must not be committed. Every spec has to run.
+        - pattern: ^(Skip|\w+\.Skip|\w+\.Skipf|\w+\.SkipNow)$
+          msg: Tests must not be skipped. Fix the test, or report why it cannot run.
     gocyclo:
       min-complexity: 20
     nolintlint:

@@ -66,6 +66,10 @@ lint: golangci-lint ## Run golangci-lint and report issues introduced since LINT
 lint-all: golangci-lint ## Run golangci-lint and report all issues, including pre-existing ones.
 	$(GOLANGCI_LINT) run ./...
 
+.PHONY: spec-check
+spec-check: ## Check that the requirements in docs/specs are traceable to tests.
+	go run ./hack/speccheck
+
 .PHONY: test
 test: manifests generate fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverprofile cover.out

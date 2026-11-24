@@ -15,6 +15,7 @@ requests. This holds regardless of the language used in the conversation.
 | `make test` | Regenerate manifests and code, run `go fmt` and `go vet`, then run all tests with envtest. |
 | `make lint` | Run golangci-lint and report issues introduced since `origin/main`. |
 | `make lint-all` | Run golangci-lint and report every issue, including the pre-existing backlog. |
+| `make spec-check` | Check that the requirements in `docs/specs` are traceable to tests, and print the table. |
 | `make manifests generate` | Regenerate CRDs, RBAC, webhook manifests, and deepcopy code. |
 | `make build` | Build the manager binary into `bin/`. |
 
@@ -45,6 +46,20 @@ Deployment / ReplicaSet / Pod:
 Reconcilers take a copy of the spec and status, return the new status, and let the caller patch it. Return a
 `RequeueError` from `controller/errors` to requeue without logging an error.
 
+## Workflow
+
+Development is specification first. `docs/specs/README.md` describes the workflow and the format, and
+`docs/adr` holds the design decisions.
+
+- To add or change behavior, first draft or revise a specification with the `spec-draft` skill. The owner approves
+  it by merging it.
+- To implement an approved specification, use the `spec-implement` skill: tests first, each claiming the
+  requirements it verifies with `[AREA-NNN]` in its name, committed before the implementation.
+- Maintenance that does not change behavior (dependency updates, refactoring under existing tests, tooling) needs
+  no specification.
+- Code that predates the specifications has none. Before changing its behavior, write down the current behavior as
+  a specification.
+
 ## Rules
 
 Humans do not review implementation code line by line in this project. They review specifications, API changes, and
@@ -58,8 +73,10 @@ the evidence that the specification is met. The rules below keep that workable.
 - **Generated files are never edited by hand.** `zz_generated.deepcopy.go`, `config/crd/bases/`, `config/rbac/role.yaml`,
   and `config/webhook/manifests.yaml` come from `make manifests generate`. Change the Go types or the `+kubebuilder`
   markers instead. CI fails when they are out of date.
-- **Guardrails are changed only on request.** `.github/`, `.claude/`, `CLAUDE.md`, `CODEOWNERS`, `.golangci.yml`, and
-  the lint and test targets in the `Makefile` define how changes are verified. Do not change them as a side effect of
+- **Approved requirements are not edited during implementation.** If a requirement is wrong, ambiguous, or impossible,
+  stop and report it. Never claim a requirement on a test that does not verify it.
+- **Guardrails are changed only on request.** `.github/`, `.claude/`, `CLAUDE.md`, `CODEOWNERS`, `.golangci.yml`,
+  `hack/speccheck`, and the lint, test, and check targets in the `Makefile` define how changes are verified. Do not change them as a side effect of
   another task.
 - **API and permission changes are called out.** Any change under `api/`, `config/crd/`, or `config/rbac/` is listed
   explicitly in the pull request description, because a human reviews those.
@@ -69,4 +86,4 @@ the evidence that the specification is met. The rules below keep that workable.
 
 ## Before finishing
 
-Run `make test` and `make lint`, and make sure `git status` shows no unexpected changes to generated files.
+Run `make test`, `make lint`, and `make spec-check`, and make sure `git status` shows no unexpected changes to generated files.
