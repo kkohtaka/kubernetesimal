@@ -54,9 +54,13 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
-# LINT_BASE is the revision that 'make lint' compares against. Only issues introduced after the merge base with it
-# are reported, so that pre-existing issues do not block new work. Use 'make lint-all' to see every issue.
-LINT_BASE ?= origin/main
+# BASE is the revision that changes are compared against. The checks below judge only what changed since the merge
+# base with it, so that pre-existing issues do not block new work but cannot grow.
+BASE ?= origin/main
+MERGE_BASE = $(shell git merge-base $(BASE) HEAD)
+
+# LINT_BASE is the revision that 'make lint' compares against. Use 'make lint-all' to see every issue.
+LINT_BASE ?= $(BASE)
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint and report issues introduced since LINT_BASE.
@@ -66,13 +70,34 @@ lint: golangci-lint ## Run golangci-lint and report issues introduced since LINT
 lint-all: golangci-lint ## Run golangci-lint and report all issues, including pre-existing ones.
 	$(GOLANGCI_LINT) run ./...
 
+# COVERAGE_MIN is the percentage of changed statements that tests have to cover.
+COVERAGE_MIN ?= 80
+# Generated code and the wiring in main.go are not judged.
+COVERAGE_EXCLUDE ?= (^|/)zz_generated\.|^main\.go$$
+
+.PHONY: cover-check
+cover-check: ## Check that the code changed since BASE is covered by tests. Needs cover.out from 'make test'.
+	git diff -U0 $(MERGE_BASE) -- '*.go' | go run ./hack/covercheck \
+		-profile cover.out -module $(shell go list -m) -min $(COVERAGE_MIN) -exclude '$(COVERAGE_EXCLUDE)'
+
+.PHONY: api-check
+api-check: ## Check that the CRDs have no unacknowledged incompatible changes since BASE.
+	@rm -rf $(LOCALBIN)/api-base && mkdir -p $(LOCALBIN)/api-base
+	@git archive $(MERGE_BASE) config/crd/bases 2>/dev/null | tar -x -C $(LOCALBIN)/api-base || true
+	go run ./hack/crdcompat -old $(LOCALBIN)/api-base/config/crd/bases -new config/crd/bases \
+		-acknowledged docs/api-breaking-changes.md
+
+.PHONY: vuln-check
+vuln-check: ## Report known vulnerabilities in the code that is actually reachable.
+	GOTOOLCHAIN=auto go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION) ./...
+
 .PHONY: spec-check
 spec-check: ## Check that the requirements in docs/specs are traceable to tests.
 	go run ./hack/speccheck
 
 .PHONY: test
 test: manifests generate fmt vet envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverpkg=./... -coverprofile cover.out
 
 ##@ Build
 
@@ -152,6 +177,7 @@ GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
 KUSTOMIZE_VERSION ?= v4.5.7
 CONTROLLER_TOOLS_VERSION ?= v0.14.0
 GOLANGCI_LINT_VERSION ?= v2.15.0
+GOVULNCHECK_VERSION ?= v1.10.0
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize

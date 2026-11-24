@@ -12,6 +12,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The full history is needed to find the merge base with the main branch.
+          fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
@@ -22,6 +25,14 @@ jobs:
         run: |
           set -o pipefail
           make --no-print-directory -s spec-check | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Check that changed code is covered by tests
+        run: |
+          set -o pipefail
+          make --no-print-directory -s cover-check | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Check that the API has no unacknowledged incompatible changes
+        run: |
+          set -o pipefail
+          make --no-print-directory -s api-check | tee -a "$GITHUB_STEP_SUMMARY"
 
   lint:
     name: Run linters
@@ -37,6 +48,22 @@ jobs:
         with:
           go-version-file: go.mod
       - run: make lint
+
+  vulnerabilities:
+    name: Check for known vulnerabilities
+
+    runs-on: ubuntu-24.04
+
+    # The dependencies are outdated and have known vulnerabilities. This job reports them without failing the
+    # workflow until the dependencies are updated. Remove the next line then.
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: make vuln-check
 
   build:
     name: Build a Docker image
