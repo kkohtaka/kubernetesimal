@@ -19,7 +19,7 @@ For maintenance changes, say which existing tests cover the change.
 
 - **API** (`api/`, `config/crd/`, `config/webhook/`):
 - **Permissions** (`config/rbac/`):
-- **Guardrails** (`.github/`, `.claude/`, `CLAUDE.md`, `CODEOWNERS`, `.golangci.yml`, `hack/speccheck`, `Makefile`):
+- **Guardrails** (`.github/`, `.claude/`, `CLAUDE.md`, `CODEOWNERS`, `.golangci.yml`, `hack/`, `Makefile`):
 
 ## Not verified
 

@@ -87,19 +87,28 @@ type report struct {
 }
 
 func main() {
-	root := flag.String("root", ".", "root directory of the repository")
-	specs := flag.String("specs", "docs/specs", "directory that holds the specifications, relative to the root")
-	flag.Parse()
+	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
+}
+
+func run(args []string, stdout, stderr io.Writer) int {
+	flags := flag.NewFlagSet("speccheck", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	root := flags.String("root", ".", "root directory of the repository")
+	specs := flags.String("specs", "docs/specs", "directory that holds the specifications, relative to the root")
+	if err := flags.Parse(args); err != nil {
+		return 2
+	}
 
 	r, err := check(*root, *specs)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "speccheck:", err)
-		os.Exit(2)
+		fmt.Fprintln(stderr, "speccheck:", err)
+		return 2
 	}
-	r.write(os.Stdout)
+	r.write(stdout)
 	if len(r.Problems) > 0 {
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }
 
 func check(root, specsDir string) (*report, error) {

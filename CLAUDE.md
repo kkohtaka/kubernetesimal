@@ -16,6 +16,9 @@ requests. This holds regardless of the language used in the conversation.
 | `make lint` | Run golangci-lint and report issues introduced since `origin/main`. |
 | `make lint-all` | Run golangci-lint and report every issue, including the pre-existing backlog. |
 | `make spec-check` | Check that the requirements in `docs/specs` are traceable to tests, and print the table. |
+| `make cover-check` | Check that the code changed since `origin/main` is covered by tests. Run `make test` first. |
+| `make api-check` | Check that the CRDs have no unacknowledged incompatible changes since `origin/main`. |
+| `make vuln-check` | Report known vulnerabilities in reachable code. |
 | `make manifests generate` | Regenerate CRDs, RBAC, webhook manifests, and deepcopy code. |
 | `make build` | Build the manager binary into `bin/`. |
 
@@ -76,8 +79,12 @@ the evidence that the specification is met. The rules below keep that workable.
 - **Approved requirements are not edited during implementation.** If a requirement is wrong, ambiguous, or impossible,
   stop and report it. Never claim a requirement on a test that does not verify it.
 - **Guardrails are changed only on request.** `.github/`, `.claude/`, `CLAUDE.md`, `CODEOWNERS`, `.golangci.yml`,
-  `hack/speccheck`, and the lint, test, and check targets in the `Makefile` define how changes are verified. Do not change them as a side effect of
+  `hack/speccheck`, `hack/covercheck`, `hack/crdcompat`, and the lint, test, and check targets in the `Makefile` define how changes are verified. Do not change them as a side effect of
   another task.
+- **Changed code is covered.** At least 80% of the statements a change adds or modifies must be executed by tests.
+  Do not lower the threshold or widen the exclusions to pass.
+- **The API is not broken by accident.** If `make api-check` reports an incompatible change that the specification
+  does not call for, undo it. If the specification calls for it, record it in `docs/api-breaking-changes.md`.
 - **API and permission changes are called out.** Any change under `api/`, `config/crd/`, or `config/rbac/` is listed
   explicitly in the pull request description, because a human reviews those.
 - **Prefer declarative validation.** Put API constraints in CRD schema markers and CEL rules rather than webhook Go code
@@ -86,4 +93,4 @@ the evidence that the specification is met. The rules below keep that workable.
 
 ## Before finishing
 
-Run `make test`, `make lint`, and `make spec-check`, and make sure `git status` shows no unexpected changes to generated files.
+Run `make test`, `make lint`, `make spec-check`, `make cover-check`, and `make api-check`, and make sure `git status` shows no unexpected changes to generated files.

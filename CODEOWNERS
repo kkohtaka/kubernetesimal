@@ -12,6 +12,7 @@
 /config/crd/ @kkohtaka
 /config/rbac/ @kkohtaka
 /config/webhook/ @kkohtaka
+/docs/api-breaking-changes.md @kkohtaka
 
 # Guardrails: how changes are verified.
 /.github/ @kkohtaka
@@ -20,5 +21,7 @@
 /CODEOWNERS @kkohtaka
 /.golangci.yml @kkohtaka
 /hack/speccheck/ @kkohtaka
+/hack/covercheck/ @kkohtaka
+/hack/crdcompat/ @kkohtaka
 /Makefile @kkohtaka
 /Dockerfile @kkohtaka

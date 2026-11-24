@@ -124,3 +124,12 @@ func TestReportIsMarkdown(t *testing.T) {
 	assert.Contains(t, out.String(), "| `docs/specs/beta/spec.md` | approved | **BETA-001** Not implemented yet. | — |")
 	assert.Contains(t, out.String(), "No problems found.")
 }
+
+func TestRunExitsWithOneWhenThereAreProblems(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+
+	assert.Equal(t, 0, run([]string{"-root", copyFixture(t, "ok")}, &stdout, &stderr))
+	assert.Equal(t, 1, run([]string{"-root", copyFixture(t, "bad")}, &stdout, &stderr))
+	assert.Contains(t, stdout.String(), "### Problems (5)")
+	assert.Equal(t, 2, run([]string{"-unknown-flag"}, &stdout, &stderr))
+}
