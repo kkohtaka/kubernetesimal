@@ -19,5 +19,6 @@
 /CLAUDE.md @kkohtaka
 /CODEOWNERS @kkohtaka
 /.golangci.yml @kkohtaka
+/hack/speccheck/ @kkohtaka
 /Makefile @kkohtaka
 /Dockerfile @kkohtaka

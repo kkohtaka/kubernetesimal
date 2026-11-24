@@ -1,0 +1,5 @@
+package pkg
+
+var _ = It("[ALPHA-001] creates the widget", func() {})
+var _ = It("[ALPHA-002] deletes the widget; see also [ALPHA-001]", func() {})
+// SHA-256 and RFC-822 are not requirement identifiers.

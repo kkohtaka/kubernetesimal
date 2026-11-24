@@ -4,15 +4,14 @@
 
 ## Specification
 
-<!-- Link the specification or issue this implements. Write "None" for maintenance changes. -->
+<!-- Path of the specification under docs/specs that this implements or changes. Write "None" for maintenance. -->
 
 ## Evidence
 
-<!-- For each requirement, name the test that verifies it. Mention anything that was verified by hand. -->
-
-| Requirement | Test |
-|---|---|
-| | |
+<!--
+Paste the rows of the table printed by `make spec-check` for the requirements this pull request touches.
+For maintenance changes, say which existing tests cover the change.
+-->
 
 ## Changes that need a human review
 
@@ -20,7 +19,7 @@
 
 - **API** (`api/`, `config/crd/`, `config/webhook/`):
 - **Permissions** (`config/rbac/`):
-- **Guardrails** (`.github/`, `.claude/`, `CLAUDE.md`, `CODEOWNERS`, `.golangci.yml`, `Makefile`):
+- **Guardrails** (`.github/`, `.claude/`, `CLAUDE.md`, `CODEOWNERS`, `.golangci.yml`, `hack/speccheck`, `Makefile`):
 
 ## Not verified
 
