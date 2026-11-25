@@ -28,11 +28,14 @@ as the code is.
    - Do not change the committed tests to make them pass. If a test is wrong, say what is wrong and fix it in a
      separate commit that explains the correction.
    - Change the API only as the specification says. Regenerate with `make manifests generate`.
-4. **Verify.** Run `make test`, `make lint`, `make spec-check`, `make cover-check`, and `make api-check`, and make sure `git status` shows no unexpected
+4. **Describe the change for users.** Add a change file with `make change KIND=... BODY="..."`, as
+   `docs/releasing.md` describes. Write what is different for someone who uses the operator, not what the code does.
+5. **Verify.** Run `make test`, `make lint`, `make spec-check`, `make cover-check`, `make api-check`, and
+   `make change-check`, and make sure `git status` shows no unexpected
    changes to generated files.
-5. **Finish.** Set `status: implemented` once every requirement is claimed by a passing test. If only part of the
+6. **Finish.** Set `status: implemented` once every requirement is claimed by a passing test. If only part of the
    specification is implemented, leave it `approved` and list what remains.
-6. **Report** with the pull request template: the traceability table from `make spec-check`, the API, permission,
+7. **Report** with the pull request template: the traceability table from `make spec-check`, the API, permission,
    and guardrail changes in plain words, and anything that was not verified automatically.
 
 ## What counts as cheating

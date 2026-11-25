@@ -5,7 +5,9 @@ on:
   push:
     branches:
       - main
-  pull_request: {}
+  pull_request:
+    # Labeling re-runs the checks, so that the skip-changelog label takes effect.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 jobs:
   test:
@@ -36,6 +38,10 @@ jobs:
         run: |
           set -o pipefail
           make --no-print-directory -s api-check | tee -a "$GITHUB_STEP_SUMMARY"
+      # A person exempts a pull request that changes nothing for users by labeling it.
+      - name: Check that a change to what users get comes with a change file
+        if: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
+        run: make --no-print-directory -s change-check
 
   lint:
     name: Run linters
@@ -92,23 +98,10 @@ jobs:
 
     runs-on: ubuntu-24.04
 
-    permissions:
-      contents: read
-      packages: write
-
-    env:
-      PUBLISH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-
+    # The image is only built here, to show that it still builds. Images are published by the release workflow.
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/login-action@v3
-        if: ${{ env.PUBLISH == 'true' }}
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ env.PUBLISH == 'true' }}
-          tags: ghcr.io/kkohtaka/kubernetesimal/kubernetesimal:latest
+          push: false

@@ -91,6 +91,10 @@ api-check: ## Check that the CRDs have no unacknowledged incompatible changes si
 vuln-check: ## Report known vulnerabilities in the code that is actually reachable.
 	GOTOOLCHAIN=auto go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION) ./...
 
+.PHONY: change-check
+change-check: ## Check that a change to what users get comes with a change file.
+	hack/release/change-check.sh $(MERGE_BASE)
+
 .PHONY: spec-check
 spec-check: ## Check that the requirements in docs/specs are traceable to tests.
 	go run ./hack/speccheck
@@ -98,6 +102,26 @@ spec-check: ## Check that the requirements in docs/specs are traceable to tests.
 .PHONY: test
 test: manifests generate fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverpkg=./... -coverprofile cover.out
+
+##@ Release
+
+# VERSION is the version that 'make release-prepare' creates: a version such as v0.2.0, or "auto" to derive it from
+# the kinds of the unreleased changes.
+VERSION ?= auto
+
+.PHONY: change
+change: changie ## Add a change file. Usage: make change KIND=Fixed BODY="What changed for users."
+	$(CHANGIE) new --interactive=false --kind "$(KIND)" --body "$(BODY)"
+
+.PHONY: release-prepare
+release-prepare: changie ## Collect the unreleased changes into a version and update the changelog.
+	$(CHANGIE) batch $(VERSION)
+	$(CHANGIE) merge
+	@echo "Prepared $$($(CHANGIE) latest). Commit the result and open a pull request to release it."
+
+.PHONY: release-manifest
+release-manifest: ## Print the manifests that install VERSION of the operator.
+	@hack/release/manifest.sh $(VERSION)
 
 ##@ Build
 
@@ -172,12 +196,14 @@ KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
+CHANGIE ?= $(LOCALBIN)/changie
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v4.5.7
 CONTROLLER_TOOLS_VERSION ?= v0.14.0
 GOLANGCI_LINT_VERSION ?= v2.15.0
 GOVULNCHECK_VERSION ?= v1.10.0
+CHANGIE_VERSION ?= v1.26.0
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
@@ -205,3 +231,9 @@ golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary. 
 $(GOLANGCI_LINT): $(LOCALBIN)
 	test -s $(LOCALBIN)/golangci-lint && $(LOCALBIN)/golangci-lint version | grep -q $(subst v,,$(GOLANGCI_LINT_VERSION)) || \
 	GOBIN=$(LOCALBIN) GOTOOLCHAIN=auto go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+
+.PHONY: changie
+changie: $(CHANGIE) ## Download changie locally if necessary.
+$(CHANGIE): $(LOCALBIN)
+	test -s $(LOCALBIN)/changie || \
+	GOBIN=$(LOCALBIN) GOTOOLCHAIN=auto go install github.com/miniscruff/changie@$(CHANGIE_VERSION)

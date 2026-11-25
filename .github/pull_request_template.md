@@ -13,6 +13,14 @@ Paste the rows of the table printed by `make spec-check` for the requirements th
 For maintenance changes, say which existing tests cover the change.
 -->
 
+## Changes for users
+
+<!--
+Name the change file added under .changes/unreleased, or write "None" if this changes nothing for users.
+If it touches the operator's code without changing anything for users, say why, so that the owner can label the
+pull request skip-changelog.
+-->
+
 ## Changes that need a human review
 
 <!-- Describe each change in plain words, or write "None". -->

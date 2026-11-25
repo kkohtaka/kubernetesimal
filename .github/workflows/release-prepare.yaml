@@ -1,0 +1,54 @@
+name: release-prepare
+
+# Step one of a release: collect the unreleased change files into a version and push the result to a branch. A person
+# opens the pull request for that branch and merges it, which starts the release workflow. See docs/releasing.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: >-
+          The version to release, such as v0.2.0, or "auto" to derive it from the kinds of the unreleased changes.
+        required: true
+        default: auto
+
+jobs:
+  prepare:
+    name: Prepare a release
+
+    runs-on: ubuntu-24.04
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Collect the unreleased changes
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          make --no-print-directory release-prepare VERSION="${VERSION}"
+          echo "RELEASE_VERSION=$(bin/changie latest)" >> "$GITHUB_ENV"
+      - name: Push the release branch
+        run: |
+          branch="release/${RELEASE_VERSION}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch --create "${branch}"
+          git add CHANGELOG.md .changes
+          git commit --message "Release ${RELEASE_VERSION}"
+          git push origin "${branch}"
+          {
+            echo "## ${RELEASE_VERSION} is prepared"
+            echo
+            echo "Open the pull request and merge it to publish the release:"
+            echo
+            echo "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/main...${branch}?expand=1&title=Release+${RELEASE_VERSION}"
+            echo
+            cat ".changes/${RELEASE_VERSION}.md"
+          } >> "$GITHUB_STEP_SUMMARY"
