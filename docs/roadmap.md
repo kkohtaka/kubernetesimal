@@ -26,6 +26,8 @@ Done:
 - Bazel removed. CI builds with Go, Make, and Docker.
 - Guardrails: `CLAUDE.md`, hooks, linting, the specification workflow, and the traceability, coverage, API
   compatibility, and vulnerability checks. See [ADR 0001](adr/0001-specification-driven-development.md).
+- The release process, built on [Changie](https://changie.dev): change files, the check that requires them, and the
+  workflows that publish a version. See [ADR 0002](adr/0002-releases.md) and [Releasing](releasing.md).
 
 Remaining:
 
@@ -33,10 +35,8 @@ Remaining:
   itself. **This waits for the tests of M1**, which are the safety net for it. Until then the code has reachable
   known vulnerabilities, and the vulnerability check reports without failing the build.
 - Write a README that explains what the project is and how to try it.
-- Set up the release process with [Changie](https://changie.dev). A pull request that changes what users get adds
-  a change file that says what changed and what kind of change it is. Releasing collects the change files into a
-  version, writes the changelog, tags the commit, and publishes the container image and the install manifests
-  under that version. Today only an unversioned `latest` image is published.
+- Cut the first release. This waits for M1 as well: the install manifests do not work as they are, and on a stock
+  cluster the `Etcd` object never becomes ready.
 
 **Exit criteria:**
 
@@ -53,18 +53,18 @@ Remaining:
 The controllers have no tests today, and the code predates the specification workflow. This milestone writes down
 what the code does before anything changes it.
 
-1. Find out where end-to-end tests can run. KubeVirt needs hardware virtualization to run virtual machines at a
-   usable speed. Decide between GitHub-hosted runners, a self-hosted runner, and software emulation, and record the
-   decision.
-2. Write the specification of the etcd layer as it behaves today: creating a cluster, scaling, rolling updates,
+1. Write the specification of the etcd layer as it behaves today: creating a cluster, scaling, rolling updates,
    deletion, and the PKI. Where the current behavior is a defect, specify the intended behavior and note the
-   difference.
-3. Write envtest tests for every reconciler, each claiming the requirements it verifies.
-4. Write end-to-end tests on kind with KubeVirt for what envtest cannot show: a virtual machine boots and etcd
-   forms a cluster.
-5. Fix the defects that the specification exposed, such as the webhook that validates
+   difference. Experiments with the operator on a stock cluster, recorded in
+   [ADR 0003](adr/0003-end-to-end-tests-on-hosted-runners.md), found three such defects already: the Service of an
+   `Etcd` object points at addresses that Kubernetes does not route, the install manifests cannot be deployed, and
+   the way virtual machines are attached to the network only works with some network plugins.
+2. Write envtest tests for every reconciler, each claiming the requirements it verifies.
+3. Write end-to-end tests for what envtest cannot show: a virtual machine boots and etcd forms a cluster. They run
+   on GitHub-hosted runners, on kind with KubeVirt, as ADR 0003 decides.
+4. Fix the defects that the specification exposed, such as the webhook that validates
    `imagePersistentVolumeClaimRef` on update but not on create.
-6. Clear the lint backlog, now that tests protect the code, and make `make lint` judge all code.
+5. Clear the lint backlog, now that tests protect the code, and make `make lint` judge all code.
 
 Decide during this milestone, as an ADR, whether the control plane of M3 runs as Pods in the management cluster or
 in virtual machines. The PKI design of M2 depends on it.
@@ -72,7 +72,7 @@ in virtual machines. The PKI design of M2 depends on it.
 **Exit criteria:**
 
 - The specification of the etcd layer is `implemented`.
-- End-to-end tests run in CI, or on a documented schedule if they cannot run on every pull request.
+- End-to-end tests run in CI for every pull request, and an etcd cluster of three members forms in them.
 - `make lint-all` reports nothing.
 - The remaining work of M0 is done.
 
@@ -139,7 +139,10 @@ in virtual machines. The PKI design of M2 depends on it.
 
 | Decision | Needed by | Recorded in |
 |---|---|---|
-| What a release contains and how versions relate to the API version | Release process of M0 | An ADR |
-| Where end-to-end tests run | Start of M1 | An ADR |
+| Bridge or masquerade binding for virtual machines | Specification of M1 | The specification |
 | Control plane as Pods or in virtual machines | End of M1 | An ADR |
 | What replaces etcdadm | Start of M2 | An ADR |
+
+Decided so far: how the project is developed ([ADR 0001](adr/0001-specification-driven-development.md)), what a
+release is ([ADR 0002](adr/0002-releases.md)), and where end-to-end tests run
+([ADR 0003](adr/0003-end-to-end-tests-on-hosted-runners.md)).
