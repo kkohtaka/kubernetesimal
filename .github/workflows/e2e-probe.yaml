@@ -34,6 +34,22 @@ jobs:
         uses: helm/kind-action@v1
         with:
           cluster_name: e2e
+          config: hack/e2e/kind.yaml
+          # The node only becomes ready once the network plugin is installed in the next step.
+          wait: 0s
+
+      - name: Install Calico
+        run: |
+          start=$(date +%s)
+          version=$(basename "$(curl -fsSL -o /dev/null -w '%{url_effective}' \
+            https://github.com/projectcalico/calico/releases/latest)")
+          kubectl apply -f "https://raw.githubusercontent.com/projectcalico/calico/${version}/manifests/calico.yaml"
+          kubectl wait nodes --all --for=condition=Ready --timeout=10m
+          kubectl -n kube-system wait deployment --all --for=condition=Available --timeout=10m
+          {
+            echo "CALICO_VERSION=${version}"
+            echo "NETWORK_SECONDS=$(( $(date +%s) - start ))"
+          } >> "$GITHUB_ENV"
 
       - name: Build the operator image and load it into the cluster
         run: |
@@ -98,15 +114,14 @@ jobs:
         run: |
           start=$(date +%s)
           kubectl apply -f hack/e2e/etcd.yaml
-          kubectl -n e2e wait etcd etcd --for=jsonpath='{.status.phase}'=Running --timeout=30m
+          hack/e2e/wait-for-etcd.sh 1 900
           echo "ONE_MEMBER_SECONDS=$(( $(date +%s) - start ))" >> "$GITHUB_ENV"
 
       - name: Scale the etcd cluster to three members
         run: |
           start=$(date +%s)
           kubectl -n e2e patch etcd etcd --type=merge --patch '{"spec":{"replicas":3}}'
-          kubectl -n e2e wait etcd etcd --for=jsonpath='{.status.readyReplicas}'=3 --timeout=30m
-          kubectl -n e2e wait etcd etcd --for=jsonpath='{.status.phase}'=Running --timeout=10m
+          hack/e2e/wait-for-etcd.sh 3 1200
           echo "THREE_MEMBERS_SECONDS=$(( $(date +%s) - start ))" >> "$GITHUB_ENV"
 
       - name: Report the result
@@ -117,10 +132,12 @@ jobs:
             echo
             echo "| | |"
             echo "|---|---|"
+            echo "| Calico | ${CALICO_VERSION:-unknown} |"
             echo "| KubeVirt | ${KUBEVIRT_VERSION:-unknown} |"
             echo "| Containerized Data Importer | ${CDI_VERSION:-unknown} |"
             echo "| cert-manager | ${CERT_MANAGER_VERSION:-unknown} |"
             echo "| Operator image built and loaded | ${IMAGE_SECONDS:-did not finish} s |"
+            echo "| Network plugin installed | ${NETWORK_SECONDS:-did not finish} s |"
             echo "| Dependencies installed | ${DEPENDENCIES_SECONDS:-did not finish} s |"
             echo "| Operator deployed | ${OPERATOR_SECONDS:-did not finish} s |"
             echo "| Fedora image imported | ${IMAGE_IMPORT_SECONDS:-did not finish} s |"
@@ -146,7 +163,19 @@ jobs:
           echo "::endgroup::"
           section "Operator logs"
           kubectl -n kubernetesimal describe deployment || true
-          kubectl -n kubernetesimal logs deployment/kubernetesimal-controller-manager --all-containers --tail=400 || true
+          # The probers log several lines every few seconds while etcd is not up, which buries everything else.
+          kubectl -n kubernetesimal logs deployment/kubernetesimal-controller-manager --all-containers --tail=-1 \
+            | grep -v -e etcd-client -e etcd-prober -e etcdnode-prober -e '^\s' | cut -c1-600 | tail -n 300 || true
+          echo "::endgroup::"
+          section "Reachability of the virtual machines from a Pod"
+          for service in $(kubectl -n e2e get etcdnode -o jsonpath='{.items[*].status.peerServiceRef.name}'); do
+            cluster_ip=$(kubectl -n e2e get service "${service}" -o jsonpath='{.spec.clusterIP}')
+            pod_ip=$(kubectl -n e2e get vmi "${service}" -o jsonpath='{.status.interfaces[0].ipAddress}')
+            kubectl -n e2e run "reach-${service}" --rm --attach --restart=Never --quiet --image=busybox:1.36 -- sh -c "
+              nc -z -w 5 ${pod_ip} 22 && echo 'Pod address ${pod_ip}:22 answers' || echo 'Pod address ${pod_ip}:22 does not answer'
+              nc -z -w 5 ${cluster_ip} 22 && echo 'Service address ${cluster_ip}:22 answers' || echo 'Service address ${cluster_ip}:22 does not answer'
+            " || true
+          done
           echo "::endgroup::"
           section "Objects in the e2e namespace"
           kubectl -n e2e get datavolume,pvc,secret,service,endpointslice -o wide || true
