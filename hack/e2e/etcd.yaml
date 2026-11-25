@@ -1,0 +1,13 @@
+apiVersion: kubernetesimal.kkohtaka.org/v1alpha1
+kind: Etcd
+metadata:
+  name: etcd
+  namespace: e2e
+spec:
+  version: 3.5.6
+  replicas: 1
+  imagePersistentVolumeClaimRef:
+    name: fedora
+  loginPasswordSecretKeySelector:
+    name: etcd-password
+    key: password

@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubernetesimal-controller-manager
+  namespace: kubernetesimal
+spec:
+  template:
+    spec:
+      containers:
+        # The image of the metrics proxy is no longer published, and nothing scrapes metrics here.
+        - name: kube-rbac-proxy
+          $patch: delete
+        - name: manager
+          # The image is loaded into the cluster and exists in no registry.
+          imagePullPolicy: IfNotPresent
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi

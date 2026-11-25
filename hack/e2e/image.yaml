@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: e2e
+---
+# The boot image of the virtual machines, imported by the Containerized Data Importer.
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataVolume
+metadata:
+  name: fedora
+  namespace: e2e
+  annotations:
+    # The default storage class of kind binds a volume only when a Pod uses it. Import the image right away instead.
+    cdi.kubevirt.io/storage.bind.immediate.requested: "true"
+spec:
+  source:
+    http:
+      url: https://archives.fedoraproject.org/pub/archive/fedora/linux/releases/37/Cloud/x86_64/images/Fedora-Cloud-Base-37-1.7.x86_64.qcow2
+  pvc:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: 8Gi
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: etcd-password
+  namespace: e2e
+type: Opaque
+stringData:
+  password: fedora

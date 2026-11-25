@@ -1,0 +1,19 @@
+# The same as config/manager/controller_manager_config.yaml, without the tracing collector that does not exist here.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubernetesimal-manager-config
+  namespace: kubernetesimal
+data:
+  controller_manager_config.yaml: |
+    apiVersion: kubernetesimal.kkohtaka.org/v1alpha1
+    kind: KubernetesimalConfig
+    health:
+      healthProbeBindAddress: :8081
+    metrics:
+      bindAddress: 127.0.0.1:8080
+    webhook:
+      port: 9443
+    leaderElection:
+      leaderElect: true
+      resourceName: b197ccb6.kkohtaka.org

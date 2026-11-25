@@ -1,0 +1,16 @@
+# Deploys the operator into a throwaway cluster for end-to-end tests. It differs from config/default where that
+# configuration cannot run in such a cluster.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../config/default
+
+images:
+  - name: container-registry.kohtaka.me/kubernetesimal/kubernetesimal
+    newName: kubernetesimal
+    newTag: e2e
+
+patches:
+  - path: manager_patch.yaml
+  - path: manager_config_patch.yaml

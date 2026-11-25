@@ -1,0 +1,167 @@
+name: e2e-probe
+
+# Measures whether the operator can build an etcd cluster on a GitHub-hosted runner, and how long it takes. It
+# deploys the operator into a kind cluster with KubeVirt and creates an Etcd object with the Fedora image that the
+# operator was developed against. It is an experiment that decides where end-to-end tests run, not a test yet.
+
+on:
+  workflow_dispatch: {}
+  push:
+    paths:
+      - .github/workflows/e2e-probe.yaml
+      - hack/e2e/**
+
+jobs:
+  probe:
+    name: Build an etcd cluster
+
+    runs-on: ubuntu-24.04
+
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Make /dev/kvm usable
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+
+      - name: Create a kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: e2e
+
+      - name: Build the operator image and load it into the cluster
+        run: |
+          start=$(date +%s)
+          docker build --quiet --tag kubernetesimal:e2e .
+          kind load docker-image --name e2e kubernetesimal:e2e
+          echo "IMAGE_SECONDS=$(( $(date +%s) - start ))" >> "$GITHUB_ENV"
+
+      - name: Install KubeVirt, the Containerized Data Importer, and cert-manager
+        run: |
+          start=$(date +%s)
+          latest() {
+            basename "$(curl -fsSL -o /dev/null -w '%{url_effective}' "https://github.com/$1/releases/latest")"
+          }
+
+          kubevirt=$(curl -fsSL https://storage.googleapis.com/kubevirt-prow/release/kubevirt/kubevirt/stable.txt)
+          kubectl create -f "https://github.com/kubevirt/kubevirt/releases/download/${kubevirt}/kubevirt-operator.yaml"
+          kubectl create -f "https://github.com/kubevirt/kubevirt/releases/download/${kubevirt}/kubevirt-cr.yaml"
+
+          cdi=$(latest kubevirt/containerized-data-importer)
+          kubectl create -f "https://github.com/kubevirt/containerized-data-importer/releases/download/${cdi}/cdi-operator.yaml"
+          kubectl create -f "https://github.com/kubevirt/containerized-data-importer/releases/download/${cdi}/cdi-cr.yaml"
+
+          certmanager=$(latest cert-manager/cert-manager)
+          kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/${certmanager}/cert-manager.yaml"
+
+          kubectl -n kubevirt wait kubevirt kubevirt --for=condition=Available --timeout=15m
+          kubectl -n cdi wait cdi cdi --for=condition=Available --timeout=15m
+          kubectl -n cert-manager wait deployment --all --for=condition=Available --timeout=10m
+
+          {
+            echo "KUBEVIRT_VERSION=${kubevirt}"
+            echo "CDI_VERSION=${cdi}"
+            echo "CERT_MANAGER_VERSION=${certmanager}"
+            echo "DEPENDENCIES_SECONDS=$(( $(date +%s) - start ))"
+          } >> "$GITHUB_ENV"
+
+      - name: Deploy the operator
+        run: |
+          start=$(date +%s)
+          # The webhook of cert-manager can refuse requests for a moment after its Deployment is available.
+          for attempt in $(seq 1 12); do
+            kubectl apply -k hack/e2e && break
+            echo "Attempt ${attempt} failed. Retrying."
+            sleep 10
+          done
+          kubectl -n kubernetesimal wait deployment --all --for=condition=Available --timeout=10m
+          echo "OPERATOR_SECONDS=$(( $(date +%s) - start ))" >> "$GITHUB_ENV"
+
+      - name: Import the Fedora image
+        run: |
+          start=$(date +%s)
+          for attempt in $(seq 1 12); do
+            kubectl apply -f hack/e2e/image.yaml && break
+            echo "Attempt ${attempt} failed. Retrying."
+            sleep 10
+          done
+          kubectl -n e2e wait datavolume fedora --for=jsonpath='{.status.phase}'=Succeeded --timeout=20m
+          echo "IMAGE_IMPORT_SECONDS=$(( $(date +%s) - start ))" >> "$GITHUB_ENV"
+
+      - name: Create an etcd cluster with one member
+        run: |
+          start=$(date +%s)
+          kubectl apply -f hack/e2e/etcd.yaml
+          kubectl -n e2e wait etcd etcd --for=jsonpath='{.status.phase}'=Running --timeout=30m
+          echo "ONE_MEMBER_SECONDS=$(( $(date +%s) - start ))" >> "$GITHUB_ENV"
+
+      - name: Scale the etcd cluster to three members
+        run: |
+          start=$(date +%s)
+          kubectl -n e2e patch etcd etcd --type=merge --patch '{"spec":{"replicas":3}}'
+          kubectl -n e2e wait etcd etcd --for=jsonpath='{.status.readyReplicas}'=3 --timeout=30m
+          kubectl -n e2e wait etcd etcd --for=jsonpath='{.status.phase}'=Running --timeout=10m
+          echo "THREE_MEMBERS_SECONDS=$(( $(date +%s) - start ))" >> "$GITHUB_ENV"
+
+      - name: Report the result
+        if: ${{ always() }}
+        run: |
+          {
+            echo "## etcd cluster on a hosted runner"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| KubeVirt | ${KUBEVIRT_VERSION:-unknown} |"
+            echo "| Containerized Data Importer | ${CDI_VERSION:-unknown} |"
+            echo "| cert-manager | ${CERT_MANAGER_VERSION:-unknown} |"
+            echo "| Operator image built and loaded | ${IMAGE_SECONDS:-did not finish} s |"
+            echo "| Dependencies installed | ${DEPENDENCIES_SECONDS:-did not finish} s |"
+            echo "| Operator deployed | ${OPERATOR_SECONDS:-did not finish} s |"
+            echo "| Fedora image imported | ${IMAGE_IMPORT_SECONDS:-did not finish} s |"
+            echo "| etcd running with one member | ${ONE_MEMBER_SECONDS:-did not finish} s |"
+            echo "| Scaled from one to three members | ${THREE_MEMBERS_SECONDS:-did not finish} s |"
+            echo
+            echo '```'
+            kubectl -n e2e get etcd,etcdnodedeployment,etcdnodeset,etcdnode,vmi -o wide 2>&1 || true
+            echo
+            kubectl top nodes 2>&1 || true
+            free -h
+            df -h / | tail -n 1
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Collect diagnostics
+        if: ${{ always() }}
+        run: |
+          section() { echo; echo "::group::$1"; }
+          section "Nodes and Pods"
+          kubectl get nodes -o wide || true
+          kubectl get pods -A -o wide || true
+          echo "::endgroup::"
+          section "Operator logs"
+          kubectl -n kubernetesimal describe deployment || true
+          kubectl -n kubernetesimal logs deployment/kubernetesimal-controller-manager --all-containers --tail=400 || true
+          echo "::endgroup::"
+          section "Objects in the e2e namespace"
+          kubectl -n e2e get datavolume,pvc,secret,service,endpointslice -o wide || true
+          kubectl -n e2e get etcd,etcdnodedeployment,etcdnodeset,etcdnode -o yaml || true
+          echo "::endgroup::"
+          section "Virtual machines"
+          kubectl -n e2e get vmi -o yaml || true
+          kubectl -n e2e describe pods || true
+          echo "::endgroup::"
+          section "Events"
+          kubectl get events -A --sort-by=.lastTimestamp | tail -n 150 || true
+          echo "::endgroup::"
+          section "Guest consoles"
+          for pod in $(kubectl -n e2e get pods -l kubevirt.io=virt-launcher -o name); do
+            echo "--- ${pod}"
+            kubectl -n e2e logs "${pod}" -c guest-console-log --tail=150 2>&1 || true
+          done
+          echo "::endgroup::"
