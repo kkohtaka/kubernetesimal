@@ -115,9 +115,7 @@ change: changie ## Add a change file. Usage: make change KIND=Fixed BODY="What c
 
 .PHONY: release-prepare
 release-prepare: changie ## Collect the unreleased changes into a version and update the changelog.
-	$(CHANGIE) batch $(VERSION)
-	$(CHANGIE) merge
-	@echo "Prepared $$($(CHANGIE) latest). Commit the result and open a pull request to release it."
+	@hack/release/prepare.sh $(CHANGIE) $(VERSION)
 
 .PHONY: release-manifest
 release-manifest: ## Print the manifests that install VERSION of the operator.
