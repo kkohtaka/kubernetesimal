@@ -21,6 +21,10 @@ jobs:
 
     runs-on: ubuntu-24.04
 
+    # The token that pays for the review lives in this environment, which requires a reviewer to approve each run.
+    # A run therefore waits until the owner releases it, and nothing in a pull request can reach the token before.
+    environment: claude-review
+
     permissions:
       contents: read
       pull-requests: write
@@ -33,7 +37,8 @@ jobs:
     steps:
       - name: Explain why the review is skipped
         if: ${{ env.CLAUDE_CODE_OAUTH_TOKEN == '' }}
-        run: echo "::notice::The CLAUDE_CODE_OAUTH_TOKEN secret is not set, so the review is skipped."
+        run: |
+          echo "::notice::The claude-review environment has no CLAUDE_CODE_OAUTH_TOKEN secret, so the review is skipped."
       - uses: actions/checkout@v4
         if: ${{ env.CLAUDE_CODE_OAUTH_TOKEN != '' }}
         with:
