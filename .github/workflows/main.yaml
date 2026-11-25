@@ -1,7 +1,10 @@
 name: main
 
+# Branches are checked through their pull request. Running on every push as well would run everything twice.
 on:
-  push: {}
+  push:
+    branches:
+      - main
   pull_request: {}
 
 jobs:
