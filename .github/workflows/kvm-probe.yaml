@@ -1,0 +1,154 @@
+name: kvm-probe
+
+# Measures whether GitHub-hosted runners can run KubeVirt virtual machines, and how fast. The result decides where
+# the end-to-end tests of this project run. It is not a test of this project: it starts a stock virtual machine on a
+# kind cluster and reports what it finds in the job summary.
+
+on:
+  workflow_dispatch: {}
+  push:
+    paths:
+      - .github/workflows/kvm-probe.yaml
+
+jobs:
+  probe:
+    name: Probe KVM and KubeVirt
+
+    runs-on: ubuntu-24.04
+
+    timeout-minutes: 45
+
+    steps:
+      - name: Report the runner
+        run: |
+          {
+            echo "## Runner"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| CPU | $(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2 | xargs) |"
+            echo "| CPUs | $(nproc) |"
+            echo "| Memory | $(free -h | awk '/^Mem:/ {print $2}') |"
+            echo "| Kernel | $(uname -r) |"
+            echo "| Virtualization flags | $(grep -m1 -o -E 'vmx|svm' /proc/cpuinfo || echo none) |"
+            echo "| Hypervisor | $(systemd-detect-virt || true) |"
+            echo "| /dev/kvm | $(ls -l /dev/kvm 2>&1) |"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Make /dev/kvm usable
+        run: |
+          if [ ! -e /dev/kvm ]; then
+            echo "::warning::/dev/kvm does not exist. Virtual machines will be emulated in software."
+            exit 0
+          fi
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+
+      - name: Check KVM
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq cpu-checker
+          {
+            echo
+            echo "## kvm-ok"
+            echo
+            echo '```'
+            sudo kvm-ok 2>&1 || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Create a kind cluster
+        uses: helm/kind-action@v1
+
+      - name: Install KubeVirt
+        run: |
+          start=$(date +%s)
+          version=$(curl -fsSL https://storage.googleapis.com/kubevirt-prow/release/kubevirt/kubevirt/stable.txt)
+          echo "KUBEVIRT_VERSION=${version}" >> "$GITHUB_ENV"
+          base="https://github.com/kubevirt/kubevirt/releases/download/${version}"
+          kubectl create -f "${base}/kubevirt-operator.yaml"
+          kubectl create -f "${base}/kubevirt-cr.yaml"
+          # Fall back to software emulation when KVM cannot be used. KVM is still preferred when it is available.
+          kubectl -n kubevirt patch kubevirt kubevirt --type=merge \
+            --patch '{"spec":{"configuration":{"developerConfiguration":{"useEmulation":true}}}}'
+          kubectl -n kubevirt wait kubevirt kubevirt --for=condition=Available --timeout=15m
+          echo "KUBEVIRT_INSTALL_SECONDS=$(( $(date +%s) - start ))" >> "$GITHUB_ENV"
+
+      - name: Start a virtual machine
+        run: |
+          cat <<'MANIFEST' | kubectl apply -f -
+          apiVersion: kubevirt.io/v1
+          kind: VirtualMachineInstance
+          metadata:
+            name: probe
+          spec:
+            domain:
+              devices:
+                disks:
+                  - name: containerdisk
+                    disk:
+                      bus: virtio
+                interfaces:
+                  - name: default
+                    masquerade: {}
+              resources:
+                requests:
+                  memory: 256Mi
+            networks:
+              - name: default
+                pod: {}
+            # The virtual machine is ready when its SSH server answers, which means that the guest has booted.
+            readinessProbe:
+              tcpSocket:
+                port: 22
+              initialDelaySeconds: 5
+              periodSeconds: 5
+              failureThreshold: 240
+            volumes:
+              - name: containerdisk
+                containerDisk:
+                  image: quay.io/kubevirt/cirros-container-disk-demo
+          MANIFEST
+          start=$(date +%s)
+          kubectl wait vmi probe --for=jsonpath='{.status.phase}'=Running --timeout=15m
+          echo "VMI_RUNNING_SECONDS=$(( $(date +%s) - start ))" >> "$GITHUB_ENV"
+          kubectl wait vmi probe --for=condition=Ready --timeout=20m
+          echo "VMI_BOOTED_SECONDS=$(( $(date +%s) - start ))" >> "$GITHUB_ENV"
+
+      - name: Report the result
+        if: ${{ always() }}
+        run: |
+          pod=$(kubectl get pods -l kubevirt.io=virt-launcher -o name | head -n 1)
+          domain="unknown"
+          if [ -n "$pod" ]; then
+            domain=$(kubectl exec "$pod" -c compute -- virsh list --name | head -n 1 \
+              | xargs -r -I{} kubectl exec "$pod" -c compute -- virsh dumpxml {} \
+              | grep -m1 -o "<domain type='[a-z]*'" | cut -d"'" -f2 || true)
+          fi
+          {
+            echo
+            echo "## KubeVirt"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| KubeVirt version | ${KUBEVIRT_VERSION:-unknown} |"
+            echo "| Domain type (kvm is hardware, qemu is software emulation) | ${domain:-unknown} |"
+            echo "| KubeVirt installed after | ${KUBEVIRT_INSTALL_SECONDS:-did not finish} s |"
+            echo "| Virtual machine running after | ${VMI_RUNNING_SECONDS:-did not finish} s |"
+            echo "| Guest booted (SSH answers) after | ${VMI_BOOTED_SECONDS:-did not finish} s |"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Collect diagnostics
+        if: ${{ failure() }}
+        run: |
+          kubectl get nodes -o wide || true
+          kubectl -n kubevirt get pods -o wide || true
+          kubectl -n kubevirt get kubevirt kubevirt -o yaml || true
+          kubectl get vmi,pods -o wide || true
+          kubectl describe vmi probe || true
+          kubectl describe pods -l kubevirt.io=virt-launcher || true
+          kubectl logs -l kubevirt.io=virt-launcher -c compute --tail=200 || true
+          kubectl -n kubevirt logs -l kubevirt.io=virt-handler --tail=200 || true
