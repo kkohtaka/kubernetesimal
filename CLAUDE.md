@@ -19,6 +19,8 @@ requests. This holds regardless of the language used in the conversation.
 | `make cover-check` | Check that the code changed since `origin/main` is covered by tests. Run `make test` first. |
 | `make api-check` | Check that the CRDs have no unacknowledged incompatible changes since `origin/main`. |
 | `make vuln-check` | Report known vulnerabilities in reachable code. |
+| `make change KIND=... BODY="..."` | Add a change file that describes a change for users. See `docs/releasing.md`. |
+| `make change-check` | Check that a change to what users get comes with a change file. |
 | `make manifests generate` | Regenerate CRDs, RBAC, webhook manifests, and deepcopy code. |
 | `make build` | Build the manager binary into `bin/`. |
 
@@ -79,12 +81,15 @@ the evidence that the specification is met. The rules below keep that workable.
 - **Approved requirements are not edited during implementation.** If a requirement is wrong, ambiguous, or impossible,
   stop and report it. Never claim a requirement on a test that does not verify it.
 - **Guardrails are changed only on request.** `.github/`, `.claude/`, `CLAUDE.md`, `CODEOWNERS`, `.golangci.yml`,
-  `hack/speccheck`, `hack/covercheck`, `hack/crdcompat`, and the lint, test, and check targets in the `Makefile` define how changes are verified. Do not change them as a side effect of
+  `.changie.yaml`, `hack/speccheck`, `hack/covercheck`, `hack/crdcompat`, `hack/release`, and the lint, test, and check targets in the `Makefile` define how changes are verified. Do not change them as a side effect of
   another task.
 - **Changed code is covered.** At least 80% of the statements a change adds or modifies must be executed by tests.
   Do not lower the threshold or widen the exclusions to pass.
 - **The API is not broken by accident.** If `make api-check` reports an incompatible change that the specification
   does not call for, undo it. If the specification calls for it, record it in `docs/api-breaking-changes.md`.
+- **Changes for users are written down.** A change to the operator's code, API, or deployment manifests comes with a
+  change file from `make change`, written for someone who uses the operator. If nothing changes for users, do not
+  invent an entry: say so, and the owner labels the pull request `skip-changelog`. Never edit `CHANGELOG.md` by hand.
 - **API and permission changes are called out.** Any change under `api/`, `config/crd/`, or `config/rbac/` is listed
   explicitly in the pull request description, because a human reviews those.
 - **Prefer declarative validation.** Put API constraints in CRD schema markers and CEL rules rather than webhook Go code
@@ -93,4 +98,4 @@ the evidence that the specification is met. The rules below keep that workable.
 
 ## Before finishing
 
-Run `make test`, `make lint`, `make spec-check`, `make cover-check`, and `make api-check`, and make sure `git status` shows no unexpected changes to generated files.
+Run `make test`, `make lint`, `make spec-check`, `make cover-check`, `make api-check`, and `make change-check`, and make sure `git status` shows no unexpected changes to generated files.

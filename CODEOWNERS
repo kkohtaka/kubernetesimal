@@ -23,5 +23,7 @@
 /hack/speccheck/ @kkohtaka
 /hack/covercheck/ @kkohtaka
 /hack/crdcompat/ @kkohtaka
+/hack/release/ @kkohtaka
+/.changie.yaml @kkohtaka
 /Makefile @kkohtaka
 /Dockerfile @kkohtaka
