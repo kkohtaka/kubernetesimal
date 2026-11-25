@@ -12,9 +12,16 @@ on:
 
 jobs:
   probe:
-    name: Probe KVM and KubeVirt
+    name: Probe KubeVirt (${{ matrix.mode }})
 
     runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # "kvm" requires hardware virtualization and fails without it. "emulation" forces software emulation, which
+        # is what remains when KVM is not available, so that the two can be compared.
+        mode: [kvm, emulation]
 
     timeout-minutes: 45
 
@@ -71,11 +78,21 @@ jobs:
           base="https://github.com/kubevirt/kubevirt/releases/download/${version}"
           kubectl create -f "${base}/kubevirt-operator.yaml"
           kubectl create -f "${base}/kubevirt-cr.yaml"
-          # Fall back to software emulation when KVM cannot be used. KVM is still preferred when it is available.
-          kubectl -n kubevirt patch kubevirt kubevirt --type=merge \
-            --patch '{"spec":{"configuration":{"developerConfiguration":{"useEmulation":true}}}}'
+          # With useEmulation, KubeVirt does not hand /dev/kvm to virtual machines, so they are emulated in software
+          # even on a host that has KVM. Without it, a virtual machine is only scheduled where KVM is available.
+          if [ "${{ matrix.mode }}" = "emulation" ]; then
+            kubectl -n kubevirt patch kubevirt kubevirt --type=merge \
+              --patch '{"spec":{"configuration":{"developerConfiguration":{"useEmulation":true}}}}'
+          fi
           kubectl -n kubevirt wait kubevirt kubevirt --for=condition=Available --timeout=15m
           echo "KUBEVIRT_INSTALL_SECONDS=$(( $(date +%s) - start ))" >> "$GITHUB_ENV"
+          # The number of virtual machines that the node can run with KVM, as its device plugin reports it.
+          for _ in $(seq 1 30); do
+            kvm=$(kubectl get nodes -o jsonpath='{.items[0].status.allocatable.devices\.kubevirt\.io/kvm}')
+            [ -n "$kvm" ] && [ "$kvm" != "0" ] && break
+            sleep 2
+          done
+          echo "KVM_DEVICES=${kvm:-0}" >> "$GITHUB_ENV"
 
       - name: Start a virtual machine
         run: |
@@ -130,11 +147,12 @@ jobs:
           fi
           {
             echo
-            echo "## KubeVirt"
+            echo "## KubeVirt (${{ matrix.mode }})"
             echo
             echo "| | |"
             echo "|---|---|"
             echo "| KubeVirt version | ${KUBEVIRT_VERSION:-unknown} |"
+            echo "| KVM devices offered by the node | ${KVM_DEVICES:-unknown} |"
             echo "| Domain type (kvm is hardware, qemu is software emulation) | ${domain:-unknown} |"
             echo "| KubeVirt installed after | ${KUBEVIRT_INSTALL_SECONDS:-did not finish} s |"
             echo "| Virtual machine running after | ${VMI_RUNNING_SECONDS:-did not finish} s |"
