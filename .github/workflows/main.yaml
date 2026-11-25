@@ -54,16 +54,31 @@ jobs:
 
     runs-on: ubuntu-24.04
 
-    # The dependencies are outdated and have known vulnerabilities. This job reports them without failing the
-    # workflow until the dependencies are updated. Remove the next line then.
-    continue-on-error: true
-
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: make vuln-check
+      # The dependencies are outdated and have known vulnerabilities. Until they are updated, this job reports them
+      # as a warning and in the job summary instead of failing. To make it fail again, replace the two steps below
+      # with a single "run: make vuln-check".
+      - name: Check for known vulnerabilities
+        id: check
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          make --no-print-directory -s vuln-check | tee vuln.txt
+      - name: Report the vulnerabilities
+        if: ${{ steps.check.outcome == 'failure' }}
+        run: |
+          echo "::warning::Known vulnerabilities are reachable. See the job summary. This does not fail the build yet."
+          {
+            echo "## Known vulnerabilities"
+            echo
+            echo '```'
+            grep -E '^Vulnerability #|Found in:|Fixed in:|^Your code is affected' vuln.txt || cat vuln.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   build:
     name: Build a Docker image
