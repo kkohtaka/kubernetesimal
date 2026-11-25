@@ -44,7 +44,8 @@ says so. The owner exempts such a pull request by putting the `skip-changelog` l
 ## Making a release
 
 1. **Prepare.** Run the `release-prepare` workflow from the Actions tab. Leave the version at `auto` to derive it
-   from the kinds of the unreleased changes, or give one, such as `v0.1.0` for the first release. The workflow
+   from the kinds of the unreleased changes, or give one, such as `v0.2.0`. The first release is `v0.1.0` whatever
+   the kinds are. The workflow
    collects the change files into `.changes/<version>.md`, updates `CHANGELOG.md`, and pushes the result to the
    branch `release/<version>`.
 2. **Review.** Open the pull request with the link from the workflow summary. It shows exactly what the release
