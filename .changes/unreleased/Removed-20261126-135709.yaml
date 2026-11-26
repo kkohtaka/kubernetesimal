@@ -1,0 +1,3 @@
+kind: Removed
+body: The install manifests no longer expose the operator's metrics. The metrics Service and the roles of the metrics proxy are removed, and the metrics endpoint listens on the loopback address of the Pod only.
+time: 2026-11-26T13:57:09.973647893Z
