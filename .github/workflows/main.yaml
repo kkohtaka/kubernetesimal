@@ -5,8 +5,6 @@ on:
   push:
     branches:
       - main
-      # Temporary, while the end-to-end job is developed without a pull request.
-      - claude/clever-pasteur-ub3iwe
   pull_request:
     # Labeling re-runs the checks, so that the skip-changelog label takes effect.
     types: [opened, synchronize, reopened, labeled, unlabeled]
