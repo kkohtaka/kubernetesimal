@@ -20,7 +20,7 @@ jobs:
         with:
           # The full history is needed to find the merge base with the main branch.
           fetch-depth: 0
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - run: make test
@@ -53,7 +53,7 @@ jobs:
         with:
           # The full history is needed to find the merge base with the main branch.
           fetch-depth: 0
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - run: make lint
@@ -65,7 +65,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       # The dependencies are outdated and have known vulnerabilities. Until they are updated, this job reports them
