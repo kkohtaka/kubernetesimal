@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - main
+      # Temporary, while the end-to-end job is developed without a pull request.
+      - claude/clever-pasteur-ub3iwe
   pull_request:
     # Labeling re-runs the checks, so that the skip-changelog label takes effect.
     types: [opened, synchronize, reopened, labeled, unlabeled]
@@ -88,6 +90,80 @@ jobs:
             grep -E '^Vulnerability #|Found in:|Fixed in:|^Your code is affected' vuln.txt || cat vuln.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+  e2e:
+    name: Run end-to-end tests (${{ matrix.manifests }})
+
+    runs-on: ubuntu-24.04
+
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Temporary. Every variant but "current" breaks the manifests in one way, to show that the tests notice.
+        manifests: [current, base, tracing, metrics]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Break the manifests
+        if: ${{ matrix.manifests != 'current' }}
+        run: |
+          case "${{ matrix.manifests }}" in
+            base)
+              git checkout origin/main -- config
+              sed -i 's|ghcr.io/kkohtaka/kubernetesimal/kubernetesimal|container-registry.kohtaka.me/kubernetesimal/kubernetesimal|' \
+                hack/e2e/kustomization.yaml
+              ;;
+            tracing)
+              printf 'tracing:\n  otelCollectorGRPCAddress: otel-collector.monitoring.svc:4317\n' \
+                >> config/manager/controller_manager_config.yaml
+              ;;
+            metrics)
+              sed -i 's|--metrics-bind-address=127.0.0.1:8080|--metrics-bind-address=:8080|' \
+                config/default/manager_config_patch.yaml
+              ;;
+          esac
+          git diff --stat
+      # The runners offer hardware virtualization, but not to the user that the job runs as. See ADR 0003.
+      - name: Make /dev/kvm usable
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Create a cluster with KubeVirt
+        run: hack/e2e/cluster.sh
+      - name: Install the operator
+        run: make e2e E2E_RUN='^TestInstall$'
+      # These tests read what the operator did during the whole run, so they come after everything else.
+      - name: Check what the operator did
+        run: make e2e E2E_RUN='^(TestMetricsAreNotExposed|TestNoTraces)$'
+      - name: Collect diagnostics
+        if: ${{ failure() }}
+        run: |
+          section() { echo; echo "::group::$1"; }
+          section "Nodes and Pods"
+          kubectl get nodes -o wide || true
+          kubectl get pods -A -o wide || true
+          echo "::endgroup::"
+          section "Operator"
+          kubectl -n kubernetesimal describe deployment,pods || true
+          # The probers log several lines every few seconds while etcd is not up, which buries everything else.
+          kubectl -n kubernetesimal logs deployment/kubernetesimal-controller-manager --all-containers --tail=-1 \
+            | grep -v -e etcd-client -e etcd-prober -e etcdnode-prober -e '^\s' | cut -c1-600 | tail -n 300 || true
+          echo "::endgroup::"
+          section "Objects of the operator"
+          kubectl get etcd,etcdnodedeployment,etcdnodeset,etcdnode -A -o yaml || true
+          echo "::endgroup::"
+          section "Events"
+          kubectl get events -A --sort-by=.lastTimestamp | tail -n 150 || true
+          echo "::endgroup::"
 
   build:
     name: Build a Docker image
