@@ -92,44 +92,17 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   e2e:
-    name: Run end-to-end tests (${{ matrix.manifests }})
+    name: Run end-to-end tests
 
     runs-on: ubuntu-24.04
 
     timeout-minutes: 60
 
-    strategy:
-      fail-fast: false
-      matrix:
-        # Temporary. Every variant but "current" breaks the manifests in one way, to show that the tests notice.
-        manifests: [current, base, tracing, metrics]
-
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: Break the manifests
-        if: ${{ matrix.manifests != 'current' }}
-        run: |
-          case "${{ matrix.manifests }}" in
-            base)
-              git checkout origin/main -- config
-              sed -i 's|ghcr.io/kkohtaka/kubernetesimal/kubernetesimal|container-registry.kohtaka.me/kubernetesimal/kubernetesimal|' \
-                hack/e2e/kustomization.yaml
-              ;;
-            tracing)
-              printf 'tracing:\n  otelCollectorGRPCAddress: otel-collector.monitoring.svc:4317\n' \
-                >> config/manager/controller_manager_config.yaml
-              ;;
-            metrics)
-              sed -i 's|--metrics-bind-address=127.0.0.1:8080|--metrics-bind-address=:8080|' \
-                config/default/manager_config_patch.yaml
-              ;;
-          esac
-          git diff --stat
       # The runners offer hardware virtualization, but not to the user that the job runs as. See ADR 0003.
       - name: Make /dev/kvm usable
         run: |
