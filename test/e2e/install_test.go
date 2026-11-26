@@ -177,11 +177,10 @@ func TestInstall(t *testing.T) {
 		if err != nil {
 			t.Fatalf("applying the manifests a second time failed: %v\n%s", err, out)
 		}
-		for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
-			if !strings.HasSuffix(line, " unchanged") {
-				t.Errorf("applying the manifests a second time reported: %s", line)
-			}
-		}
+		// What kubectl prints does not tell: it reports an object as "configured" whenever it sends a patch, also
+		// when the patch changes nothing. It does so for the webhook configurations, whose rules the API server
+		// completes with defaults. The resource versions tell whether anything was written.
+		t.Logf("kubectl reported:\n%s", out)
 		if after := snapshot(); after != before {
 			t.Errorf("applying the manifests a second time changed objects.\nBefore:\n%s\nAfter:\n%s", before, after)
 		}
