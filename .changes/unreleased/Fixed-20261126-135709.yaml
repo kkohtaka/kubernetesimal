@@ -1,0 +1,3 @@
+kind: Fixed
+body: 'The install manifests give an operator that starts: the metrics proxy, whose image is no longer published, is gone, the operator gets 512Mi of memory instead of 30Mi, and the manifests name the published image on ghcr.io.'
+time: 2026-11-26T13:57:09.877326721Z

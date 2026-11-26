@@ -1,0 +1,3 @@
+kind: Changed
+body: The operator no longer sends traces unless it is given the address of a collector. The install manifests named a collector at otel-collector.monitoring.svc:4317 before.
+time: 2026-11-26T13:57:09.923767939Z

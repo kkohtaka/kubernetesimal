@@ -10,6 +10,9 @@ spec:
       - name: manager
         args:
         - "--config=controller_manager_config.yaml"
+        # Metrics are not exposed: nothing outside the Pod reaches the loopback address. The flag is needed
+        # although the configuration file says the same, because the flag's default wins over the file.
+        - "--metrics-bind-address=127.0.0.1:8080"
         volumeMounts:
         - name: manager-config
           mountPath: /controller_manager_config.yaml
