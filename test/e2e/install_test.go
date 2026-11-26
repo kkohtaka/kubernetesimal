@@ -271,9 +271,15 @@ func TestMetricsAreNotExposed(t *testing.T) {
 		}
 
 		name := fmt.Sprintf("metrics-client-%d", time.Now().Unix())
-		out := mustOutput(t, kubectl("-n", scratchNamespace, "run", name, "--image", clientImage,
-			"--restart=Never", "--rm", "--attach", "--quiet", "--pod-running-timeout=5m",
-			"--command", "--", "sh", "-c", script.String()))
+		// The log is read after the client has finished: attaching to it loses the end of what it prints.
+		mustOutput(t, kubectl("-n", scratchNamespace, "run", name, "--image", clientImage,
+			"--restart=Never", "--command", "--", "sh", "-c", script.String()))
+		t.Cleanup(func() {
+			_, _ = output(kubectl("-n", scratchNamespace, "delete", "pod", name, "--wait=false"))
+		})
+		mustOutput(t, kubectl("-n", scratchNamespace, "wait", "pod", name,
+			"--for=jsonpath={.status.phase}=Succeeded", "--timeout=10m"))
+		out := mustOutput(t, kubectl("-n", scratchNamespace, "logs", name, "--tail=-1"))
 		t.Logf("the client reported:\n%s", out)
 
 		for _, url := range healthz {
