@@ -52,7 +52,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       # The image is published before the release, so that a release never refers to an image that does not exist.
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         if: ${{ steps.version.outputs.version != '' }}
         with:
           context: .
