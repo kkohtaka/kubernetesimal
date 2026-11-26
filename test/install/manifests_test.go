@@ -33,7 +33,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -49,36 +48,31 @@ const (
 	repositoryRoot = "../.."
 	operatorImage  = "ghcr.io/kkohtaka/kubernetesimal/kubernetesimal"
 	managerName    = "manager"
+	// releaseVersion is a version that no release is going to have.
+	releaseVersion = "v98.76.54"
 )
 
-// kubectl returns the path of the kubectl that renders the manifests. The assets of envtest contain one, so that
-// the tests need nothing that 'make test' does not already install.
-func kubectl(t *testing.T) string {
+// useKubectl puts the kubectl of envtest's assets first in PATH, so that the tests need nothing that 'make test'
+// does not already install. Without the assets, the kubectl that is in PATH already is used.
+func useKubectl(t *testing.T) {
 	t.Helper()
 	if assets := os.Getenv("KUBEBUILDER_ASSETS"); assets != "" {
-		path := filepath.Join(assets, "kubectl")
-		if _, err := os.Stat(path); err == nil {
-			return path
-		}
+		t.Setenv("PATH", assets+string(os.PathListSeparator)+os.Getenv("PATH"))
 	}
-	path, err := exec.LookPath("kubectl")
-	if err != nil {
+	if _, err := exec.LookPath("kubectl"); err != nil {
 		t.Fatalf("kubectl is neither in KUBEBUILDER_ASSETS nor in PATH: %v", err)
 	}
-	return path
 }
 
 // run executes a command in the root of the repository and returns what it wrote to stdout and to stderr.
-func run(t *testing.T, env []string, name string, args ...string) (string, string) {
+func run(t *testing.T, cmd *exec.Cmd) (string, string) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
-	cmd := exec.Command(name, args...)
 	cmd.Dir = repositoryRoot
-	cmd.Env = append(os.Environ(), env...)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("%s %s failed: %v\n%s", name, strings.Join(args, " "), err, stderr.String())
+		t.Fatalf("%s failed: %v\n%s", strings.Join(cmd.Args, " "), err, stderr.String())
 	}
 	return stdout.String(), stderr.String()
 }
@@ -108,15 +102,16 @@ func parse(t *testing.T, manifests string) []unstructured.Unstructured {
 // warnings that rendering printed.
 func repositoryManifests(t *testing.T) ([]unstructured.Unstructured, string) {
 	t.Helper()
-	stdout, stderr := run(t, nil, kubectl(t), "kustomize", "config/default")
+	useKubectl(t)
+	stdout, stderr := run(t, exec.Command("kubectl", "kustomize", "config/default"))
 	return parse(t, stdout), stderr
 }
 
-// releaseManifests renders the install.yaml of the given version, the way the release workflow does.
-func releaseManifests(t *testing.T, version string) []unstructured.Unstructured {
+// releaseManifests renders the install.yaml of the version releaseVersion, the way the release workflow does.
+func releaseManifests(t *testing.T) []unstructured.Unstructured {
 	t.Helper()
-	path := "PATH=" + filepath.Dir(kubectl(t)) + string(os.PathListSeparator) + os.Getenv("PATH")
-	stdout, _ := run(t, []string{path}, "hack/release/manifest.sh", version)
+	useKubectl(t)
+	stdout, _ := run(t, exec.Command("hack/release/manifest.sh", releaseVersion))
 	return parse(t, stdout)
 }
 
@@ -208,9 +203,8 @@ func TestImage(t *testing.T) {
 
 	t.Run("[INST-004] the install.yaml of a release names the operator image with the tag of the release",
 		func(t *testing.T) {
-			const version = "v98.76.54"
-			image := manager(t, releaseManifests(t, version)).Image
-			if want := operatorImage + ":" + version; image != want {
+			image := manager(t, releaseManifests(t)).Image
+			if want := operatorImage + ":" + releaseVersion; image != want {
 				t.Errorf("the operator runs the image %q, want %q", image, want)
 			}
 		})
@@ -229,8 +223,8 @@ func TestRenderedManifests(t *testing.T) {
 	})
 
 	t.Run("the release names no image but the operator's", func(t *testing.T) {
-		for _, container := range containers(t, releaseManifests(t, "v98.76.54")) {
-			if want := operatorImage + ":v98.76.54"; container.Image != want {
+		for _, container := range containers(t, releaseManifests(t)) {
+			if want := operatorImage + ":" + releaseVersion; container.Image != want {
 				t.Errorf("container %q runs the image %q, want %q", container.Name, container.Image, want)
 			}
 		}
