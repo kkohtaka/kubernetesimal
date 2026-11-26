@@ -45,7 +45,7 @@ jobs:
             exit 0
           fi
           echo "version=${version}" >> "$GITHUB_OUTPUT"
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         if: ${{ steps.version.outputs.version != '' }}
         with:
           registry: ghcr.io
