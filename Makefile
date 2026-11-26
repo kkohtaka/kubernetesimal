@@ -103,6 +103,13 @@ spec-check: ## Check that the requirements in docs/specs are traceable to tests.
 test: manifests generate fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverpkg=./... -coverprofile cover.out
 
+# E2E_RUN selects the end-to-end tests to run, as a pattern for 'go test -run'. All of them run when it is empty.
+E2E_RUN ?=
+
+.PHONY: e2e
+e2e: ## Run the end-to-end tests. They install the operator into the cluster of the current kubeconfig: see hack/e2e/cluster.sh.
+	go test -tags e2e -count=1 -timeout 60m -v ./test/e2e/... $(if $(E2E_RUN),-run '$(E2E_RUN)')
+
 ##@ Release
 
 # VERSION is the version that 'make release-prepare' creates: a version such as v0.2.0, or "auto" to derive it from

@@ -1,0 +1,12 @@
+# What the end-to-end tests apply: config/default, with the image that was built in the test run. That image is
+# loaded into the cluster and exists in no registry. Nothing else may differ from what users install.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ../../config/default
+
+images:
+- name: ghcr.io/kkohtaka/kubernetesimal/kubernetesimal
+  newName: kubernetesimal
+  newTag: e2e
