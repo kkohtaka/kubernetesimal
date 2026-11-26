@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # The full history is needed to find the merge base with the main branch.
           fetch-depth: 0
@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # The full history is needed to find the merge base with the main branch.
           fetch-depth: 0
@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
@@ -100,7 +100,7 @@ jobs:
 
     # The image is only built here, to show that it still builds. Images are published by the release workflow.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: docker/build-push-action@v7
         with:
           context: .

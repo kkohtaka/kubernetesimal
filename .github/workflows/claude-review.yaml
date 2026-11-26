@@ -39,7 +39,7 @@ jobs:
         if: ${{ env.CLAUDE_CODE_OAUTH_TOKEN == '' }}
         run: |
           echo "::notice::The claude-review environment has no CLAUDE_CODE_OAUTH_TOKEN secret, so the review is skipped."
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: ${{ env.CLAUDE_CODE_OAUTH_TOKEN != '' }}
         with:
           # The full history is needed to compare with the base branch.
