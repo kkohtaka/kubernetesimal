@@ -1,16 +1,70 @@
+# What Dependabot proposes, and what is done with its pull requests and alerts, is decided in
+# docs/adr/0004-dependency-updates-and-vulnerability-alerts.md.
+#
+# The "ignore" rules below name update types on purpose: such rules do not affect security updates.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: daily
+      interval: weekly
+    groups:
+      actions:
+        patterns:
+          - "*"
 
   - package-ecosystem: gomod
     directory: /
     schedule:
-      interval: daily
+      interval: weekly
+    # These modules either move together or need a newer Go than go.mod declares, and a pull request that raises the
+    # Go version does not pass CI. They are updated by hand in the planned dependency update. Remove these rules, and
+    # group the families instead, when that update is done.
+    ignore:
+      - dependency-name: "k8s.io/*"
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+          - version-update:semver-patch
+      - dependency-name: "sigs.k8s.io/controller-runtime"
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+          - version-update:semver-patch
+      - dependency-name: "kubevirt.io/*"
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+          - version-update:semver-patch
+      - dependency-name: "go.opentelemetry.io/*"
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+          - version-update:semver-patch
+      - dependency-name: "github.com/onsi/*"
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+          - version-update:semver-patch
+      - dependency-name: "golang.org/x/*"
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+          - version-update:semver-patch
+      - dependency-name: "google.golang.org/grpc"
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+          - version-update:semver-patch
 
   - package-ecosystem: docker
     directory: /
     schedule:
-      interval: daily
+      interval: weekly
+    # The Go version of the builder image changes together with the one in go.mod, by hand.
+    ignore:
+      - dependency-name: "golang"
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+          - version-update:semver-patch

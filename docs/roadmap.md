@@ -34,6 +34,8 @@ Remaining:
 - Update the dependencies: Kubernetes libraries, controller-runtime, KubeVirt, OpenTelemetry, Ginkgo v2, and Go
   itself. **This waits for the tests of M1**, which are the safety net for it. Until then the code has reachable
   known vulnerabilities, and the vulnerability check reports without failing the build.
+  [ADR 0004](adr/0004-dependency-updates-and-vulnerability-alerts.md) says what happens to Dependabot's pull requests
+  and alerts in the meantime, and which exceptions in its configuration this update removes.
 - Write a README that explains what the project is and how to try it.
 - Cut the first release. This waits for M1 as well: the install manifests do not work as they are, and on a stock
   cluster the `Etcd` object never becomes ready.
