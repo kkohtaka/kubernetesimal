@@ -537,7 +537,7 @@ var _ = Describe("An etcd cluster", func() {
 			Consistently(reconciledStatus(ctx, e), 3*time.Second, time.Second).Should(haveReadyReplicas(3))
 		})
 
-		It("[ETCD-043] reports the phase Deleting once its deletion is requested", func() {
+		It("[ETCD-043] reports the phase Deleting once its deletion is requested, when it has not been ready", func() {
 			e := newEtcd(ctx, namespace)
 			waitForNode(ctx, namespace)
 
@@ -547,7 +547,7 @@ var _ = Describe("An etcd cluster", func() {
 				Should(HaveField("Phase", kubernetesimalv1alpha1.EtcdPhaseDeleting))
 		})
 
-		It("[ETCD-044] reports the phase Running when it is ready and all members are", func() {
+		It("[ETCD-043] [ETCD-044] reports Running when it is ready and all members are, and Deleting once deleted", func() {
 			e := newEtcd(ctx, namespace)
 			node, address := waitForNode(ctx, namespace)
 			memberAddress := fmt.Sprintf("%s:2379", address)
@@ -561,9 +561,17 @@ var _ = Describe("An etcd cluster", func() {
 				HaveField("ReadyReplicas", int32(1)),
 				HaveField("Phase", kubernetesimalv1alpha1.EtcdPhaseRunning),
 			))
+
+			By("requesting the deletion of an object whose phase would be Running")
+			Expect(k8sClient.Delete(ctx, e)).To(Succeed())
+
+			Eventually(etcdStatus(ctx, e), timeout, interval).Should(SatisfyAll(
+				haveReady(corev1.ConditionTrue),
+				HaveField("Phase", kubernetesimalv1alpha1.EtcdPhaseDeleting),
+			))
 		})
 
-		It("[ETCD-045] reports the phase Error when all members are ready and it is not", func() {
+		It("[ETCD-043] [ETCD-045] reports Error when all members are ready and it is not, and Deleting once deleted", func() {
 			e := newEtcd(ctx, namespace)
 			_, address := waitForNode(ctx, namespace)
 
@@ -573,6 +581,14 @@ var _ = Describe("An etcd cluster", func() {
 				haveReady(corev1.ConditionFalse),
 				HaveField("ReadyReplicas", int32(1)),
 				HaveField("Phase", kubernetesimalv1alpha1.EtcdPhaseError),
+			))
+
+			By("requesting the deletion of an object whose phase would be Error")
+			Expect(k8sClient.Delete(ctx, e)).To(Succeed())
+
+			Eventually(etcdStatus(ctx, e), timeout, interval).Should(SatisfyAll(
+				haveReady(corev1.ConditionFalse),
+				HaveField("Phase", kubernetesimalv1alpha1.EtcdPhaseDeleting),
 			))
 		})
 
