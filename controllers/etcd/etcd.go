@@ -31,25 +31,17 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
-	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.opentelemetry.io/otel/trace"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
+	"github.com/kkohtaka/kubernetesimal/etcdclient"
 	k8s_secret "github.com/kkohtaka/kubernetesimal/k8s/secret"
 	k8s_service "github.com/kkohtaka/kubernetesimal/k8s/service"
-	"github.com/kkohtaka/kubernetesimal/net/http"
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
-)
-
-const (
-	defaultRequestTimeout = 5 * time.Second
-
-	defaultMemberStatusTimeout = time.Second
 )
 
 func getEtcdTLSConfig(
@@ -140,6 +132,7 @@ func getEtcdTLSConfig(
 func probeEtcd(
 	ctx context.Context,
 	c client.Client,
+	etcd etcdclient.Interface,
 	obj client.Object,
 	_ *kubernetesimalv1alpha1.EtcdSpec,
 	status *kubernetesimalv1alpha1.EtcdStatus,
@@ -167,10 +160,7 @@ func probeEtcd(
 		return false, "", fmt.Errorf("unable to get a TLS config for an etcd cluster: %w", err)
 	}
 
-	probed, err := http.NewProber(
-		fmt.Sprintf("https://%s/health", address),
-		http.WithTLSConfig(tlsConfig),
-	).Once(ctx)
+	probed, err := etcd.Health(ctx, address, tlsConfig)
 	if err != nil {
 		return false, "", err
 	}
@@ -180,6 +170,7 @@ func probeEtcd(
 func probeEtcdMembers(
 	ctx context.Context,
 	c client.Client,
+	etcd etcdclient.Interface,
 	obj client.Object,
 	_ *kubernetesimalv1alpha1.EtcdSpec,
 	status *kubernetesimalv1alpha1.EtcdStatus,
@@ -207,23 +198,11 @@ func probeEtcdMembers(
 		return false, "", fmt.Errorf("unable to get a TLS config for an etcd cluster: %w", err)
 	}
 
-	client, err := clientv3.New(clientv3.Config{
-		Endpoints: []string{
-			fmt.Sprintf("https://%s", address),
-		},
-		TLS: tlsConfig,
-	})
+	// The etcd client words its own errors, so that the message in the status says which step failed.
+	members, err := etcd.MemberList(ctx, address, tlsConfig)
 	if err != nil {
-		return false, "", fmt.Errorf("unable to create an etcd client: %w", err)
+		return false, "", err
 	}
-
-	listMemberCtx, listMemberCancel := context.WithTimeout(ctx, defaultRequestTimeout)
-	resp, err := client.MemberList(listMemberCtx)
-	listMemberCancel()
-	if err != nil {
-		return false, "", fmt.Errorf("unable to list etcd members: %w", err)
-	}
-	logger.V(4).Info("List etcd members.", "members", resp.Members)
 
 	nodes, err := getComponentEtcdNodes(ctx, c, obj)
 	if err != nil {
@@ -236,30 +215,13 @@ func probeEtcdMembers(
 	}
 
 members:
-	for _, member := range resp.Members {
+	for _, member := range members {
 		if _, ok := probed[member.Name]; !ok {
 			return false, fmt.Sprintf("a member %q is not listed", member.Name), nil
 		}
 
-		for _, url := range member.GetClientURLs() {
-			if ok := func(u string) bool {
-				c, err := clientv3.New(clientv3.Config{
-					Endpoints: []string{u},
-					TLS:       tlsConfig,
-				})
-				if err != nil {
-					logger.Error(err, "Creating an etcd client to check member's health was failed.")
-					return false
-				}
-
-				statusCtx, statusCancel := context.WithTimeout(ctx, defaultMemberStatusTimeout)
-				defer statusCancel()
-				if _, err := c.Status(statusCtx, u); err != nil {
-					logger.V(4).Error(err, "Checking a status of an etcd member was failed.")
-					return false
-				}
-				return true
-			}(url); ok {
+		for _, url := range member.ClientURLs {
+			if err := etcd.MemberStatus(ctx, url, tlsConfig); err == nil {
 				logger.V(4).Info("Succeeded in probing an URL", "url", url)
 				probed[member.Name] = true
 				continue members

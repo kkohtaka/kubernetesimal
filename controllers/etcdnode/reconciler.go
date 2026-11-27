@@ -47,12 +47,21 @@ import (
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
 )
 
+// CommandRunner runs a command on the virtual machine of an etcd member. It returns an *ssh.ConnectError when the
+// machine could not be reached, and another error when the command ran and failed.
+type CommandRunner interface {
+	Run(ctx context.Context, privateKey []byte, address string, port int, command string) error
+}
+
 // Reconciler reconciles a EtcdNode object
 type Reconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
 	Tracer trace.Tracer
+
+	// CommandRunner is how the reconciler reaches the virtual machines of etcd members.
+	CommandRunner CommandRunner
 }
 
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcdnodes,verbs=get;list;watch;create;update;patch;delete
@@ -157,7 +166,7 @@ func (r *Reconciler) finalizeExternalResources(
 	ctx, span = tracing.FromContext(ctx).Start(ctx, "finalizeExternalResources")
 	defer span.End()
 
-	if newStatus, err := finalizeEtcdMember(ctx, r.Client, obj, spec, status); err != nil {
+	if newStatus, err := finalizeEtcdMember(ctx, r.Client, r.CommandRunner, obj, spec, status); err != nil {
 		return newStatus, err
 	} else {
 		status = newStatus
@@ -202,7 +211,7 @@ func (r *Reconciler) reconcileExternalResources(
 	}
 
 	if !status.IsProvisioned() {
-		if err := provisionEtcdMember(ctx, r.Client, obj, spec, status); err != nil {
+		if err := provisionEtcdMember(ctx, r.Client, r.CommandRunner, obj, spec, status); err != nil {
 			status.WithProvisioned(false, err.Error()).DeepCopyInto(status)
 			return status, fmt.Errorf("unable to provision an etcd member: %w", err)
 		}

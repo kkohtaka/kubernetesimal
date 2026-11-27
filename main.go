@@ -49,7 +49,9 @@ import (
 	"github.com/kkohtaka/kubernetesimal/controllers/etcdnode"
 	"github.com/kkohtaka/kubernetesimal/controllers/etcdnodedeployment"
 	"github.com/kkohtaka/kubernetesimal/controllers/etcdnodeset"
+	"github.com/kkohtaka/kubernetesimal/etcdclient"
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
+	"github.com/kkohtaka/kubernetesimal/ssh"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -146,6 +148,8 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Tracer: provider.Tracer("etcd-prober"),
+
+		EtcdClient: etcdclient.New(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create prober", "prober", "Etcd")
 		os.Exit(1)
@@ -158,6 +162,8 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Tracer: provider.Tracer("etcdnode-controller"),
+
+		CommandRunner: ssh.NewRunner(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "EtcdNode")
 		os.Exit(1)
@@ -166,6 +172,8 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Tracer: provider.Tracer("etcdnode-prober"),
+
+		EtcdClient: etcdclient.New(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create prober", "prober", "EtcdNode")
 		os.Exit(1)

@@ -39,6 +39,7 @@ import (
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 	"github.com/kkohtaka/kubernetesimal/controller/errors"
+	"github.com/kkohtaka/kubernetesimal/etcdclient"
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
 )
 
@@ -48,6 +49,9 @@ type Prober struct {
 	Scheme *runtime.Scheme
 
 	Tracer trace.Tracer
+
+	// EtcdClient is how the prober talks to the etcd member.
+	EtcdClient etcdclient.Interface
 }
 
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcdnodes,verbs=get;list;watch
@@ -122,7 +126,7 @@ func (r *Prober) doReconcile(
 		}
 	}
 
-	if probed, err := probeEtcdMember(ctx, r.Client, obj, spec, status); err != nil {
+	if probed, err := probeEtcdMember(ctx, r.Client, r.EtcdClient, obj, spec, status); err != nil {
 		status.WithReady(false, err.Error()).DeepCopyInto(status)
 		return status, fmt.Errorf("unable to probe an etcd member: %w", err)
 	} else {
