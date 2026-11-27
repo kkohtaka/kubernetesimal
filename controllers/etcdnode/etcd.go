@@ -28,6 +28,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	stderrors "errors"
 	"fmt"
 	"time"
 
@@ -41,16 +42,30 @@ import (
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
 	"github.com/kkohtaka/kubernetesimal/controller/errors"
+	"github.com/kkohtaka/kubernetesimal/etcdclient"
 	k8s_secret "github.com/kkohtaka/kubernetesimal/k8s/secret"
 	k8s_service "github.com/kkohtaka/kubernetesimal/k8s/service"
-	"github.com/kkohtaka/kubernetesimal/net/http"
 	"github.com/kkohtaka/kubernetesimal/observability/tracing"
 	"github.com/kkohtaka/kubernetesimal/ssh"
 )
 
+const (
+	startClusterCommand = "sudo /opt/bin/start-cluster.sh"
+	joinClusterCommand  = "sudo /opt/bin/join-cluster.sh"
+	leaveClusterCommand = "sudo /opt/bin/leave-cluster.sh"
+)
+
+// newUnreachableError turns a failure to connect to the machine of a member into an error that is tried again.
+func newUnreachableError(err error) *errors.RequeueError {
+	return errors.NewRequeueError("waiting for an SSH port of an etcd member prepared").
+		Wrap(err).
+		WithDelay(5 * time.Second)
+}
+
 func provisionEtcdMember(
 	ctx context.Context,
 	c client.Client,
+	runner CommandRunner,
 	obj client.Object,
 	spec *kubernetesimalv1alpha1.EtcdNodeSpec,
 	status *kubernetesimalv1alpha1.EtcdNodeStatus,
@@ -121,22 +136,16 @@ func provisionEtcdMember(
 		return errors.NewRequeueError("waiting for an SSH port of the etcd peer Service prepared").Wrap(err)
 	}
 
-	client, closer, err := ssh.StartSSHConnection(ctx, privateKey, peerService.Spec.ClusterIP, int(port))
-	if err != nil {
-		return errors.NewRequeueError("waiting for an SSH port of an etcd member prepared").
-			Wrap(err).
-			WithDelay(5 * time.Second)
-	}
-	defer closer()
-
+	command := joinClusterCommand
 	if spec.AsFirstNode {
-		if err := ssh.RunCommandOverSSHSession(ctx, client, "sudo /opt/bin/start-cluster.sh"); err != nil {
-			return err
+		command = startClusterCommand
+	}
+	if err := runner.Run(ctx, privateKey, peerService.Spec.ClusterIP, int(port), command); err != nil {
+		var connectErr *ssh.ConnectError
+		if stderrors.As(err, &connectErr) {
+			return newUnreachableError(err)
 		}
-	} else {
-		if err := ssh.RunCommandOverSSHSession(ctx, client, "sudo /opt/bin/join-cluster.sh"); err != nil {
-			return err
-		}
+		return err
 	}
 
 	return nil
@@ -145,6 +154,7 @@ func provisionEtcdMember(
 func probeEtcdMember(
 	ctx context.Context,
 	c client.Client,
+	etcd etcdclient.Interface,
 	obj client.Object,
 	spec *kubernetesimalv1alpha1.EtcdNodeSpec,
 	status *kubernetesimalv1alpha1.EtcdNodeStatus,
@@ -214,21 +224,23 @@ func probeEtcdMember(
 		return false, fmt.Errorf("unable to load a client certificate: %w", err)
 	}
 
-	return http.NewProber(
-		fmt.Sprintf("https://%s/health", address),
-		http.WithTLSConfig(&tls.Config{
+	return etcd.Health(
+		ctx,
+		address,
+		&tls.Config{
 			Certificates: []tls.Certificate{
 				certificate,
 			},
 			RootCAs:            rootCAs,
 			InsecureSkipVerify: true,
-		}),
-	).Once(ctx)
+		},
+	)
 }
 
 func finalizeEtcdMember(
 	ctx context.Context,
 	c client.Client,
+	runner CommandRunner,
 	obj client.Object,
 	spec *kubernetesimalv1alpha1.EtcdNodeSpec,
 	status *kubernetesimalv1alpha1.EtcdNodeStatus,
@@ -301,16 +313,11 @@ func finalizeEtcdMember(
 		}
 	}
 
-	client, closer, err := ssh.StartSSHConnection(ctx, privateKey, peerService.Spec.ClusterIP, int(port))
-	if err != nil {
-		err = errors.NewRequeueError("waiting for an SSH port of an etcd member prepared").
-			Wrap(err).
-			WithDelay(5 * time.Second)
-		return status.WithMemberFinalized(false, err.Error()), err
-	}
-	defer closer()
-
-	if err := ssh.RunCommandOverSSHSession(ctx, client, "sudo /opt/bin/leave-cluster.sh"); err != nil {
+	if err := runner.Run(ctx, privateKey, peerService.Spec.ClusterIP, int(port), leaveClusterCommand); err != nil {
+		var connectErr *ssh.ConnectError
+		if stderrors.As(err, &connectErr) {
+			err = newUnreachableError(err)
+		}
 		return status.WithMemberFinalized(false, err.Error()), err
 	}
 	logger.Info("An etcd member was finalized successfully.")
