@@ -84,7 +84,7 @@ func newEtcd(
 		Spec: kubernetesimalv1alpha1.EtcdSpec{
 			Version:                       &version,
 			Replicas:                      &replicas,
-			ImagePersistentVolumeClaimRef: corev1.LocalObjectReference{Name: bootImage},
+			ImagePersistentVolumeClaimRef: kubernetesimalv1alpha1.LocalPersistentVolumeClaimReference{Name: bootImage},
 		},
 	}
 	for _, change := range changes {

@@ -58,16 +58,13 @@ spec:
                   to boot VirtualMachines.
                 properties:
                   name:
-                    description: |-
-                      Name of the referent.
-                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                      TODO: Add other useful fields. apiVersion, kind, uid?
+                    description: Name is the name of the PersistentVolumeClaim.
+                    minLength: 1
                     type: string
+                required:
+                - name
                 type: object
                 x-kubernetes-map-type: atomic
-                x-kubernetes-validations:
-                - message: name is required and must not be empty
-                  rule: has(self.name) && self.name != ''
               loginPasswordSecretKeySelector:
                 description: |-
                   LoginPasswordSecretKeySelector is a selector for a Secret key that holds a password used as a login password of

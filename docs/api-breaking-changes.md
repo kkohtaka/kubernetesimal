@@ -33,11 +33,11 @@ from the admission webhook into the schema, and tightens the validation while do
   The version has to be of the form `MAJOR.MINOR.PATCH` (ETCD-003). The webhook accepted every semantic version,
   including ones with a pre-release or build suffix such as `3.6.0-rc.1`, which no longer are. Existing objects with
   such a version have to name a release version before upgrading.
-- `etcds.kubernetesimal.kkohtaka.org/v1alpha1: .spec.imagePersistentVolumeClaimRef` gets the rule
-  `has(self.name) && self.name != ''`: The name of the image is required and must not be empty (ETCD-004).
-  `make api-check` does not report this change, because it does not compare validation rules. The webhook already
-  refused such an object when it was updated, but not when it was created, and an object that was created this way
-  could never be updated. Existing objects without a name have to be deleted.
+- `etcds.kubernetesimal.kkohtaka.org/v1alpha1: .spec.imagePersistentVolumeClaimRef.name: became required`: The name
+  of the image is required and, which `make api-check` does not report, must be at least one character long
+  (ETCD-004). The webhook already refused an object without a name when it was updated, but not when it was created,
+  and an object that was created this way could never be updated. Existing objects without a name have to be
+  deleted.
 
 The admission webhook of the `Etcd` kind is removed with this change. An installation that still has the
 `MutatingWebhookConfiguration` and the `ValidatingWebhookConfiguration` of the operator has to delete them: they
