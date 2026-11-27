@@ -121,8 +121,8 @@ func operatorLog(t *testing.T) string {
 	return log.String()
 }
 
-// TestInstall installs the operator. The cluster is a fresh one, except that it has cert-manager, which the
-// manifests still need: INST-002 is not met yet.
+// TestInstall installs the operator into a fresh cluster. hack/e2e/cluster.sh gives the cluster a network plugin and
+// KubeVirt, and nothing else.
 func TestInstall(t *testing.T) {
 	t.Run("[INST-003] every image that the manifests name can be pulled without credentials", func(t *testing.T) {
 		rendered := mustOutput(t, kubectl("kustomize", repositoryManifests))
@@ -158,14 +158,43 @@ func TestInstall(t *testing.T) {
 			}
 		})
 
+	t.Run("[INST-002] the operator is available in a cluster that has no cert-manager", func(t *testing.T) {
+		// Whatever the manifests needed of cert-manager, they would need its kinds.
+		groups := mustOutput(t, kubectl("get", "customresourcedefinitions", "-o",
+			`jsonpath={range .items[*]}{.spec.group}{"\n"}{end}`))
+		if strings.TrimSpace(groups) == "" {
+			t.Fatal("the cluster has no CustomResourceDefinitions, not even the operator's")
+		}
+		for _, group := range strings.Fields(groups) {
+			if group == "cert-manager.io" || strings.HasSuffix(group, ".cert-manager.io") {
+				t.Errorf("the cluster has cert-manager: it serves the API group %q", group)
+			}
+		}
+		if out, err := output(kubectl("get", "namespace", "cert-manager")); err == nil {
+			t.Errorf("the cluster has cert-manager: it has the namespace\n%s", out)
+		}
+
+		// The Deployment may have become available for a moment and stopped. It has to be available now, with
+		// every replica ready, and every object of the manifests has to exist.
+		out, err := output(kubectl("-n", operatorNamespace, "wait", "deployment", operatorDeployment,
+			"--for=condition=Available", "--timeout=60s"))
+		if err != nil {
+			t.Fatalf("the Deployment of the operator is not available: %v\n%s", err, out)
+		}
+		if out, err := output(kubectl("get", "-k", manifests, "-o", "name")); err != nil {
+			t.Errorf("not every object of the manifests exists: %v\n%s", err, out)
+		}
+	})
+
 	t.Run("[INST-009] applying the manifests a second time changes nothing and succeeds", func(t *testing.T) {
 		snapshot := func() string {
 			// The resource version of an object changes with every write to it, by anyone.
 			return mustOutput(t, kubectl("get", "-k", manifests, "-o",
 				`jsonpath={range .items[*]}{.kind}/{.metadata.name} {.metadata.resourceVersion}{"\n"}{end}`))
 		}
-		// cert-manager writes the certificate authority into the webhook configurations after the first apply.
-		// Wait until the objects are at rest, so that a change can only come from applying again.
+		// Controllers of the cluster may still write to the objects after the first apply, as the one that fills in
+		// the status of a Deployment does. Wait until the objects are at rest, so that a change can only come from
+		// applying again.
 		before := snapshot()
 		for rest := time.Now(); time.Since(rest) < 30*time.Second; time.Sleep(5 * time.Second) {
 			if now := snapshot(); now != before {
@@ -178,8 +207,7 @@ func TestInstall(t *testing.T) {
 			t.Fatalf("applying the manifests a second time failed: %v\n%s", err, out)
 		}
 		// What kubectl prints does not tell: it reports an object as "configured" whenever it sends a patch, also
-		// when the patch changes nothing. It does so for the webhook configurations, whose rules the API server
-		// completes with defaults. The resource versions tell whether anything was written.
+		// when the patch changes nothing. The resource versions tell whether anything was written.
 		t.Logf("kubectl reported:\n%s", out)
 		if after := snapshot(); after != before {
 			t.Errorf("applying the manifests a second time changed objects.\nBefore:\n%s\nAfter:\n%s", before, after)
