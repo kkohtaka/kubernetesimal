@@ -1,0 +1,28 @@
+# A stand-in for the VirtualMachineInstance CRD of KubeVirt, for envtest.
+#
+# KubeVirt does not publish its CRDs as files: its operator creates them at run time. The tests only need the API
+# server to store the objects that the operator creates, and to let the fake KubeVirt of the test suite write their
+# status. The schema therefore accepts anything.
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: virtualmachineinstances.kubevirt.io
+spec:
+  group: kubevirt.io
+  names:
+    kind: VirtualMachineInstance
+    listKind: VirtualMachineInstanceList
+    plural: virtualmachineinstances
+    singular: virtualmachineinstance
+    shortNames:
+      - vmi
+      - vmis
+  scope: Namespaced
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
