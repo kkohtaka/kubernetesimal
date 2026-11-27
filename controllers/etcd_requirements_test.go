@@ -31,6 +31,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -315,39 +316,66 @@ var _ = Describe("An etcd cluster", func() {
 			version := "3.5.6"
 			current.Spec.Version = &version
 			Expect(k8sClient.Patch(ctx, &current, patch)).To(Succeed())
+			// Nothing in the status of the Etcd object shows the version. The template of the members does, in
+			// the object through which the operator manages them, and it changes when the operator has reconciled.
+			Eventually(func() (string, error) {
+				var deployment kubernetesimalv1alpha1.EtcdNodeDeployment
+				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(e), &deployment)
+				return deployment.Spec.Template.Spec.Version, err
+			}, timeout, interval).Should(Equal("3.5.6"))
+			Expect(contents()).To(Equal(before))
 
-			Consistently(contents, 5*time.Second, interval).Should(Equal(before))
+			Consistently(contents, 3*time.Second, interval).Should(Equal(before))
 		})
 	})
 
 	Describe("virtual machines", func() {
-		It("[ETCD-022] boots a member from a copy of the image, which it does not write to", func() {
-			newEtcd(ctx, namespace)
-			node, _ := waitForNode(ctx, namespace)
-			vmi := getVirtualMachine(ctx, node)
+		It("[ETCD-022] boots members from a copy of the image, which they share and do not write to", func() {
+			e := newEtcd(ctx, namespace)
+			node, address := waitForNode(ctx, namespace)
+			memberAddress := fmt.Sprintf("%s:2379", address)
 
-			// An ephemeral volume is KubeVirt's copy-on-write layer over a PersistentVolumeClaim: the virtual machine
-			// boots from the image and writes to a local file, so that the claim is not changed and can be shared.
-			var imageVolumes []string
-			for _, volume := range vmi.Spec.Volumes {
-				Expect(volume.PersistentVolumeClaim).To(BeNil(), "volume %q attaches a claim directly", volume.Name)
-				Expect(volume.DataVolume).To(BeNil(), "volume %q attaches a data volume directly", volume.Name)
-				if volume.Ephemeral == nil {
-					continue
+			// A cluster that has been ready gets a second member, see the known limitations of the specification.
+			// The virtual machines of both then exist at the same time.
+			answerForMember(memberAddress)
+			Eventually(nodeStatus(ctx, node), timeout, interval).
+				Should(WithTransform((*kubernetesimalv1alpha1.EtcdNodeStatus).IsReady, BeTrue()))
+			answerForCluster(node, memberAddress, getClusterAddress(ctx, e))
+
+			var vmis kubevirtv1.VirtualMachineInstanceList
+			Eventually(func() ([]kubevirtv1.VirtualMachineInstance, error) {
+				err := k8sClient.List(ctx, &vmis, client.InNamespace(namespace))
+				return vmis.Items, err
+			}, timeout, interval).Should(HaveLen(2))
+
+			for i := range vmis.Items {
+				vmi := &vmis.Items[i]
+				Expect(vmi.DeletionTimestamp).To(BeNil(), "virtual machine %q is being deleted", vmi.Name)
+
+				// An ephemeral volume is KubeVirt's copy-on-write layer over a PersistentVolumeClaim: the virtual
+				// machine boots from the image and writes to a local file. The claim is mounted read-only, so it
+				// is not changed, and several virtual machines can use it.
+				var imageVolumes []string
+				for _, volume := range vmi.Spec.Volumes {
+					Expect(volume.PersistentVolumeClaim).To(BeNil(), "volume %q attaches a claim directly", volume.Name)
+					Expect(volume.DataVolume).To(BeNil(), "volume %q attaches a data volume directly", volume.Name)
+					if volume.Ephemeral == nil {
+						continue
+					}
+					Expect(volume.Ephemeral.PersistentVolumeClaim).NotTo(BeNil())
+					Expect(volume.Ephemeral.PersistentVolumeClaim.ClaimName).To(Equal(bootImage))
+					Expect(volume.Ephemeral.PersistentVolumeClaim.ReadOnly).To(BeTrue())
+					imageVolumes = append(imageVolumes, volume.Name)
 				}
-				Expect(volume.Ephemeral.PersistentVolumeClaim).NotTo(BeNil())
-				Expect(volume.Ephemeral.PersistentVolumeClaim.ClaimName).To(Equal(bootImage))
-				Expect(volume.Ephemeral.PersistentVolumeClaim.ReadOnly).To(BeTrue())
-				imageVolumes = append(imageVolumes, volume.Name)
-			}
-			Expect(imageVolumes).To(HaveLen(1))
+				Expect(imageVolumes).To(HaveLen(1), "virtual machine %q", vmi.Name)
 
-			// KubeVirt boots from the first disk, unless a disk is given a boot order.
-			disks := vmi.Spec.Domain.Devices.Disks
-			Expect(disks).NotTo(BeEmpty())
-			Expect(disks[0].Name).To(Equal(imageVolumes[0]))
-			for _, disk := range disks {
-				Expect(disk.BootOrder).To(BeNil())
+				// KubeVirt boots from the first disk, unless a disk is given a boot order.
+				disks := vmi.Spec.Domain.Devices.Disks
+				Expect(disks).NotTo(BeEmpty())
+				Expect(disks[0].Name).To(Equal(imageVolumes[0]))
+				for _, disk := range disks {
+					Expect(disk.BootOrder).To(BeNil())
+				}
 			}
 		})
 
@@ -416,18 +444,76 @@ var _ = Describe("An etcd cluster", func() {
 
 	Describe("status", func() {
 		It("[ETCD-040] counts the members that are ready", func() {
-			e := newEtcd(ctx, namespace)
-			node, address := waitForNode(ctx, namespace)
+			e := newEtcd(ctx, namespace, func(e *kubernetesimalv1alpha1.Etcd) {
+				replicas := int32(3)
+				e.Spec.Replicas = &replicas
+			})
+			first, address := waitForNode(ctx, namespace)
 
-			By("having a member that is not ready")
-			Eventually(nodeStatus(ctx, node), timeout, interval).
+			// The fake etcd answers for the addresses in this set, and the test adds to it one address at a time.
+			var (
+				mu      sync.Mutex
+				healthy = map[string]bool{}
+			)
+			answer := func(address string) {
+				mu.Lock()
+				defer mu.Unlock()
+				healthy[address] = true
+			}
+			etcdCluster.AnswerHealth(func(address string) (bool, error) {
+				mu.Lock()
+				defer mu.Unlock()
+				return healthy[address], nil
+			})
+			haveReadyReplicas := func(n int32) OmegaMatcher { return HaveField("ReadyReplicas", n) }
+
+			By("having no member that is ready")
+			Eventually(nodeStatus(ctx, first), timeout, interval).
 				Should(WithTransform((*kubernetesimalv1alpha1.EtcdNodeStatus).IsProvisioned, BeTrue()))
-			Consistently(reconciledStatus(ctx, e), 3*time.Second, time.Second).Should(HaveField("ReadyReplicas", int32(0)))
+			Consistently(reconciledStatus(ctx, e), 3*time.Second, time.Second).Should(haveReadyReplicas(0))
 
-			By("having a member that is ready")
-			answerForMember(fmt.Sprintf("%s:2379", address))
-			Eventually(reconciledStatus(ctx, e), timeout, time.Second).Should(HaveField("ReadyReplicas", int32(1)))
-			Consistently(reconciledStatus(ctx, e), 3*time.Second, time.Second).Should(HaveField("ReadyReplicas", int32(1)))
+			By("having one member that is ready")
+			answer(fmt.Sprintf("%s:2379", address))
+			Eventually(reconciledStatus(ctx, e), timeout, time.Second).Should(haveReadyReplicas(1))
+
+			By("having more members, of which still one is ready")
+			// The operator starts the other members once the cluster has been ready.
+			answer(getClusterAddress(ctx, e))
+			var others []string
+			Eventually(func() ([]string, error) {
+				var nodes kubernetesimalv1alpha1.EtcdNodeList
+				if err := k8sClient.List(ctx, &nodes, client.InNamespace(namespace)); err != nil {
+					return nil, err
+				}
+				others = nil
+				for i := range nodes.Items {
+					node := &nodes.Items[i]
+					if node.Name == first.Name || node.Status.PeerServiceRef == nil {
+						continue
+					}
+					var service corev1.Service
+					if err := k8sClient.Get(
+						ctx,
+						types.NamespacedName{Namespace: namespace, Name: node.Status.PeerServiceRef.Name},
+						&service,
+					); err != nil {
+						return nil, err
+					}
+					others = append(others, fmt.Sprintf("%s:2379", service.Spec.ClusterIP))
+				}
+				return others, nil
+			}, timeout, interval).Should(WithTransform(func(addresses []string) int { return len(addresses) }, BeNumerically(">=", 2)))
+			Consistently(reconciledStatus(ctx, e), 3*time.Second, time.Second).Should(haveReadyReplicas(1))
+
+			By("having two members that are ready")
+			answer(others[0])
+			Eventually(reconciledStatus(ctx, e), timeout, time.Second).Should(haveReadyReplicas(2))
+			Consistently(reconciledStatus(ctx, e), 3*time.Second, time.Second).Should(haveReadyReplicas(2))
+
+			By("having three members that are ready")
+			answer(others[1])
+			Eventually(reconciledStatus(ctx, e), timeout, time.Second).Should(haveReadyReplicas(3))
+			Consistently(reconciledStatus(ctx, e), 3*time.Second, time.Second).Should(haveReadyReplicas(3))
 		})
 
 		It("[ETCD-043] reports the phase Deleting once its deletion is requested", func() {
