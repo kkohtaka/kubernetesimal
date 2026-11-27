@@ -78,7 +78,7 @@ func reconcileEtcdNodeDeployment(
 			Labels: newEtcdNodeTemplateSpecLabels(e),
 		},
 		Spec: kubernetesimalv1alpha1.EtcdNodeSpec{
-			Version:                        *spec.Version,
+			Version:                        spec.VersionOrDefault(),
 			ImagePersistentVolumeClaimRef:  spec.ImagePersistentVolumeClaimRef,
 			LoginPasswordSecretKeySelector: spec.LoginPasswordSecretKeySelector,
 			CACertificateRef:               *status.CACertificateRef,
@@ -139,16 +139,12 @@ func reconcileEtcdNodeDeployment(
 		}
 	}
 
-	var replicas int32 = 1
-	if spec.Replicas != nil {
-		replicas = *spec.Replicas
-	}
 	if _, deployment, err := k8s_etcdnodedeployment.Reconcile(
 		ctx,
 		c,
 		newEtcdNodeDeploymentName(e),
 		e.GetNamespace(),
-		k8s_etcdnodedeployment.WithReplicas(replicas),
+		k8s_etcdnodedeployment.WithReplicas(spec.ReplicasOrDefault()),
 		k8s_etcdnodedeployment.WithSelector(newEtcdNodeDeploymentSelector(e)),
 		k8s_etcdnodedeployment.WithTemplate(&template),
 	); err != nil {

@@ -31,17 +31,30 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// DefaultEtcdVersion is the version of an Etcd object that names none. The default of EtcdSpec.Version repeats
+	// it.
+	DefaultEtcdVersion = "3.5.1"
+	// DefaultEtcdReplicas is the number of replicas of an Etcd object that names none. The default of
+	// EtcdSpec.Replicas repeats it.
+	DefaultEtcdReplicas int32 = 1
+)
+
 // EtcdSpec defines the desired state of Etcd
 type EtcdSpec struct {
-	// Version is the desired version of the etcd cluster.
+	// Version is the desired version of the etcd cluster, in the form MAJOR.MINOR.PATCH.
+	//+kubebuilder:default="3.5.1"
+	//+kubebuilder:validation:Pattern=`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$`
 	Version *string `json:"version,omitempty"`
 
 	// Replicas is the desired number of etcd replicas.
-	//+kubebuilder:validation:Minimum=0
+	//+kubebuilder:default=1
+	//+kubebuilder:validation:Minimum=1
 	Replicas *int32 `json:"replicas,omitempty"`
 
 	// ImagePersistentVolumeClaimRef is a local reference to a PersistentVolumeClaim that is used as an ephemeral volume
 	// to boot VirtualMachines.
+	//+kubebuilder:validation:XValidation:rule="has(self.name) && self.name != ''",message="name is required and must not be empty"
 	ImagePersistentVolumeClaimRef corev1.LocalObjectReference `json:"imagePersistentVolumeClaimRef"`
 
 	// LoginPasswordSecretKeySelector is a selector for a Secret key that holds a password used as a login password of
@@ -161,6 +174,22 @@ type EtcdList struct {
 
 func init() {
 	SchemeBuilder.Register(&Etcd{}, &EtcdList{})
+}
+
+// VersionOrDefault returns the version, or the default when the object names none.
+func (spec *EtcdSpec) VersionOrDefault() string {
+	if spec.Version == nil {
+		return DefaultEtcdVersion
+	}
+	return *spec.Version
+}
+
+// ReplicasOrDefault returns the number of replicas, or the default when the object names none.
+func (spec *EtcdSpec) ReplicasOrDefault() int32 {
+	if spec.Replicas == nil {
+		return DefaultEtcdReplicas
+	}
+	return *spec.Replicas
 }
 
 func (status *EtcdStatus) LastReadyProbeTime() *metav1.Time {

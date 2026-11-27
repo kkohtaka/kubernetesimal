@@ -39,7 +39,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	kubevirtv1 "kubevirt.io/api/core/v1"
 
@@ -102,7 +101,6 @@ func main() {
 	ctrlOpts := ctrl.Options{
 		Scheme:                 scheme,
 		Metrics:                metricsserver.Options{BindAddress: metricsAddr},
-		WebhookServer:          webhook.NewServer(webhook.Options{Port: 9443}),
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "b197ccb6.kkohtaka.org",
@@ -152,10 +150,6 @@ func main() {
 		EtcdClient: etcdclient.New(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create prober", "prober", "Etcd")
-		os.Exit(1)
-	}
-	if err = (&kubernetesimalv1alpha1.Etcd{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "Etcd")
 		os.Exit(1)
 	}
 	if err = (&etcdnode.Reconciler{

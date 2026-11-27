@@ -1,0 +1,3 @@
+kind: Removed
+body: The admission webhook of the Etcd kind is removed, and with it the webhook Service, the certificate, and the webhook configurations in the install manifests. The operator no longer needs cert-manager. A cluster that still has the operator's webhook configurations from an earlier installation has to delete them.
+time: 2026-11-28T04:07:51.046379+09:00
