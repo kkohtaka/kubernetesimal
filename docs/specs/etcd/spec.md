@@ -39,8 +39,9 @@ These are preconditions, not requirements. When one does not hold, the behavior 
   network with KubeVirt's bridge binding. Not every plugin does, see
   [ADR 0003](../../adr/0003-end-to-end-tests-on-hosted-runners.md).
 - `spec.imagePersistentVolumeClaimRef` names a PersistentVolumeClaim in the namespace of the `Etcd` object that holds
-  a bootable disk image for the `amd64` architecture. The image runs cloud-init and an SSH server, has systemd and
-  `curl`, and has a user `fedora` that may use `sudo` without a password.
+  a bootable disk image for the `amd64` architecture. The image runs cloud-init and an SSH server, and has systemd
+  and `curl`. Its default user, the one that cloud-init sets up and whose password and SSH keys a cloud-config sets
+  when it names no user, is `fedora`, and that user may use `sudo` without a password.
 - The virtual machines can download from `github.com`.
 
 ### Terms
