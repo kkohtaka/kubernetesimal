@@ -51,6 +51,9 @@ const (
 	timeout  = time.Minute
 	interval = 250 * time.Millisecond
 
+	// bootImage is the name of the PersistentVolumeClaim that the Etcd objects of the tests name as their image.
+	bootImage = "boot-image"
+
 	startScript = "sudo /opt/bin/start-cluster.sh"
 	leaveScript = "sudo /opt/bin/leave-cluster.sh"
 )
@@ -68,15 +71,24 @@ func newNamespace(ctx context.Context) string {
 // The object is named after its namespace, so that no two tests use the same name. The operator looks for the
 // members of a cluster by the name of the Etcd object in all namespaces, so two objects with one name would count
 // each other's members. ETCD-034 requires otherwise, and its test is where a shared name belongs.
-func newEtcd(ctx context.Context, namespace string) *kubernetesimalv1alpha1.Etcd {
+//
+// Each change is applied to the object before it is created.
+func newEtcd(
+	ctx context.Context,
+	namespace string,
+	changes ...func(*kubernetesimalv1alpha1.Etcd),
+) *kubernetesimalv1alpha1.Etcd {
 	version, replicas := "3.5.1", int32(1)
 	e := kubernetesimalv1alpha1.Etcd{
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "etcd-" + namespace},
 		Spec: kubernetesimalv1alpha1.EtcdSpec{
 			Version:                       &version,
 			Replicas:                      &replicas,
-			ImagePersistentVolumeClaimRef: corev1.LocalObjectReference{Name: "boot-image"},
+			ImagePersistentVolumeClaimRef: corev1.LocalObjectReference{Name: bootImage},
 		},
+	}
+	for _, change := range changes {
+		change(&e)
 	}
 	ExpectWithOffset(1, k8sClient.Create(ctx, &e)).To(Succeed())
 	return &e
