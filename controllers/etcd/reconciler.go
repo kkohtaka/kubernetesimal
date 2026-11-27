@@ -286,13 +286,11 @@ func (r *Reconciler) updateStatus(
 ) error {
 	logger := log.FromContext(ctx)
 
-	if e.Spec.Replicas != nil {
-		status.Replicas = *e.Spec.Replicas
-	}
+	status.Replicas = e.Spec.ReplicasOrDefault()
 
 	if !e.GetDeletionTimestamp().IsZero() {
 		status.Phase = kubernetesimalv1alpha1.EtcdPhaseDeleting
-	} else if status.ReadyReplicas != *e.Spec.Replicas {
+	} else if status.ReadyReplicas != e.Spec.ReplicasOrDefault() {
 		if status.IsReadyOnce() && !status.IsReady() {
 			status.Phase = kubernetesimalv1alpha1.EtcdPhaseError
 		} else {

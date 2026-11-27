@@ -76,5 +76,4 @@ creates either. Running it again after a failure is therefore safe: re-run the f
 kubectl apply -f https://github.com/kkohtaka/kubernetesimal/releases/download/<version>/install.yaml
 ```
 
-The manifests need [cert-manager](https://cert-manager.io) for the webhook certificates and
-[KubeVirt](https://kubevirt.io) for the virtual machines.
+The manifests need [KubeVirt](https://kubevirt.io) for the virtual machines, and nothing else.
