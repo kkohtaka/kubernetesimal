@@ -135,7 +135,7 @@ writing the status of the objects the operator creates.
 | ETCD-015 | end-to-end | Needs a real etcd. |
 | ETCD-020, ETCD-021 | end-to-end | Reads the member list and the version from the cluster. |
 | ETCD-022 | envtest | Checks how the virtual machine references the claim. |
-| ETCD-023, ETCD-024 | envtest | Checks the cloud-init data that the virtual machine is given. Logging in is not tested. |
+| ETCD-023, ETCD-024 | envtest | Checks the cloud-init data that the virtual machine is given. For ETCD-023 that is the password of the default user, which the preconditions of the specification say is `fedora`. Logging in is not tested. |
 | ETCD-025 | envtest and end-to-end | envtest controls when a fake member becomes ready and counts the members. |
 | ETCD-026 | envtest | |
 | ETCD-030, ETCD-032, ETCD-033 | envtest | Checks the Service and the endpoints. |
