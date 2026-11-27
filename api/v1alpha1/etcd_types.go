@@ -40,6 +40,14 @@ const (
 	DefaultEtcdReplicas int32 = 1
 )
 
+// LocalPersistentVolumeClaimReference names a PersistentVolumeClaim in the namespace of the object that refers to it.
+// +structType=atomic
+type LocalPersistentVolumeClaimReference struct {
+	// Name is the name of the PersistentVolumeClaim.
+	//+kubebuilder:validation:MinLength=1
+	Name string `json:"name"`
+}
+
 // EtcdSpec defines the desired state of Etcd
 type EtcdSpec struct {
 	// Version is the desired version of the etcd cluster, in the form MAJOR.MINOR.PATCH.
@@ -54,8 +62,7 @@ type EtcdSpec struct {
 
 	// ImagePersistentVolumeClaimRef is a local reference to a PersistentVolumeClaim that is used as an ephemeral volume
 	// to boot VirtualMachines.
-	//+kubebuilder:validation:XValidation:rule="has(self.name) && self.name != ''",message="name is required and must not be empty"
-	ImagePersistentVolumeClaimRef corev1.LocalObjectReference `json:"imagePersistentVolumeClaimRef"`
+	ImagePersistentVolumeClaimRef LocalPersistentVolumeClaimReference `json:"imagePersistentVolumeClaimRef"`
 
 	// LoginPasswordSecretKeySelector is a selector for a Secret key that holds a password used as a login password of
 	// virtual machines.

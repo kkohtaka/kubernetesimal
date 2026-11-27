@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel/trace"
+	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -78,8 +79,10 @@ func reconcileEtcdNodeDeployment(
 			Labels: newEtcdNodeTemplateSpecLabels(e),
 		},
 		Spec: kubernetesimalv1alpha1.EtcdNodeSpec{
-			Version:                        spec.VersionOrDefault(),
-			ImagePersistentVolumeClaimRef:  spec.ImagePersistentVolumeClaimRef,
+			Version: spec.VersionOrDefault(),
+			ImagePersistentVolumeClaimRef: corev1.LocalObjectReference{
+				Name: spec.ImagePersistentVolumeClaimRef.Name,
+			},
 			LoginPasswordSecretKeySelector: spec.LoginPasswordSecretKeySelector,
 			CACertificateRef:               *status.CACertificateRef,
 			CAPrivateKeyRef:                *status.CAPrivateKeyRef,

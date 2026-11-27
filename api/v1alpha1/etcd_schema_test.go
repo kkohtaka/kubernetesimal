@@ -155,6 +155,7 @@ var _ = Describe("An Etcd object, while the operator is not running", func() {
 	})
 
 	Describe("[ETCD-004] [ETCD-006] without the name of the image", func() {
+		// Without the reference there is no name that the error could name. It names the reference.
 		It("[ETCD-004] [ETCD-006] is rejected without a reference to the image", func() {
 			expectRejectedOnCreateAndUpdate(
 				with("imagePersistentVolumeClaimRef", nil),
@@ -165,14 +166,14 @@ var _ = Describe("An Etcd object, while the operator is not running", func() {
 		It("[ETCD-004] [ETCD-006] is rejected with a reference that has no name", func() {
 			expectRejectedOnCreateAndUpdate(
 				with("imagePersistentVolumeClaimRef", map[string]any{}),
-				"spec.imagePersistentVolumeClaimRef",
+				"spec.imagePersistentVolumeClaimRef.name",
 			)
 		})
 
 		It("[ETCD-004] [ETCD-006] is rejected with a reference that has an empty name", func() {
 			expectRejectedOnCreateAndUpdate(
 				with("imagePersistentVolumeClaimRef", map[string]any{"name": ""}),
-				"spec.imagePersistentVolumeClaimRef",
+				"spec.imagePersistentVolumeClaimRef.name",
 			)
 		})
 	})
