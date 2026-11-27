@@ -66,7 +66,7 @@ func newNamespace(ctx context.Context) string {
 	return namespace.Name
 }
 
-// newEtcd creates an Etcd object of one member. The suite runs no webhook, so nothing is defaulted.
+// newEtcd creates an Etcd object of one member.
 //
 // The object is named after its namespace, so that no two tests use the same name. The operator looks for the
 // members of a cluster by the name of the Etcd object in all namespaces, so two objects with one name would count

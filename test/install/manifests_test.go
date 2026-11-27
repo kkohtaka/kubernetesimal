@@ -267,6 +267,47 @@ func TestRenderedManifests(t *testing.T) {
 		}
 	})
 
+	// INST-002 is about a cluster that has no cert-manager, and the end-to-end tests install into one. This shows
+	// the same thing sooner, and for the release as well.
+	t.Run("the manifests contain nothing that needs cert-manager, and no webhook", func(t *testing.T) {
+		for name, rendered := range map[string][]unstructured.Unstructured{
+			"config/default": objects,
+			"the release":    releaseManifests(t),
+		} {
+			for _, object := range rendered {
+				if strings.HasSuffix(object.GroupVersionKind().Group, "cert-manager.io") {
+					t.Errorf("%s contains the %s %q of cert-manager", name, object.GetKind(), object.GetName())
+				}
+				for key := range object.GetAnnotations() {
+					if strings.Contains(key, "cert-manager.io") {
+						t.Errorf("%s: the %s %q has the annotation %q", name, object.GetKind(), object.GetName(), key)
+					}
+				}
+				switch object.GetKind() {
+				case "MutatingWebhookConfiguration", "ValidatingWebhookConfiguration":
+					t.Errorf("%s contains the %s %q", name, object.GetKind(), object.GetName())
+				}
+				if strings.Contains(object.GetName(), "webhook") {
+					t.Errorf("%s contains the %s %q", name, object.GetKind(), object.GetName())
+				}
+			}
+			for _, crd := range ofKind(rendered, "CustomResourceDefinition") {
+				if strategy, found, _ := unstructured.NestedString(crd.Object, "spec", "conversion", "strategy"); found &&
+					strategy != "None" {
+					t.Errorf("%s: %q is converted by a %s", name, crd.GetName(), strategy)
+				}
+			}
+		}
+		for _, deployment := range deployments(t, objects) {
+			for _, volume := range deployment.Spec.Template.Spec.Volumes {
+				if volume.Secret != nil {
+					t.Errorf("the Deployment %q mounts the Secret %q, which nothing in the manifests creates",
+						deployment.Name, volume.Secret.SecretName)
+				}
+			}
+		}
+	})
+
 	t.Run("the operator gets more memory than the limit that kept it from starting", func(t *testing.T) {
 		limits := manager(t, objects).Resources.Limits
 		limit := limits.Memory()
