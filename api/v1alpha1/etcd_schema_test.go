@@ -142,14 +142,12 @@ var _ = Describe("An Etcd object, while the operator is not running", func() {
 			" 3.5.6",
 			"latest",
 		} {
-			version := version
 			It(fmt.Sprintf("[ETCD-003] [ETCD-006] is rejected with the version %q", version), func() {
 				expectRejectedOnCreateAndUpdate(with("version", version), "spec.version")
 			})
 		}
 
 		for _, version := range []string{"3.5.6", "0.0.0", "10.20.30"} {
-			version := version
 			It(fmt.Sprintf("[ETCD-003] [ETCD-006] is accepted with the version %q", version), func() {
 				Expect(k8sClient.Create(ctx, newEtcdObject(with("version", version)))).To(Succeed())
 			})
@@ -181,7 +179,6 @@ var _ = Describe("An Etcd object, while the operator is not running", func() {
 
 	Describe("[ETCD-005] [ETCD-006] with less than one replica", func() {
 		for _, replicas := range []int64{0, -1} {
-			replicas := replicas
 			It(fmt.Sprintf("[ETCD-005] [ETCD-006] is rejected with %d replicas", replicas), func() {
 				expectRejectedOnCreateAndUpdate(with("replicas", replicas), "spec.replicas")
 			})
