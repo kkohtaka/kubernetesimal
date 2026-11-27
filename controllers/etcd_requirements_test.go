@@ -38,6 +38,7 @@ import (
 	. "github.com/onsi/gomega"
 	"golang.org/x/crypto/ssh"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	kubevirtv1 "kubevirt.io/api/core/v1"
@@ -331,6 +332,18 @@ var _ = Describe("An etcd cluster", func() {
 
 	Describe("virtual machines", func() {
 		It("[ETCD-022] boots members from a copy of the image, which they share and do not write to", func() {
+			// The claim of the image. Nothing binds it in envtest, and the operator does not need it to be bound.
+			image := corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: bootImage},
+				Spec: corev1.PersistentVolumeClaimSpec{
+					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
+					Resources: corev1.VolumeResourceRequirements{
+						Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1Gi")},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, &image)).To(Succeed())
+
 			e := newEtcd(ctx, namespace)
 			node, address := waitForNode(ctx, namespace)
 			memberAddress := fmt.Sprintf("%s:2379", address)
@@ -377,6 +390,14 @@ var _ = Describe("An etcd cluster", func() {
 					Expect(disk.BootOrder).To(BeNil())
 				}
 			}
+
+			// The operator has created two members from the claim and has not changed the claim itself. Nothing
+			// else runs in envtest that could have.
+			var current corev1.PersistentVolumeClaim
+			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(&image), &current)).To(Succeed())
+			Expect(current.UID).To(Equal(image.UID))
+			Expect(current.ResourceVersion).To(Equal(image.ResourceVersion))
+			Expect(current.DeletionTimestamp).To(BeNil())
 		})
 
 		It("[ETCD-023] [ETCD-024] sets the login password from the Secret, and keeps SSH from accepting it", func() {
