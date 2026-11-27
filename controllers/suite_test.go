@@ -25,26 +25,55 @@ SOFTWARE.
 package controllers
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"k8s.io/client-go/kubernetes/scheme"
+	"go.opentelemetry.io/otel/trace"
+	"k8s.io/apimachinery/pkg/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	kubevirtv1 "kubevirt.io/api/core/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
+	"github.com/kkohtaka/kubernetesimal/controller/expectations"
+	"github.com/kkohtaka/kubernetesimal/controllers/etcd"
+	"github.com/kkohtaka/kubernetesimal/controllers/etcdnode"
+	"github.com/kkohtaka/kubernetesimal/controllers/etcdnodedeployment"
+	"github.com/kkohtaka/kubernetesimal/controllers/etcdnodeset"
 	//+kubebuilder:scaffold:imports
 )
 
-// These tests use Ginkgo (BDD-style Go testing framework). Refer to
-// http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
+// This suite runs every controller of the operator against the API server of envtest, wired as main.go wires them.
+//
+// envtest has no KubeVirt, no virtual machines, and no etcd. Three fakes stand in for them:
+//
+//   - kubeVirt plays the part of KubeVirt: it reports the VirtualMachineInstance objects that the operator creates
+//     as running.
+//   - machines is the command runner that the operator is given instead of SSH. It records the commands.
+//   - etcdCluster is the etcd client that the operator is given. Tests decide what it answers.
+//
+// What the fakes cannot show, such as a virtual machine that boots and an etcd that forms a cluster, is left to the
+// end-to-end tests.
 
-var k8sClient client.Client
-var testEnv *envtest.Environment
+var (
+	k8sClient client.Client
+	testEnv   *envtest.Environment
+
+	suiteCtx    context.Context
+	suiteCancel context.CancelFunc
+
+	kubeVirt    *fakeKubeVirt
+	machines    *fakeCommandRunner
+	etcdCluster *fakeEtcdClient
+)
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -55,9 +84,14 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
+	suiteCtx, suiteCancel = context.WithCancel(context.Background())
+
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("testdata", "config", "crd", "bases")},
+		CRDDirectoryPaths: []string{
+			filepath.Join("testdata", "config", "crd", "bases"),
+			filepath.Join("testdata", "kubevirt"),
+		},
 		ErrorIfCRDPathMissing: true,
 	}
 
@@ -65,18 +99,78 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
-	err = kubernetesimalv1alpha1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
+	scheme := runtime.NewScheme()
+	Expect(clientgoscheme.AddToScheme(scheme)).To(Succeed())
+	Expect(kubernetesimalv1alpha1.AddToScheme(scheme)).To(Succeed())
+	Expect(kubevirtv1.AddToScheme(scheme)).To(Succeed())
 
 	//+kubebuilder:scaffold:scheme
 
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
+	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+		Scheme:         scheme,
+		LeaderElection: false,
+		Metrics:        metricsserver.Options{BindAddress: "0"},
+	})
+	Expect(err).NotTo(HaveOccurred())
+
+	machines = newFakeCommandRunner()
+	etcdCluster = newFakeEtcdClient()
+	kubeVirt = newFakeKubeVirt(mgr.GetClient())
+	Expect(kubeVirt.SetupWithManager(mgr)).To(Succeed())
+
+	tracer := trace.NewNoopTracerProvider().Tracer("test")
+
+	Expect((&etcd.Reconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		Tracer: tracer,
+	}).SetupWithManager(mgr)).To(Succeed())
+	Expect((&etcd.Prober{
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		Tracer:     tracer,
+		EtcdClient: etcdCluster,
+	}).SetupWithManager(mgr)).To(Succeed())
+	Expect((&etcdnode.Reconciler{
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		Tracer:        tracer,
+		CommandRunner: machines,
+	}).SetupWithManager(mgr)).To(Succeed())
+	Expect((&etcdnode.Prober{
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		Tracer:     tracer,
+		EtcdClient: etcdCluster,
+	}).SetupWithManager(mgr)).To(Succeed())
+	Expect((&etcdnodeset.Reconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		Tracer: tracer,
+		Expectations: expectations.NewUIDTrackingControllerExpectations(
+			expectations.NewControllerExpectations(),
+		),
+	}).SetupWithManager(mgr)).To(Succeed())
+	Expect((&etcdnodedeployment.Reconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		Tracer: tracer,
+	}).SetupWithManager(mgr)).To(Succeed())
+
+	go func() {
+		defer GinkgoRecover()
+		Expect(mgr.Start(suiteCtx)).To(Succeed())
+	}()
 }, 60)
 
 var _ = AfterSuite(func() {
+	By("stopping the controllers")
+	suiteCancel()
+
 	By("tearing down the test environment")
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
