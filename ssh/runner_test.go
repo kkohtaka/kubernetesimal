@@ -33,6 +33,7 @@ import (
 	"net"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -45,6 +46,9 @@ import (
 type server struct {
 	host string
 	port int
+
+	// hang, when it is not nil, keeps the server from answering a command until it is closed.
+	hang chan struct{}
 
 	mu       sync.Mutex
 	users    []string
@@ -133,6 +137,9 @@ func (s *server) serve(conn net.Conn, config *ssh.ServerConfig, exitStatus uint3
 			s.mu.Unlock()
 
 			_ = request.Reply(true, nil)
+			if s.hang != nil {
+				<-s.hang
+			}
 			_, _ = channel.SendRequest("exit-status", false, ssh.Marshal(struct{ Status uint32 }{exitStatus}))
 			_ = channel.Close()
 		}
@@ -215,4 +222,118 @@ func TestRunnerReportsAPrivateKeyItCannotRead(t *testing.T) {
 	var connectErr *kssh.ConnectError
 	require.True(t, errors.As(err, &connectErr), "got %v", err)
 	assert.Contains(t, err.Error(), "unable to parse private key")
+}
+
+// startSilentListener accepts connections and never says anything on them, like a machine whose SSH server hangs.
+func startSilentListener(t *testing.T) (string, int) {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+
+	var (
+		mu    sync.Mutex
+		conns []net.Conn
+	)
+	t.Cleanup(func() {
+		_ = listener.Close()
+		mu.Lock()
+		defer mu.Unlock()
+		for _, conn := range conns {
+			_ = conn.Close()
+		}
+	})
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				return
+			}
+			mu.Lock()
+			conns = append(conns, conn)
+			mu.Unlock()
+		}
+	}()
+
+	addr, ok := listener.Addr().(*net.TCPAddr)
+	require.True(t, ok)
+	return addr.IP.String(), addr.Port
+}
+
+// within fails the test when f takes longer than the limit, and returns what f returned.
+func within(t *testing.T, limit time.Duration, f func() error) error {
+	t.Helper()
+	done := make(chan error, 1)
+	go func() { done <- f() }()
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(limit):
+		t.Fatalf("still running after %s", limit)
+		return nil
+	}
+}
+
+func TestRunnerGivesUpOnAMachineThatDoesNotCompleteTheConnection(t *testing.T) {
+	privateKey, _ := newKeyPair(t)
+	host, port := startSilentListener(t)
+
+	runner := kssh.NewRunner()
+	runner.ConnectTimeout = 300 * time.Millisecond
+
+	err := within(t, 5*time.Second, func() error {
+		return runner.Run(context.Background(), privateKey, host, port, "true")
+	})
+	require.Error(t, err)
+
+	var connectErr *kssh.ConnectError
+	require.True(t, errors.As(err, &connectErr), "got %v", err)
+}
+
+func TestRunnerGivesUpOnACommandThatDoesNotFinish(t *testing.T) {
+	privateKey, publicKey := newKeyPair(t)
+	s := startServer(t, publicKey, 0)
+	s.hang = make(chan struct{})
+	t.Cleanup(func() { close(s.hang) })
+
+	runner := kssh.NewRunner()
+	runner.CommandTimeout = 300 * time.Millisecond
+
+	err := within(t, 5*time.Second, func() error {
+		return runner.Run(context.Background(), privateKey, s.host, s.port, "sleep infinity")
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unable to complete a command")
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
+
+	var connectErr *kssh.ConnectError
+	assert.False(t, errors.As(err, &connectErr), "the machine was reached, so this is not a failure to connect")
+
+	_, commands := s.recorded()
+	assert.Equal(t, []string{"sleep infinity"}, commands)
+}
+
+func TestRunnerStopsWaitingForACommandWhenItIsCancelled(t *testing.T) {
+	privateKey, publicKey := newKeyPair(t)
+	s := startServer(t, publicKey, 0)
+	s.hang = make(chan struct{})
+	t.Cleanup(func() { close(s.hang) })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(300 * time.Millisecond)
+		cancel()
+	}()
+
+	err := within(t, 5*time.Second, func() error {
+		return kssh.NewRunner().Run(ctx, privateKey, s.host, s.port, "sleep infinity")
+	})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, context.Canceled)
+}
+
+func TestRunnerHasTimeLimitsUnlessToldOtherwise(t *testing.T) {
+	runner := kssh.NewRunner()
+	assert.Positive(t, runner.ConnectTimeout)
+	assert.Positive(t, runner.CommandTimeout)
+	assert.Greater(t, runner.CommandTimeout, runner.ConnectTimeout)
 }
