@@ -1,0 +1,3 @@
+kind: Fixed
+body: The operator no longer stops when it cannot create or update the members of an etcd cluster. It keeps the status of the Etcd object and tries again. A panic while reconciling one object no longer ends the operator either.
+time: 2026-11-28T10:02:16.359187+09:00

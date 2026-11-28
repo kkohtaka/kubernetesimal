@@ -49,6 +49,7 @@ type EtcdNodeDeploymentSpec struct {
 	// This is a pointer to distinguish between explicit zero and not specified.
 	// This is set to the max value of int32 (i.e. 2147483647) by default, which means
 	// "retaining all old EtcdNodeSets".
+	//+kubebuilder:validation:Minimum=0
 	RevisionHistoryLimit *int32 `json:"revisionHistoryLimit,omitempty"`
 }
 
