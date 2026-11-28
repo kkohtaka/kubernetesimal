@@ -35,7 +35,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -104,6 +106,9 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "b197ccb6.kkohtaka.org",
+		// A panic in a reconciler is logged and the object is tried again, instead of ending the operator for
+		// every object.
+		Controller: config.Controller{RecoverPanic: ptr.To(true)},
 	}
 	if configFile != "" {
 		ctrlOpts, err = ctrlOpts.AndFrom(ctrl.ConfigFile().AtPath(configFile).OfKind(&ctrlConfig))

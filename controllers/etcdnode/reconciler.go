@@ -38,6 +38,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
@@ -62,6 +63,21 @@ type Reconciler struct {
 
 	// CommandRunner is how the reconciler reaches the virtual machines of etcd members.
 	CommandRunner CommandRunner
+
+	// MaxConcurrentReconciles is how many etcd members are reconciled at the same time. Zero means the default.
+	MaxConcurrentReconciles int
+}
+
+// defaultMaxConcurrentReconciles is how many objects a controller of this package works on at the same time, unless
+// it is told otherwise. Reconciling an etcd member waits for its virtual machine, for minutes when the machine does
+// not answer, and with one worker every other member would wait as well.
+const defaultMaxConcurrentReconciles = 4
+
+func maxConcurrentReconciles(configured int) int {
+	if configured > 0 {
+		return configured
+	}
+	return defaultMaxConcurrentReconciles
 }
 
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcdnodes,verbs=get;list;watch;create;update;patch;delete
@@ -260,6 +276,7 @@ func (r *Reconciler) updateStatus(
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("etcdnode-reconciler").
+		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles(r.MaxConcurrentReconciles)}).
 		For(
 			&kubernetesimalv1alpha1.EtcdNode{},
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),

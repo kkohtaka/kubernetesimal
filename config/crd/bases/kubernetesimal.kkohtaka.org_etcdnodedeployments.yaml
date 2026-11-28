@@ -78,6 +78,7 @@ spec:
                   This is set to the max value of int32 (i.e. 2147483647) by default, which means
                   "retaining all old EtcdNodeSets".
                 format: int32
+                minimum: 0
                 type: integer
               rollingUpdate:
                 description: Rolling update config params. Present only if DeploymentStrategyType

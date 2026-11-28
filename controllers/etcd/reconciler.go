@@ -272,7 +272,7 @@ func (r *Reconciler) reconcileExternalResources(
 	}
 
 	if deployment, err := reconcileEtcdNodeDeployment(ctx, r.Client, r.Scheme, obj, spec, status); err != nil {
-		return nil, fmt.Errorf("unable to prepare EtcdNodeDeployment: %w", err)
+		return status, fmt.Errorf("unable to prepare EtcdNodeDeployment: %w", err)
 	} else {
 		status.ReadyReplicas = deployment.Status.ReadyReplicas
 	}

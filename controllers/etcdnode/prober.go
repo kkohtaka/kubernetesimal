@@ -35,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
@@ -52,6 +53,9 @@ type Prober struct {
 
 	// EtcdClient is how the prober talks to the etcd member.
 	EtcdClient etcdclient.Interface
+
+	// MaxConcurrentReconciles is how many etcd members are probed at the same time. Zero means the default.
+	MaxConcurrentReconciles int
 }
 
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcdnodes,verbs=get;list;watch
@@ -165,6 +169,7 @@ func (r *Prober) updateStatus(
 func (r *Prober) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("etcdnode-prober").
+		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles(r.MaxConcurrentReconciles)}).
 		For(&kubernetesimalv1alpha1.EtcdNode{}).
 		Complete(r)
 }

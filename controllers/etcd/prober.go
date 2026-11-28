@@ -35,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubernetesimalv1alpha1 "github.com/kkohtaka/kubernetesimal/api/v1alpha1"
@@ -52,7 +53,15 @@ type Prober struct {
 
 	// EtcdClient is how the prober talks to the etcd cluster.
 	EtcdClient etcdclient.Interface
+
+	// MaxConcurrentReconciles is how many etcd clusters are probed at the same time. Zero means the default.
+	MaxConcurrentReconciles int
 }
+
+// defaultMaxConcurrentProbes is how many etcd clusters are probed at the same time, unless the prober is told
+// otherwise. Probing a cluster that does not answer takes seconds, and with one worker every other cluster would
+// wait as well.
+const defaultMaxConcurrentProbes = 4
 
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds,verbs=get;list;watch
 //+kubebuilder:rbac:groups=kubernetesimal.kkohtaka.org,resources=etcds/status,verbs=get;update;patch
@@ -173,8 +182,16 @@ func (r *Prober) updateStatus(
 func (r *Prober) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("etcd-prober").
+		WithOptions(controller.Options{MaxConcurrentReconciles: r.maxConcurrentReconciles()}).
 		For(&kubernetesimalv1alpha1.Etcd{}).
 		Complete(r)
+}
+
+func (r *Prober) maxConcurrentReconciles() int {
+	if r.MaxConcurrentReconciles > 0 {
+		return r.MaxConcurrentReconciles
+	}
+	return defaultMaxConcurrentProbes
 }
 
 func getProbeInterval(status *kubernetesimalv1alpha1.EtcdStatus) time.Duration {

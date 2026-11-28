@@ -1,0 +1,3 @@
+kind: Fixed
+body: A virtual machine that does not answer no longer keeps the operator from working on other etcd clusters. Connecting to a machine is given up after 10 seconds and a command after 10 minutes, the downloads in the scripts that set up etcd have time limits, and the operator works on four members at the same time.
+time: 2026-11-28T09:57:04.867434+09:00

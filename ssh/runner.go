@@ -26,6 +26,7 @@ package ssh
 
 import (
 	"context"
+	"time"
 )
 
 // ConnectError says that a command was not run, because no SSH session with the machine could be set up. Its message
@@ -42,22 +43,44 @@ func (e *ConnectError) Unwrap() error {
 	return e.Err
 }
 
-// Runner runs commands on machines over SSH.
-type Runner struct{}
+const (
+	// DefaultConnectTimeout is how long a Runner waits for a machine to accept a connection and a login.
+	DefaultConnectTimeout = 10 * time.Second
+	// DefaultCommandTimeout is how long a Runner waits for a command. The commands that the operator runs download
+	// etcd and start it, which takes a few minutes on a slow network.
+	DefaultCommandTimeout = 10 * time.Minute
+)
 
-// NewRunner returns a Runner.
+// noDeadline removes a deadline from a connection.
+var noDeadline time.Time
+
+// Runner runs commands on machines over SSH. A machine that does not answer costs it at most ConnectTimeout, and a
+// command that does not finish at most CommandTimeout.
+type Runner struct {
+	ConnectTimeout time.Duration
+	CommandTimeout time.Duration
+}
+
+// NewRunner returns a Runner with the default time limits.
 func NewRunner() *Runner {
-	return &Runner{}
+	return &Runner{
+		ConnectTimeout: DefaultConnectTimeout,
+		CommandTimeout: DefaultCommandTimeout,
+	}
 }
 
 // Run connects to a machine and runs one command on it. It returns a ConnectError when it could not connect, and
-// another error when the command ran and failed.
+// another error when the command ran and failed, or did not finish in time.
 func (r *Runner) Run(ctx context.Context, privateKey []byte, address string, port int, command string) error {
-	client, closer, err := StartSSHConnection(ctx, privateKey, address, port)
+	connectCtx, cancelConnect := context.WithTimeout(ctx, r.ConnectTimeout)
+	defer cancelConnect()
+	client, closer, err := StartSSHConnection(connectCtx, privateKey, address, port)
 	if err != nil {
 		return &ConnectError{Err: err}
 	}
 	defer closer()
 
-	return RunCommandOverSSHSession(ctx, client, command)
+	commandCtx, cancelCommand := context.WithTimeout(ctx, r.CommandTimeout)
+	defer cancelCommand()
+	return RunCommandOverSSHSession(commandCtx, client, command)
 }

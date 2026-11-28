@@ -20,6 +20,13 @@ This file is also the history of how the API broke, so entries are never removed
   because ... Existing objects that omit the field have to set it before upgrading.
 -->
 
+### 2026-11-29
+
+- `etcdnodedeployments.kubernetesimal.kkohtaka.org/v1alpha1: .spec.revisionHistoryLimit: minimum 0 added`: A
+  negative limit made the controller of the kind panic. The kind is internal to the operator, see "Out of scope" in
+  the [specification of etcd clusters](specs/etcd/spec.md), and the operator never sets the field. Users have
+  nothing to do.
+
 ### 2026-11-28
 
 The [specification of etcd clusters](specs/etcd/spec.md) moves the defaults and the validation of the `Etcd` kind
