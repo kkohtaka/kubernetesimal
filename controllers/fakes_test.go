@@ -28,12 +28,15 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
+	"reflect"
 	"sync"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	"github.com/kkohtaka/kubernetesimal/controllers/etcdnode"
 	"github.com/kkohtaka/kubernetesimal/etcdclient"
@@ -283,8 +286,91 @@ func (c *fakeEtcdClient) CallsTo(method, target string) []etcdCall {
 // resetFakes makes the fakes answer as they do when the suite starts. It keeps what they recorded, because objects of
 // earlier tests stay in the API server and their addresses do not repeat.
 func resetFakes() {
+	writes.Reset()
 	machines.Answer(nil)
 	etcdCluster.AnswerHealth(nil)
 	etcdCluster.AnswerMemberList(nil)
 	etcdCluster.AnswerMemberStatus(nil)
+}
+
+// fakeWriteFailures makes the operator's writes to the API server fail, for the kinds and namespaces that a test
+// names. It stands for everything that can keep the operator from creating or updating an object: an API server
+// that is overloaded, a quota, an admission webhook that refuses. Writes of the status are not affected.
+type fakeWriteFailures struct {
+	mu       sync.Mutex
+	failing  map[string]bool
+	attempts map[string]int
+}
+
+func newFakeWriteFailures() *fakeWriteFailures {
+	return &fakeWriteFailures{failing: map[string]bool{}, attempts: map[string]int{}}
+}
+
+func writeKey(namespace, kind string) string {
+	return namespace + "/" + kind
+}
+
+// Fail makes every creation and update of objects of a kind in a namespace fail, until Reset is called. The kind is
+// the name of the Go type, such as "Service".
+func (w *fakeWriteFailures) Fail(namespace, kind string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.failing[writeKey(namespace, kind)] = true
+}
+
+// Attempts returns how many writes of a kind in a namespace have failed.
+func (w *fakeWriteFailures) Attempts(namespace, kind string) int {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.attempts[writeKey(namespace, kind)]
+}
+
+// Reset lets every write through again.
+func (w *fakeWriteFailures) Reset() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.failing = map[string]bool{}
+}
+
+func (w *fakeWriteFailures) check(obj client.Object) error {
+	kind := reflect.TypeOf(obj).Elem().Name()
+	key := writeKey(obj.GetNamespace(), kind)
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if !w.failing[key] {
+		return nil
+	}
+	w.attempts[key]++
+	return apierrors.NewInternalError(fmt.Errorf("the test makes writes of %s objects fail", kind))
+}
+
+// Funcs returns what the client of the operator calls instead of writing.
+func (w *fakeWriteFailures) Funcs() interceptor.Funcs {
+	return interceptor.Funcs{
+		Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
+			if err := w.check(obj); err != nil {
+				return err
+			}
+			return c.Create(ctx, obj, opts...)
+		},
+		Update: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.UpdateOption) error {
+			if err := w.check(obj); err != nil {
+				return err
+			}
+			return c.Update(ctx, obj, opts...)
+		},
+		Patch: func(
+			ctx context.Context,
+			c client.WithWatch,
+			obj client.Object,
+			patch client.Patch,
+			opts ...client.PatchOption,
+		) error {
+			if err := w.check(obj); err != nil {
+				return err
+			}
+			return c.Patch(ctx, obj, patch, opts...)
+		},
+	}
 }

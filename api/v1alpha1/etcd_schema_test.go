@@ -190,3 +190,49 @@ var _ = Describe("An Etcd object, while the operator is not running", func() {
 		})
 	})
 })
+
+// The kinds below are how the operator is built, and not an interface for users. Nothing in the specification
+// promises how they behave. These tests claim no requirement: they keep out the values that make a controller of
+// the operator wait forever or panic.
+var _ = Describe("The internal kinds, while the operator is not running", func() {
+	newInternalObject := func(kind string, spec map[string]any) *unstructured.Unstructured {
+		etcdSequence++
+		return &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": GroupVersion.String(),
+			"kind":       kind,
+			"metadata": map[string]any{
+				"namespace": "default",
+				"name":      fmt.Sprintf("internal-%d", etcdSequence),
+			},
+			"spec": spec,
+		}}
+	}
+
+	for _, kind := range []string{"EtcdNodeSet", "EtcdNodeDeployment"} {
+		It(fmt.Sprintf("reject an %s with a negative number of replicas", kind), func() {
+			expectRejected(
+				k8sClient.Create(ctx, newInternalObject(kind, map[string]any{"replicas": int64(-1)})),
+				"spec.replicas",
+			)
+		})
+
+		It(fmt.Sprintf("accept an %s with zero replicas", kind), func() {
+			Expect(k8sClient.Create(ctx, newInternalObject(kind, map[string]any{"replicas": int64(0)}))).To(Succeed())
+		})
+	}
+
+	It("reject an EtcdNodeDeployment with a negative limit of its history", func() {
+		expectRejected(
+			k8sClient.Create(ctx, newInternalObject("EtcdNodeDeployment", map[string]any{
+				"revisionHistoryLimit": int64(-1),
+			})),
+			"spec.revisionHistoryLimit",
+		)
+	})
+
+	It("accept an EtcdNodeDeployment that keeps no history", func() {
+		Expect(k8sClient.Create(ctx, newInternalObject("EtcdNodeDeployment", map[string]any{
+			"revisionHistoryLimit": int64(0),
+		}))).To(Succeed())
+	})
+})

@@ -34,9 +34,11 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -60,6 +62,9 @@ import (
 //   - machines is the command runner that the operator is given instead of SSH. It records the commands.
 //   - etcdCluster is the etcd client that the operator is given. Tests decide what it answers.
 //
+// A fourth fake, writes, sits between the operator and the API server and lets a test make the operator's writes
+// fail.
+//
 // What the fakes cannot show, such as a virtual machine that boots and an etcd that forms a cluster, is left to the
 // end-to-end tests.
 
@@ -73,6 +78,7 @@ var (
 	kubeVirt    *fakeKubeVirt
 	machines    *fakeCommandRunner
 	etcdCluster *fakeEtcdClient
+	writes      *fakeWriteFailures
 )
 
 func TestAPIs(t *testing.T) {
@@ -110,10 +116,20 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
+	// The suite does not turn on the recovery of panics that main.go turns on, so that a panic in a reconciler
+	// ends the suite, and every test shows that the operator does not panic.
+	writes = newFakeWriteFailures()
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:         scheme,
 		LeaderElection: false,
 		Metrics:        metricsserver.Options{BindAddress: "0"},
+		NewClient: func(config *rest.Config, options client.Options) (client.Client, error) {
+			c, err := client.NewWithWatch(config, options)
+			if err != nil {
+				return nil, err
+			}
+			return interceptor.NewClient(c, writes.Funcs()), nil
+		},
 	})
 	Expect(err).NotTo(HaveOccurred())
 

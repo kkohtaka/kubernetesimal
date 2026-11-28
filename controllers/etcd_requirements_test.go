@@ -28,9 +28,11 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -642,6 +644,134 @@ var _ = Describe("An etcd cluster", func() {
 				HaveField("ReadyReplicas", int32(0)),
 				HaveField("Phase", kubernetesimalv1alpha1.EtcdPhaseCreating),
 			))
+		})
+	})
+
+	Describe("staying in operation", func() {
+		// The operator tries a failed write again after a delay that grows with every failure, so the first few
+		// attempts follow each other within a second.
+		attemptsOf := func(kind string) func() int {
+			return func() int { return writes.Attempts(namespace, kind) }
+		}
+
+		for _, kind := range []string{"Service", "EtcdNodeDeployment"} {
+			It(fmt.Sprintf("[ETCD-080] tries again until it can create a %s, and keeps its status meanwhile", kind), func() {
+				writes.Fail(namespace, kind)
+				e := newEtcd(ctx, namespace)
+
+				By("failing to create the object, more than once")
+				Eventually(attemptsOf(kind), timeout, interval).Should(BeNumerically(">=", 2))
+				before, err := etcdStatus(ctx, e)()
+				Expect(err).NotTo(HaveOccurred())
+				// What the operator did before the write that fails is in the status.
+				Expect(before.CACertificateRef).NotTo(BeNil())
+				Expect(before.SSHPrivateKeyRef).NotTo(BeNil())
+
+				attempts := writes.Attempts(namespace, kind)
+				Eventually(attemptsOf(kind), timeout, interval).Should(BeNumerically(">=", attempts+2))
+				Expect(etcdStatus(ctx, e)()).To(Equal(before))
+
+				By("creating the object once it can, without a change to the Etcd object")
+				writes.Reset()
+				waitForNode(ctx, namespace)
+			})
+		}
+
+		It("[ETCD-080] tries again until it can update its members, and keeps its status meanwhile", func() {
+			e := newEtcd(ctx, namespace)
+			waitForNode(ctx, namespace)
+			before, err := etcdStatus(ctx, e)()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(before.ServiceRef).NotTo(BeNil())
+
+			By("failing to apply a new version to the members, more than once")
+			writes.Fail(namespace, "EtcdNodeDeployment")
+			var current kubernetesimalv1alpha1.Etcd
+			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(e), &current)).To(Succeed())
+			patch := client.MergeFrom(current.DeepCopy())
+			version := "3.5.6"
+			current.Spec.Version = &version
+			Expect(k8sClient.Patch(ctx, &current, patch)).To(Succeed())
+
+			Eventually(attemptsOf("EtcdNodeDeployment"), timeout, interval).Should(BeNumerically(">=", 4))
+			Expect(etcdStatus(ctx, e)()).To(Equal(before))
+
+			By("applying the version once it can, without another change to the Etcd object")
+			writes.Reset()
+			Eventually(func() (string, error) {
+				var deployment kubernetesimalv1alpha1.EtcdNodeDeployment
+				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(e), &deployment)
+				return deployment.Spec.Template.Spec.Version, err
+			}, timeout, interval).Should(Equal("3.5.6"))
+		})
+
+		It("[ETCD-081] becomes ready while the machine of another cluster does not answer", func() {
+			By("having a cluster whose machine accepts a command and never answers it")
+			stuckNamespace := newNamespace(ctx)
+			kubeVirt.Hold(stuckNamespace)
+			newEtcd(ctx, stuckNamespace)
+			_, stuckAddress := waitForNode(ctx, stuckNamespace)
+
+			release := make(chan struct{})
+			defer close(release)
+			machines.Answer(func(call commandCall) error {
+				if call.Address == stuckAddress {
+					<-release
+					return errors.New("unable to complete a command: the test let go of the machine")
+				}
+				return nil
+			})
+			Expect(kubeVirt.Release(ctx, stuckNamespace)).To(Succeed())
+			Eventually(func() []commandCall { return machines.CallsTo(stuckAddress) }, timeout, interval).
+				ShouldNot(BeEmpty())
+
+			By("creating another cluster")
+			e := newEtcd(ctx, namespace)
+			node, address := waitForNode(ctx, namespace)
+			memberAddress := fmt.Sprintf("%s:2379", address)
+			answerForMember(memberAddress)
+			Eventually(nodeStatus(ctx, node), timeout, interval).
+				Should(WithTransform((*kubernetesimalv1alpha1.EtcdNodeStatus).IsReady, BeTrue()))
+			answerForCluster(node, memberAddress, getClusterAddress(ctx, e))
+
+			Eventually(reconciledStatus(ctx, e), timeout, time.Second).Should(SatisfyAll(
+				haveReady(corev1.ConditionTrue),
+				HaveField("Phase", kubernetesimalv1alpha1.EtcdPhaseRunning),
+			))
+
+			// The first cluster was stuck the whole time.
+			Expect(machines.CallsTo(stuckAddress)).To(HaveLen(1))
+		})
+
+		It("gives the downloads in the scripts of a machine a time limit", func() {
+			newEtcd(ctx, namespace)
+			node, _ := waitForNode(ctx, namespace)
+			config := getCloudConfig(ctx, getVirtualMachine(ctx, node))
+
+			files, ok := config["write_files"].([]any)
+			Expect(ok).To(BeTrue(), "the cloud-config writes no files")
+			var scripts int
+			for _, entry := range files {
+				file, ok := entry.(map[string]any)
+				Expect(ok).To(BeTrue())
+				path, _ := file["path"].(string)
+				if !strings.HasSuffix(path, ".sh") {
+					continue
+				}
+				scripts++
+				content, _ := file["content"].(string)
+				script, err := base64.StdEncoding.DecodeString(content)
+				Expect(err).NotTo(HaveOccurred())
+
+				for _, line := range strings.Split(string(script), "\n") {
+					if !strings.Contains(line, "curl ") {
+						continue
+					}
+					Expect(line).To(ContainSubstring("--connect-timeout "), "in %s", path)
+					Expect(line).To(ContainSubstring("--max-time "), "in %s", path)
+				}
+			}
+			Expect(scripts).To(Equal(3))
 		})
 	})
 })
